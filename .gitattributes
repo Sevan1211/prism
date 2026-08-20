@@ -1,0 +1,10 @@
+# Normalize text while preserving Markdown's semantic two-space hard breaks.
+* text=auto
+*.md text whitespace=-trailing-space
+
+# Never apply text conversions to source documents or image assets.
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary

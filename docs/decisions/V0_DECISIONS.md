@@ -1,0 +1,136 @@
+# PRISM v0 decision record
+
+**Decision session:** 2026-08-19  
+**Status:** confirmed unless explicitly marked open  
+**Owner:** project owner
+
+This is the current source of truth for PRISM’s v0 product and research direction. Evidence requirements in `AGENTS.md` and the validation plan still govern implementation; an owner preference does not convert an experimental mechanism into an established claim.
+
+## 1. Governing vision
+
+- PRISM’s end goal is a genuinely new, cutting-edge way to absorb and learn information quickly—not merely a better reader or RSVP clone.
+- Durable, transferable learning always outranks raw display speed.
+- The primary proof of learning is the ability to explain the governing idea accurately and apply it to a new case.
+- Conceptual transfer normally outranks exact recall. Exact wording, values, symbols, definitions, and ordered steps remain required when precision is inherent to the content.
+- The central durability horizon is seven days. A 24-hour test is an interim diagnostic.
+- The initial product promise is staged: understand in one session, then verify retention and application seven days later.
+- The bold long-range research target is equal durable learning in half the active time. This is an aspiration, not a public claim.
+- PRISM may decide that normal self-paced source reading is the best representation for a passage or learner.
+
+## 2. Core experience
+
+- The one-screen canvas is the preferred north star, not an absolute restriction. Source inspection, concept maps, editing, and assessment may expand when that materially supports learning.
+- Activity is adaptive by mode:
+  - Preview is mostly watchable and supports orientation;
+  - Understand uses sparse conceptual checks;
+  - Study uses explanation, application, and delayed review.
+- Checks occur adaptively at meaningful conceptual boundaries rather than on a fixed clock.
+- Users may skip checks or review, but the outcome is relabeled as exposure rather than verified learning.
+- Pace/depth uses a continuous **Faster ↔ Deeper** control, with Auto available as the learning-first default policy.
+- In Understand or Study, PRISM automatically slows when evidence shows the chosen pace is exceeding the learner’s current processing capacity. A user who wants to continue without the durable-learning guardrail can move to the explicitly gist-oriented Preview contract.
+- Narration is optional and complementary; it should not duplicate identical on-screen prose by default.
+- Notes, highlights, and questions are available without leaving the flow, with deeper editing after the stream.
+- **Decision updated 2026-08-20:** the visual direction is **warm optical editorial**: mineral paper, near-black ink, restrained vermilion, and spectral blue. The PRISM mark remains; generic dark AI-dashboard styling, background text, decorative grids, and excessive card containers do not.
+- The desktop player keeps the most recent relevant source visual on the left, resets it at a section boundary, and places the preceding semantic frame below the active frame for quick skimming.
+- Front matter and back matter remain searchable and source-visible but are skipped by semantic playback by default.
+- Progress feedback shows evidence-based mastery and review strength, without addictive streak pressure.
+- The target session length is 15–30 minutes.
+
+## 3. Initial user, content, and context
+
+- The project owner is the first primary and longitudinal user.
+- The first content domain is computing, with an initial emphasis on databases, computer networks, distributed systems, algorithms, operating systems, Python, data engineering, cloud systems, and AI-related technical material.
+- The initial benchmark uses three structurally different concepts rather than treating one subject as the permanent product boundary: database transaction isolation, TCP congestion control, and distributed consensus.
+- Initial sessions are focused Windows laptop/desktop study sessions.
+- English is the only v0 language.
+- General WCAG access is required, but no disability-specific or clinical research track is in v0.
+- Defer advanced mathematics and high-stakes medical transformation. Ordinary code and technical prose are not categorically excluded.
+- Begin validation with bounded computing passages or sections of roughly 800–2,000 words that have testable conceptual, procedural, or causal structure.
+- A source file may be much larger than the experimental passage. Large born-digital PDFs and full textbooks are a first-class ingestion and navigation target; PRISM creates bounded learning units from them rather than treating a whole book as one prompt or one stream.
+
+## 4. Ingestion and transformation
+
+- v0 accepts pasted text, `.txt`, Markdown, and clean text-based PDFs.
+- Clean, born-digital full-textbook PDFs are an explicit product target. Import, indexing, and transformation must be resumable, page-aware, and usable before the entire book has been deeply transformed.
+- “Support all PDFs” is the compatibility mission, not permission to silently produce unreliable output. Scanned, mixed, encrypted, malformed, equation-heavy, and layout-ambiguous PDFs move through capability and confidence gates.
+- Scanned/OCR-heavy or structurally ambiguous PDFs remain out of scope until extraction quality and provenance are reliable.
+- Use public-domain/open-license passages plus private user uploads that are not redistributed.
+- Use one canonical source per lesson in v0. Multi-source synthesis comes later.
+- PRISM may simplify and reorganize wording through explicit, reversible layers while preserving the canonical source and source spans.
+- Generated examples and analogies may appear automatically as clearly labeled drafts. Verified lessons still require the appropriate review gate.
+- Generated diagrams may show both explicit source relations and clearly marked PRISM inferences.
+- Produce a fast initial draft, then refine representations and quality checks without blocking basic use.
+- On import, preserve and hash the complete source, recover and quality-check its structure, and build local search plus section/concept indexes. Generate deep semantic frames only for the section the learner opens; optional background refinement remains bounded by the learner's privacy and cost policy.
+- The owner can edit frames, questions, diagrams, and corrections as versioned personal overlays; the canonical source is never rewritten.
+- When grounding fails, fall back to the source representation and explain why.
+- Compact provenance badges appear on frames, with detailed spans and generation information on demand.
+- Outside knowledge may appear only in a separate, sourced enrichment layer.
+
+## 5. Personalization and learner state
+
+- The owner accepts a one-to-three-minute first-use calibration.
+- v0 has a persistent local profile without an account.
+- v1 may add an account and encrypted synchronization.
+- Adaptation reasons are available on request while the live canvas remains calm.
+- v0 may use correctness, confidence, response time, pauses, rewinds, replays, browser focus state, and prior learning history.
+- Future opt-in sensor research starts with gaze/eye-tracked displays, not EEG or broader biosignals.
+- Long-term learning history is local first, with optional encrypted sync later.
+- PRISM should eventually maintain a personal knowledge graph across sources and courses for prerequisites, connections, representation selection, and review scheduling.
+- Explicitly opted-in, anonymized interaction data may improve future models. Personal learning data must never be sold.
+
+## 6. AI and assessment policy
+
+- v0 may use paid cloud AI APIs under a monthly cap of **$25**.
+- Cloud transformation is approved separately for each private source. A PDF stays local unless the learner explicitly allows the disclosed source spans or page regions to be sent for that source; importing or indexing a file never grants cloud permission, and no blanket global approval substitutes for source-level consent. A usable local-only path remains available.
+- Keep providers replaceable, cache safe reusable work, and expose cost during development.
+- Lessons, profiles, playback, and tests remain local; approved cloud AI may receive only the content necessary for generation.
+- Human review is acceptable before a lesson receives `verified` status.
+- Practice and adaptive-check questions may be generated automatically with grounding and answerability checks.
+- Questions used as outcome measures for performance claims or controlled experiments must still be reviewed, versioned, and piloted. Automatically generated practice items cannot validate their own generator.
+- AI may choose among representations only within content, source-fidelity, accessibility, and author/owner guardrails.
+
+## 7. Research and claims
+
+- The owner will use PRISM and return for both 24-hour and 7-day tests.
+- Initial testing is owner-only; no general population claim may be inferred from it.
+- If normal reading wins, follow the evidence and change direction or retain only the successful mechanisms.
+- Preserve all positive, null, and negative results privately.
+- Public quantitative learning claims require a preregistered controlled study with fair baselines and delayed outcomes.
+- Academic publication or research collaboration becomes a goal only after strong personal pilot evidence.
+- The owner does not want in-person human testing. Later controlled studies may recruit consented remote asynchronous adult participants after the owner pilot is strong enough to justify them.
+
+## 8. Product, privacy, and ownership
+
+- PRISM is initially a personal research project.
+- The repository and early application remain private.
+- Explore potential research/IP protection with qualified advice before public disclosure; no patentability assumption is made.
+- If commercialized, serve individual learners first.
+- The initial team is the owner plus AI tools.
+- The realistic owner time budget is 5–10 hours per week for the next three months.
+- PRISM remains learner-only. Instructor dashboards, assignments, classroom administration, course-author workflows, and institutional analytics are not on the roadmap.
+- The experience remains reading-centered. Sparse checks diagnose and repair learning, but PRISM must not evolve into a quiz site, flashcard site, or course-management product.
+
+## 9. Runtime and delivery
+
+- v0 is a local Windows web application with optional approved cloud AI generation.
+- The interaction and experiment contracts are sufficiently defined to propose the local-first React/TypeScript/Vite plus Python/FastAPI/SQLite stack in `../architecture/TECH_STACK.md`. Accept it only after the first recovery-tested PDF-to-stream vertical slice.
+- First tests support Windows laptop/desktop only.
+- Generated lesson packages, the player, profile, and assessments work offline after preparation.
+- Export versioned research JSON, a readable progress report, and optional study/review cards.
+- Eye-tracked displays are the preferred post-desktop research platform if core evidence is strong.
+
+## 10. Owner discovery status
+
+The initial owner discovery is complete:
+
+1. Computing and AI-related PDFs are the first domain family, without narrowing the eventual format mission.
+2. Later remote asynchronous studies are acceptable; in-person studies are not required.
+3. PRISM is learner-only and reading-centered.
+
+The initial implementation-policy questions are resolved:
+
+1. cloud use requires per-source approval;
+2. full books are indexed locally, with deep section generation on demand;
+3. the first benchmarks cover transaction isolation, TCP congestion control, and distributed consensus.
+
+The optional local generative-model benchmark and future choices are tracked in `OPEN_QUESTIONS.md`.

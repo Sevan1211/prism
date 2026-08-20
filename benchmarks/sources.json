@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "id": "database-transaction-isolation",
+      "topic": "Database transaction isolation",
+      "title": "Essential Aspects of Physical Design and Implementation of Relational Databases - Chapter 6: Transaction Management",
+      "authors": ["Tatiana Malyuta", "Ashwin Satyanarayana"],
+      "publisher": "CUNY Academic Works",
+      "landing_url": "https://academicworks.cuny.edu/ny_oers/31/",
+      "download_url": "https://academicworks.cuny.edu/cgi/viewcontent.cgi?article=1037&context=ny_oers",
+      "license": "CC BY-NC-SA 4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "local_filename": "transaction-management-cuny.pdf",
+      "acquisition": "manual_required",
+      "selection": {
+        "status": "pending_visual_page_selection",
+        "target_words": [800, 2000],
+        "focus": "isolation, schedules, anomalies, and concurrency-control tradeoffs"
+      }
+    },
+    {
+      "id": "network-tcp-congestion-control",
+      "topic": "TCP congestion control",
+      "title": "Computer Networks: A Systems Approach, Release 6.1",
+      "authors": ["Larry Peterson", "Bruce Davie"],
+      "publisher": "Systems Approach",
+      "landing_url": "https://github.com/SystemsApproach/book",
+      "download_url": "https://github.com/SystemsApproach/book/releases/download/v6.1/book.pdf",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "local_filename": "computer-networks-systems-approach-v6.1.pdf",
+      "sha256": "e4ddb12a63f9ecebcc3504a0c3e8d9d5d4b89f1ffa600011f15efef5766ff90f",
+      "acquisition": "downloaded",
+      "selection": {
+        "pdf_pages": [308, 311],
+        "printed_pages": [304, 307],
+        "section": "6.3.2 Slow Start",
+        "status": "visually_reviewed",
+        "focus": "exponential startup, congestion threshold, additive increase, multiplicative decrease, and timeout response"
+      }
+    },
+    {
+      "id": "distributed-consensus",
+      "topic": "Distributed consensus",
+      "title": "Distributed Systems - University of Cambridge Computer Science Tripos, Part IB",
+      "authors": ["Martin Kleppmann"],
+      "publisher": "University of Cambridge",
+      "landing_url": "https://www.cst.cam.ac.uk/teaching/2425/ConcDisSys/",
+      "download_url": "https://www.cl.cam.ac.uk/teaching/2425/ConcDisSys/dist-sys-notes.pdf",
+      "license": "CC BY-SA",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "local_filename": "distributed-systems-cambridge-2024-25.pdf",
+      "sha256": "d30dd55b22aeb9f90fd93e00d6a4b2478fd5d8058b9925c0e4bc000671d372fe",
+      "acquisition": "downloaded",
+      "selection": {
+        "pdf_pages": [69, 72],
+        "printed_pages": [69, 72],
+        "section": "7.1 Introduction to consensus",
+        "status": "visually_reviewed",
+        "focus": "consensus, total-order broadcast, safety and liveness, system models, quorums, and leader election"
+      }
+    }
+  ]
+}

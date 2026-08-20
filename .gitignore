@@ -1,0 +1,47 @@
+# Local application state and source material
+.prism-data/
+benchmarks/downloads/*.pdf
+!benchmarks/downloads/README.md
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+build/
+
+# JavaScript
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local tooling
+tmp/
+.env
+.env.*
+!.env.example
+*.log
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Desktop.ini
+Thumbs.db
