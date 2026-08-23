@@ -8,10 +8,8 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen.canvas import Canvas
 
 
-@pytest.fixture
-def sample_pdf(tmp_path: Path) -> Iterator[Path]:
-    path = tmp_path / "tcp-slow-start-fixture.pdf"
-    canvas = Canvas(str(path), pagesize=letter)
+def create_sample_pdf(path: Path) -> Path:
+    canvas = Canvas(str(path), pagesize=letter, invariant=1, pageCompression=0)
     width, height = letter
     for page_number in range(1, 4):
         canvas.setFont("Helvetica-Bold", 9)
@@ -57,4 +55,10 @@ def sample_pdf(tmp_path: Path) -> Iterator[Path]:
         canvas.drawCentredString(width / 2, 24, str(page_number))
         canvas.showPage()
     canvas.save()
+    return path
+
+
+@pytest.fixture
+def sample_pdf(tmp_path: Path) -> Iterator[Path]:
+    path = create_sample_pdf(tmp_path / "tcp-slow-start-fixture.pdf")
     yield path

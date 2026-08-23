@@ -1,0 +1,137 @@
+{
+  "fixture_schema_version": 1,
+  "source_sha256": "7d7a52619f26bc8e31d807238e6a110e1fdb051dfc55fc7d16eddb34136ae05d",
+  "schema_version": 2,
+  "compiler_version": "source-visual-semantic-v3-validated",
+  "package_id": "lesson_196d0ad7d580af5bf5ae",
+  "package_hash": "196d0ad7d580af5bf5ae3eafd5639a917728a239913adc6c1b19fa07f9faff11",
+  "title": "TCP Slow Start",
+  "page_range": [
+    1,
+    2
+  ],
+  "verification_status": "draft",
+  "claim_count": 13,
+  "frame_count": 13,
+  "visuals": [
+    {
+      "id": "el_7d7a52619f26_0002_717f75e25771",
+      "page_number": 2,
+      "kind": "figure",
+      "bbox_normalized": [
+        0.209967,
+        0.429924,
+        0.786765,
+        0.660985
+      ],
+      "caption": "Figure 1.1.: Congestion window growth across acknowledged rounds.",
+      "accessible_text": "Figure 1.1.: Congestion window growth across acknowledged rounds."
+    }
+  ],
+  "frames": [
+    {
+      "id": "frame_b9778601f1d368dd88",
+      "type": "section",
+      "text": "1.",
+      "active_visual_id": null,
+      "page_number": 1,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_c91a414a90096a9bf6",
+      "type": "section",
+      "text": "TCP Slow Start",
+      "active_visual_id": null,
+      "page_number": 1,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_1b893a9f959c8efd4c",
+      "type": "causal",
+      "text": "TCP begins with a small congestion window because the sender does not yet know the path capacity.",
+      "active_visual_id": null,
+      "page_number": 1,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_1ce05e424c00daa3d7",
+      "type": "proposition",
+      "text": "Each acknowledged round increases the amount of data in flight, so growth is initially exponential.",
+      "active_visual_id": null,
+      "page_number": 1,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_4021fd868810671dea",
+      "type": "proposition",
+      "text": "When loss occurs, the sender reduces the window and records a threshold for later additive increase.",
+      "active_visual_id": null,
+      "page_number": 1,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_755b212c48e9c31725",
+      "type": "contrast",
+      "text": "However, a timeout does not prove that every packet was lost; it is a conservative congestion signal.",
+      "active_visual_id": null,
+      "page_number": 1,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_1c1b6ed5ae06b5fc62",
+      "type": "section",
+      "text": "2.",
+      "active_visual_id": null,
+      "page_number": 2,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_cb74b25e6fa4eb85bf",
+      "type": "section",
+      "text": "TCP Slow Start",
+      "active_visual_id": null,
+      "page_number": 2,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_440948d3cdd044ceff",
+      "type": "causal",
+      "text": "TCP begins with a small congestion window because the sender does not yet know the path capacity.",
+      "active_visual_id": null,
+      "page_number": 2,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_a42c3aa952fd31cc48",
+      "type": "proposition",
+      "text": "Each acknowledged round increases the amount of data in flight, so growth is initially exponential.",
+      "active_visual_id": null,
+      "page_number": 2,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_ab162c6eec75a1c357",
+      "type": "proposition",
+      "text": "When loss occurs, the sender reduces the window and records a threshold for later additive increase.",
+      "active_visual_id": null,
+      "page_number": 2,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_1a5e317d686cc8b3da",
+      "type": "contrast",
+      "text": "However, a timeout does not prove that every packet was lost; it is a conservative congestion signal.",
+      "active_visual_id": null,
+      "page_number": 2,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_b777157f87b2f24c27",
+      "type": "integration",
+      "text": "Figure 1.1.: Congestion window growth across acknowledged rounds.",
+      "active_visual_id": "el_7d7a52619f26_0002_717f75e25771",
+      "page_number": 2,
+      "auto_advance_allowed": false
+    }
+  ]
+}

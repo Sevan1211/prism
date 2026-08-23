@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 from typing import BinaryIO
 
-from prism_api.compiler import compile_lesson
+from prism_api.compiler import compile_lesson, validate_lesson_package
 from prism_api.config import Settings
 from prism_api.models import (
     CompileLessonRequest,
@@ -170,6 +170,7 @@ class SourceService:
             page_end=request.page_end,
             title=request.title,
         )
+        validate_lesson_package(package, elements, expected_source=source)
         payload = package.model_dump(mode="json")
         self.store.save_lesson(payload)
         return package

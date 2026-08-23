@@ -16,13 +16,13 @@ Implemented in the current slice:
 - resumable page indexing into SQLite with parser-version invalidation;
 - body/front/back document-region classification that preserves navigation material for search while skipping it in playback;
 - source spans and lazy, cached figure/table assets with one-based page numbers and normalized regions;
-- deterministic, source-verbatim draft semantic frames with persistent source-visual state;
-- a keyboard-accessible semantic-player prototype with pause, step, rewind, downward prior-frame context, a preliminary pacing control, reduced motion, and inline Source mode;
+- deterministic, source-verbatim draft semantic frames whose complete instructional payload is hashed and validated against exact indexed source spans before storage;
+- a responsive four-mode learning flow with Preview, Understand, Study, and a PDF-backed Reader; reversible navigation, exact source evidence, source visuals, bundle receipts, keyboard focus recovery, and reduced-motion behavior are implemented;
 - append-only research events and versioned JSON export through the local API;
 - local-only source policy with no upload-time blanket cloud permission;
 - generated OpenAPI and TypeScript contracts plus locked Python and npm dependencies.
 
-The slice has imported and visually checked the 489-page TCP benchmark textbook. It supports reliable embedded text plus lazy, source-faithful figure/table regions, and skips detected front/back matter during playback while preserving it for search and Source view. The reviewed next step is an enhanced static Source Reader and a manually authored transaction-isolation package for **Traceable Semantic Relay (TSR)**: Anchor → Advance → Integrate → Repair. TSR is an **Experimental** mechanism, not a validated learning method. OCR, table-cell/equation semantics, generated explanations or visuals, cloud AI, adaptive learning claims, and efficacy conclusions are not implemented or validated.
+The slice has imported and visually checked the 489-page TCP benchmark textbook. It supports reliable embedded text plus lazy, source-faithful figure/table regions, and skips detected front/back matter during playback while preserving it for search and Source view. A frozen synthetic TCP fixture now locks compiler identities, frame order, exact text, visual binding, source locations, and high-inspection autoplay behavior. The next learning-content milestone remains a manually authored transaction-isolation package for **Traceable Semantic Relay (TSR)**: Anchor → Advance → Integrate → Repair. TSR is an **Experimental** mechanism, not a validated learning method. Full Source Reader search/overlay behavior, OCR, table-cell/equation semantics, generated explanations or visuals, cloud AI, adaptive learning claims, and efficacy conclusions are not implemented or validated.
 
 ## Run locally on Windows
 

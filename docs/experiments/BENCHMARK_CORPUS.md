@@ -34,6 +34,8 @@ The TCP slow-start window is the first parser/player fixture because it combines
 
 Visual review of PDF pages 309 and 311 confirmed that the lazy crops preserve the complete slow-start packet diagram and the congestion-window/time chart without surrounding prose. The same review rejected a boxed code listing that initially resembled a vector figure and rejected prose references such as “Figure 6.11 traces…” as captions.
 
+**Reproducible compiler-gate result recorded 2026-08-23:** a deterministic, synthetic three-page TCP fixture and checked-in contract-v2 golden manifest now freeze source bytes, the compiled package hash, ordered frame text and types, page bindings, the source-visual region, and the rule that a high-inspection visual frame cannot auto-advance. Seeded failures cover mismatched source text, orphaned claims and prerequisites, missing accessible visual text, content-hash drift, and rejection before an existing valid lesson can be replaced. This is an offline regression gate for compiler integrity; it is not a substitute for the manually reviewed real-textbook overlays or the future transaction-isolation learning fixture.
+
 ## Acceptance blueprint
 
 Before a benchmark becomes an efficacy passage:

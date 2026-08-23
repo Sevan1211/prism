@@ -51,9 +51,9 @@ The plan begins from implemented code, not the dossier’s greenfield scaffold.
 | Source bytes | Streamed import and content-addressed storage | **Preserve and harden** |
 | Clean-PDF indexing | Page-grounded embedded text, regions, front/back classification, lazy figure/table crops | **Implemented slice; widen only through fixtures** |
 | Resumption | Page-by-page progress and no-duplicate recovery tests | **Implemented slice; add process/artifact fault cases** |
-| Compiler | Deterministic source-verbatim semantic chunks and draft package | **Prototype to supersede with package contract v2** |
-| Player | Back/Next, optional timer playback, dwell multiplier, previous frame, source panel, source visual, events | **Prototype; TSR behavior and accessibility incomplete** |
-| Source surface | Inline PDF attachment/source panel | **Insufficient; build enhanced Source Reader** |
+| Compiler | Deterministic source-verbatim chunks; full-payload hash; pre-storage span, graph, visual, accessibility, and identity validation; frozen synthetic golden manifest | **Validated draft baseline; contract-v2 claims, relations, review states, and publication remain** |
+| Player | Responsive Preview, Understand, Study, and Reader flow; reversible frames, exact source evidence, source visuals, Faster/Auto/Deeper receipts, focus return, reduced motion, and events | **First TSR slice implemented; persistence, transcript, remapping, and full accessibility/recovery gates remain** |
+| Source surface | PDF-backed Reader for the active frame with exact page and extracted span | **First return path implemented; structure navigation, search, overlays, inspection, and deletion remain** |
 | Provenance | Page, region, source span, parser and package identities | **Partial; add clause, pass, quality, and permission provenance** |
 | Events | Append-only local events and JSON export | **Partial; version schema and derive active time** |
 | Learning loop | No rubric-scored prompt, repair, delayed evidence, or review queue | **Missing** |
