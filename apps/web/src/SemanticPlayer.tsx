@@ -4,16 +4,42 @@ import type { LessonPackage, ResearchEvent, SemanticFrame, SourceVisual } from '
 
 const TERM_PUNCTUATION = /[^A-Za-z0-9_()]/g
 
+type PlayerMode = 'reader' | 'preview' | 'understand' | 'study'
+type LearningBundle = 'faster' | 'auto' | 'deeper'
+
 interface SemanticPlayerProps {
   lesson: LessonPackage
   onExit: () => void
 }
 
+const MODES: ReadonlyArray<{ id: PlayerMode; label: string }> = [
+  { id: 'reader', label: 'Reader' },
+  { id: 'preview', label: 'Preview' },
+  { id: 'understand', label: 'Understand' },
+  { id: 'study', label: 'Study' },
+]
+
+const BUNDLES: Record<LearningBundle, { multiplier: number; receipt: string }> = {
+  faster: {
+    multiplier: 0.78,
+    receipt: 'Faster · required frames stay intact · shorter optional transitions',
+  },
+  auto: {
+    multiplier: 1,
+    receipt: 'Auto · learner-stepped · full source context available',
+  },
+  deeper: {
+    multiplier: 1.32,
+    receipt: 'Deeper · longer context dwell · persistent terms remain visible',
+  },
+}
+
 export function SemanticPlayer({ lesson, onExit }: SemanticPlayerProps) {
   const [index, setIndex] = useState(0)
+  const [mode, setMode] = useState<PlayerMode>('understand')
   const [playing, setPlaying] = useState(false)
-  const [pace, setPace] = useState(1)
-  const [sourceOpen, setSourceOpen] = useState(false)
+  const [bundle, setBundle] = useState<LearningBundle>('auto')
+  const [sourceEvidenceOpen, setSourceEvidenceOpen] = useState(false)
   const [reducedMotion, setReducedMotion] = useState(() =>
     window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   )
@@ -22,6 +48,7 @@ export function SemanticPlayer({ lesson, onExit }: SemanticPlayerProps) {
   const previousFrame = index > 0 ? lesson.frames[index - 1] : null
   const nextFrame = index < lesson.frames.length - 1 ? lesson.frames[index + 1] : null
   const frameIdRef = useRef<string | undefined>(frame?.id)
+  const sourceTriggerRef = useRef<HTMLButtonElement>(null)
   const visualById = useMemo(
     () => new Map(lesson.visuals.map((visual) => [visual.id, visual])),
     [lesson.visuals],
@@ -67,13 +94,25 @@ export function SemanticPlayer({ lesson, onExit }: SemanticPlayerProps) {
     (direction: -1 | 1, eventType: 'step_back' | 'step_forward') => {
       setIndex((current) => Math.max(0, Math.min(lesson.frames.length - 1, current + direction)))
       setPlaying(false)
+      setSourceEvidenceOpen(false)
       emit(eventType)
     },
     [emit, lesson.frames.length],
   )
 
-  const toggleSource = useCallback(() => {
-    setSourceOpen((current) => {
+  const changeMode = useCallback(
+    (nextMode: PlayerMode) => {
+      setPlaying(false)
+      setSourceEvidenceOpen(false)
+      if (mode !== 'reader' && nextMode === 'reader') emit('source_opened')
+      if (mode === 'reader' && nextMode !== 'reader') emit('source_closed')
+      setMode(nextMode)
+    },
+    [emit, mode],
+  )
+
+  const toggleSourceEvidence = useCallback(() => {
+    setSourceEvidenceOpen((current) => {
       emit(current ? 'source_closed' : 'source_opened')
       return !current
     })
@@ -93,15 +132,19 @@ export function SemanticPlayer({ lesson, onExit }: SemanticPlayerProps) {
   }, [emit, frame?.active_visual_id, index])
 
   useEffect(() => {
-    if (!playing || sourceOpen || !frame || !nextFrame) return
-    const dwell = Math.max(frame.minimum_dwell_ms, frame.initial_dwell_ms * pace)
+    if (mode !== 'understand' || !playing || sourceEvidenceOpen || !frame || !nextFrame) return
+    if (!frame.auto_advance_allowed) return
+    const dwell = Math.max(
+      frame.minimum_dwell_ms,
+      frame.initial_dwell_ms * BUNDLES[bundle].multiplier,
+    )
     const timer = window.setTimeout(() => {
       const following = index + 1
       setIndex(following)
       if (following === lesson.frames.length - 1) setPlaying(false)
     }, dwell)
     return () => window.clearTimeout(timer)
-  }, [frame, index, lesson.frames.length, nextFrame, pace, playing, sourceOpen])
+  }, [bundle, frame, index, lesson.frames.length, mode, nextFrame, playing, sourceEvidenceOpen])
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -118,7 +161,7 @@ export function SemanticPlayer({ lesson, onExit }: SemanticPlayerProps) {
     const handleKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (target?.matches('input, select, textarea, button')) return
-      if (event.key === ' ') {
+      if (event.key === ' ' && mode === 'understand' && frame?.auto_advance_allowed && nextFrame) {
         event.preventDefault()
         setPlaying((current) => !current)
       } else if (event.key === 'ArrowLeft') {
@@ -126,234 +169,462 @@ export function SemanticPlayer({ lesson, onExit }: SemanticPlayerProps) {
       } else if (event.key === 'ArrowRight') {
         move(1, 'step_forward')
       } else if (event.key.toLowerCase() === 's') {
-        toggleSource()
+        changeMode('reader')
       }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [move, toggleSource])
-
-  const paceLabel = pace < 0.9 ? 'Faster' : pace > 1.1 ? 'Deeper' : 'Auto'
+  }, [changeMode, frame?.auto_advance_allowed, mode, move, nextFrame])
 
   if (!frame) {
-    return <main className="player-shell"><p>This lesson contains no playable frames.</p></main>
+    return (
+      <main className="flow-player empty-player">
+        <p>This lesson contains no playable frames.</p>
+        <button type="button" onClick={onExit}>Return to library</button>
+      </main>
+    )
   }
 
+  const progress = Math.round(((index + 1) / lesson.frames.length) * 100)
+
   return (
-    <main className={`player-shell ${reducedMotion ? 'reduce-motion' : ''}`}>
-      <header className="player-header">
-        <button className="wordmark compact" type="button" onClick={onExit} aria-label="Return to library">
+    <main className={`flow-player ${reducedMotion ? 'reduce-motion' : ''}`}>
+      <header className="flow-player-header">
+        <button className="wordmark compact flow-wordmark" type="button" onClick={onExit} aria-label="Return to library">
           <span className="prism-mark" aria-hidden="true" />
           <span>PRISM</span>
         </button>
-        <div className="lesson-identity">
-          <span>{lesson.title}</span>
-          <small>{frame.section_title ?? 'Source-grounded stream'}</small>
+        <div className="flow-document-identity">
+          <strong>{lesson.title}</strong>
+          <span>{lesson.source.original_name} · {frame.section_title ?? `pages ${lesson.page_start}–${lesson.page_end}`}</span>
         </div>
-        <button
-          className="source-toggle"
-          type="button"
-          onClick={toggleSource}
-          aria-expanded={sourceOpen}
-          aria-controls="source-context"
-        >
-          {sourceOpen ? 'Close source' : 'Show source'} <kbd>S</kbd>
-        </button>
+        <div className="flow-local-state"><span aria-hidden="true" />Local source</div>
       </header>
 
-      <div className={`player-workspace ${sourceOpen ? 'with-source' : ''}`}>
-        <section className="semantic-stage" aria-label="Semantic stream">
-          <div className="frame-counter">
-            <span>{String(index + 1).padStart(2, '0')}</span>
-            <div className="progress-track" aria-hidden="true">
-              <span style={{ width: `${((index + 1) / lesson.frames.length) * 100}%` }} />
-            </div>
-            <span>{String(lesson.frames.length).padStart(2, '0')}</span>
-          </div>
+      <nav className="flow-mode-nav" aria-label="Learning mode">
+        {MODES.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-pressed={mode === item.id}
+            onClick={() => changeMode(item.id)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
 
-          <div className="learning-canvas">
-            <VisualRail
-              visual={activeVisual}
-              sourceId={lesson.source.id}
-              sectionTitle={frame.section_title}
-            />
-
-            <div className="stream-column">
-              <article
-                className="active-frame"
-                key={reducedMotion ? 'static-frame' : frame.id}
-                tabIndex={-1}
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                <div className="frame-meta">
-                  <span>{frame.type}</span>
-                  <span>Page {frame.source_spans[0]?.page_number}</span>
-                </div>
-                <p>{renderWithTerms(frame)}</p>
-                {frame.representation.persistent_terms.length > 0 ? (
-                  <div className="term-rail" aria-label="Persistent technical terms">
-                    {frame.representation.persistent_terms.map((term) => <span key={term}>{term}</span>)}
-                  </div>
-                ) : null}
-              </article>
-
-              <div className="flow-memory" aria-label="Previous semantic frame">
-                <span>Just passed</span>
-                <p>{previousFrame?.representation.content ?? 'Beginning of section'}</p>
-              </div>
-            </div>
-          </div>
-
-          <PlayerControls
-            playing={playing}
-            canGoBack={index > 0}
-            canGoForward={index < lesson.frames.length - 1}
-            pace={pace}
-            paceLabel={paceLabel}
-            reducedMotion={reducedMotion}
-            onBack={() => move(-1, 'step_back')}
-            onForward={() => move(1, 'step_forward')}
-            onPlayPause={() => {
-              setPlaying((current) => !current)
-              emit(playing ? 'pause' : 'play')
-            }}
-            onPace={(value) => {
-              setPace(value)
-              emit('pace_changed', { pace_multiplier: value })
-            }}
-            onReducedMotion={setReducedMotion}
-          />
-        </section>
-
-        {sourceOpen ? <SourcePanel lesson={lesson} frame={frame} /> : null}
+      <div
+        className="flow-section-progress"
+        role="progressbar"
+        aria-label="Lesson progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progress}
+      >
+        <span style={{ width: `${progress}%` }} />
       </div>
+
+      {mode === 'reader' ? (
+        <SourceReader
+          lesson={lesson}
+          frame={frame}
+          onReturn={() => {
+            changeMode('understand')
+            window.requestAnimationFrame(() => sourceTriggerRef.current?.focus())
+          }}
+        />
+      ) : null}
+      {mode === 'preview' ? <LessonPreview lesson={lesson} currentIndex={index} /> : null}
+      {mode === 'understand' ? (
+        <UnderstandFlow
+          lesson={lesson}
+          frame={frame}
+          previousFrame={previousFrame}
+          nextFrame={nextFrame}
+          index={index}
+          activeVisual={activeVisual}
+          bundle={bundle}
+          playing={playing}
+          reducedMotion={reducedMotion}
+          sourceEvidenceOpen={sourceEvidenceOpen}
+          sourceTriggerRef={sourceTriggerRef}
+          onBack={() => move(-1, 'step_back')}
+          onForward={() => move(1, 'step_forward')}
+          onPlayPause={() => {
+            setPlaying((current) => !current)
+            emit(playing ? 'pause' : 'play')
+          }}
+          onBundle={(nextBundle) => {
+            setBundle(nextBundle)
+            emit('pace_changed', { bundle: nextBundle, pace_multiplier: BUNDLES[nextBundle].multiplier })
+          }}
+          onReducedMotion={setReducedMotion}
+          onSourceToggle={toggleSourceEvidence}
+          onOpenReader={() => changeMode('reader')}
+        />
+      ) : null}
+      {mode === 'study' ? (
+        <StudyView key={frame.id} frame={frame} onShowSource={() => changeMode('reader')} />
+      ) : null}
     </main>
   )
 }
 
-function VisualRail({
+function UnderstandFlow({
+  lesson,
+  frame,
+  previousFrame,
+  nextFrame,
+  index,
+  activeVisual,
+  bundle,
+  playing,
+  reducedMotion,
+  sourceEvidenceOpen,
+  sourceTriggerRef,
+  onBack,
+  onForward,
+  onPlayPause,
+  onBundle,
+  onReducedMotion,
+  onSourceToggle,
+  onOpenReader,
+}: {
+  lesson: LessonPackage
+  frame: SemanticFrame
+  previousFrame: SemanticFrame | null
+  nextFrame: SemanticFrame | null
+  index: number
+  activeVisual: SourceVisual | null
+  bundle: LearningBundle
+  playing: boolean
+  reducedMotion: boolean
+  sourceEvidenceOpen: boolean
+  sourceTriggerRef: React.RefObject<HTMLButtonElement | null>
+  onBack: () => void
+  onForward: () => void
+  onPlayPause: () => void
+  onBundle: (bundle: LearningBundle) => void
+  onReducedMotion: (value: boolean) => void
+  onSourceToggle: () => void
+  onOpenReader: () => void
+}) {
+  const span = frame.source_spans[0]
+  const claimLength = frame.representation.content.length
+  const claimLengthClass = claimLength > 180 ? 'is-very-long' : claimLength > 92 ? 'is-long' : ''
+  return (
+    <section className="flow-understand" aria-label="Traceable Semantic Relay">
+      <div className="flow-frame-meta">
+        <span>{frame.section_title ?? 'Current section'} · {frame.type}</span>
+        <span>Frame {index + 1} of {lesson.frames.length}</span>
+      </div>
+
+      <div className="flow-carry-forward" aria-label="Previous semantic frame">
+        <span>Carry forward</span>
+        <p>{previousFrame?.representation.content ?? 'Beginning of this learning unit.'}</p>
+      </div>
+
+      <header className={`flow-active-claim ${claimLengthClass}`}>
+        <p>{frame.type} · source page {span?.page_number ?? '—'}</p>
+        <h1>{renderWithTerms(frame)}</h1>
+      </header>
+
+      <article className="flow-representation" aria-label="Active representation">
+        {activeVisual ? (
+          <SourceVisualField
+            visual={activeVisual}
+            sourceId={lesson.source.id}
+            frameContent={frame.representation.content}
+          />
+        ) : (
+          <FrameSequence
+            previousFrame={previousFrame}
+            frame={frame}
+            nextFrame={nextFrame}
+          />
+        )}
+        <footer>
+          <span>One coherent frame at a time.</span>
+          <strong>{activeVisual ? `Source ${activeVisual.kind} · page ${activeVisual.page_number}` : 'Meaning path · learner stepped'}</strong>
+        </footer>
+      </article>
+
+      <div className="flow-explanation-row">
+        <div>
+          <span>Frame status · {frame.verification_status}</span>
+          <h2>This representation stays anchored to its exact source.</h2>
+          <p>
+            Draft source-linked frame. PRISM preserves the exact originating span so the
+            transformation remains inspectable while this lesson awaits review.
+          </p>
+        </div>
+        <button
+          ref={sourceTriggerRef}
+          className="flow-source-action"
+          type="button"
+          aria-expanded={sourceEvidenceOpen}
+          aria-controls="flow-source-evidence"
+          onClick={onSourceToggle}
+        >
+          <span>{frame.source_spans.length}</span>
+          {sourceEvidenceOpen ? 'Hide exact source' : 'See exact source'}
+        </button>
+      </div>
+
+      {sourceEvidenceOpen ? (
+        <SourceEvidence
+          id="flow-source-evidence"
+          frame={frame}
+          verificationStatus={frame.verification_status}
+          onOpenReader={onOpenReader}
+        />
+      ) : null}
+
+      <footer className="flow-player-controls">
+        <button type="button" className="flow-step-control" onClick={onBack} disabled={!previousFrame}>
+          ← Previous idea
+        </button>
+        <div className="flow-bundle-control">
+          <span>Learning path</span>
+          <div aria-label="Learning path depth">
+            {(Object.keys(BUNDLES) as LearningBundle[]).map((item) => (
+              <button
+                key={item}
+                type="button"
+                aria-pressed={bundle === item}
+                onClick={() => onBundle(item)}
+              >
+                {item[0].toUpperCase() + item.slice(1)}
+              </button>
+            ))}
+          </div>
+          <p aria-live="polite">{BUNDLES[bundle].receipt}</p>
+        </div>
+        <button type="button" className="flow-step-control next" onClick={onForward} disabled={!nextFrame}>
+          Continue the flow →
+        </button>
+        <div className="flow-session-options">
+          <button type="button" onClick={onPlayPause} disabled={!frame.auto_advance_allowed || !nextFrame}>
+            {playing ? 'Pause optional playback' : 'Play optional playback'} <kbd>Space</kbd>
+          </button>
+          <label>
+            <input
+              type="checkbox"
+              checked={reducedMotion}
+              onChange={(event) => onReducedMotion(event.target.checked)}
+            />
+            Static transitions
+          </label>
+        </div>
+      </footer>
+    </section>
+  )
+}
+
+function FrameSequence({
+  previousFrame,
+  frame,
+  nextFrame,
+}: {
+  previousFrame: SemanticFrame | null
+  frame: SemanticFrame
+  nextFrame: SemanticFrame | null
+}) {
+  const items = [previousFrame, frame, nextFrame]
+  return (
+    <div className="flow-sequence" role="img" aria-label="Previous, current, and next semantic frames">
+      <svg viewBox="0 0 900 230" aria-hidden="true" focusable="false">
+        <path className="flow-sequence-path" d="M 105 112 C 278 28, 520 198, 795 112" />
+        <path className="flow-sequence-return" d="M 795 146 C 598 216, 342 213, 105 151" />
+      </svg>
+      <div className="flow-sequence-nodes">
+        {items.map((item, itemIndex) => (
+          <div
+            className={`flow-sequence-node ${itemIndex === 1 ? 'is-current' : ''}`}
+            key={item?.id ?? `empty-${itemIndex}`}
+          >
+            <span>{String(itemIndex + 1).padStart(2, '0')}</span>
+            <strong>{itemIndex === 0 ? 'Previous' : itemIndex === 1 ? 'Now' : 'Next'}</strong>
+            <p>{item?.representation.content ?? (itemIndex === 0 ? 'Start of section' : 'Section complete')}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SourceVisualField({
   visual,
   sourceId,
-  sectionTitle,
+  frameContent,
 }: {
-  visual: SourceVisual | null
+  visual: SourceVisual
   sourceId: string
-  sectionTitle?: string | null
+  frameContent: string
 }) {
-  if (!visual) {
-    return (
-      <aside className="visual-rail visual-placeholder" aria-label="Current section">
-        <span className="visual-kicker">Section field</span>
-        <div className="section-glyph" aria-hidden="true"><i /><i /><i /></div>
-        <p>{sectionTitle ?? 'The source has not introduced a visual in this section yet.'}</p>
-      </aside>
-    )
-  }
-
+  const distinctCaption = visual.caption?.trim() !== frameContent.trim()
   return (
-    <figure className="visual-rail" aria-label="Most recent source visual">
-      <div className="visual-heading">
-        <span className="visual-kicker">Source {visual.kind}</span>
-        <span>p. {visual.page_number}</span>
-      </div>
-      <div className="visual-image-field">
-        <img
-          key={visual.id}
-          src={sourceVisualUrl(sourceId, visual.id)}
-          alt={visual.accessible_text}
-          decoding="async"
-        />
-      </div>
-      <figcaption>{visual.caption ?? 'Uncaptioned source visual · inspect the original page for context.'}</figcaption>
+    <figure
+      className={`flow-source-visual ${distinctCaption ? 'has-caption' : ''}`}
+      aria-label="Source visual"
+    >
+      <img
+        src={sourceVisualUrl(sourceId, visual.id)}
+        alt={visual.accessible_text}
+        decoding="async"
+      />
+      {distinctCaption ? (
+        <figcaption>{visual.caption ?? 'Source visual without a detected caption.'}</figcaption>
+      ) : null}
     </figure>
+  )
+}
+
+function SourceEvidence({
+  id,
+  frame,
+  verificationStatus,
+  onOpenReader,
+}: {
+  id: string
+  frame: SemanticFrame
+  verificationStatus: SemanticFrame['verification_status']
+  onOpenReader: () => void
+}) {
+  return (
+    <aside id={id} className="flow-source-evidence" aria-label="Exact source evidence">
+      <div>
+        <span>Source trace</span>
+        <strong>{verificationStatus}</strong>
+        <span>{frame.source_spans.length} immutable {frame.source_spans.length === 1 ? 'span' : 'spans'}</span>
+      </div>
+      <blockquote>
+        {frame.source_spans.map((span) => (
+          <p key={`${span.element_id}-${span.start_offset}-${span.end_offset}`}>
+            <mark>{span.extracted_text}</mark>
+            <small>Page {span.page_number} · offsets {span.start_offset}–{span.end_offset}</small>
+          </p>
+        ))}
+      </blockquote>
+      <button type="button" onClick={onOpenReader}>Open full Reader</button>
+    </aside>
+  )
+}
+
+function SourceReader({
+  lesson,
+  frame,
+  onReturn,
+}: {
+  lesson: LessonPackage
+  frame: SemanticFrame
+  onReturn: () => void
+}) {
+  const span = frame.source_spans[0]
+  return (
+    <section className="flow-source-reader" aria-labelledby="source-reader-title">
+      <header>
+        <div>
+          <p>Source Reader · exact context</p>
+          <h1 id="source-reader-title">{frame.section_title ?? 'Original source context'}</h1>
+        </div>
+        <button type="button" onClick={onReturn}>Return to frame →</button>
+      </header>
+      <div className="flow-source-reader-grid">
+        <object
+          data={sourceFileUrl(lesson.source.id, span.page_number)}
+          type="application/pdf"
+          aria-label={`${lesson.source.original_name}, page ${span.page_number}`}
+        >
+          <a href={sourceFileUrl(lesson.source.id, span.page_number)}>Open the source PDF</a>
+        </object>
+        <aside>
+          <p>Current trace</p>
+          <strong>Page {span.page_number}</strong>
+          <span>Region {span.bbox_normalized.map((value) => value.toFixed(2)).join(' · ')}</span>
+          <blockquote>{span.extracted_text}</blockquote>
+          <small>Source-authored text · draft extraction · no generated paraphrase</small>
+        </aside>
+      </div>
+    </section>
+  )
+}
+
+function LessonPreview({ lesson, currentIndex }: { lesson: LessonPackage; currentIndex: number }) {
+  const previewFrames = lesson.frames.slice(0, 7)
+  const terms = Array.from(
+    new Set(lesson.frames.flatMap((frame) => frame.representation.persistent_terms)),
+  ).slice(0, 7)
+  return (
+    <section className="flow-preview" aria-labelledby="preview-title">
+      <p>Preview · section path</p>
+      <h1 id="preview-title">See the structure before the details arrive.</h1>
+      <ol className="flow-concept-path">
+        {previewFrames.map((frame, frameIndex) => (
+          <li key={frame.id} className={frameIndex === currentIndex ? 'is-current' : ''}>
+            <span>{String(frameIndex + 1).padStart(2, '0')}</span>
+            <strong>{frame.section_title ?? frame.type}</strong>
+            <p>{frame.representation.content}</p>
+          </li>
+        ))}
+      </ol>
+      <div className="flow-preview-question">
+        <span>Terms carried through this unit</span>
+        <p>{terms.length > 0 ? terms.join(' · ') : 'No persistent terms were identified in this draft package.'}</p>
+      </div>
+    </section>
+  )
+}
+
+function StudyView({ frame, onShowSource }: { frame: SemanticFrame; onShowSource: () => void }) {
+  const [answer, setAnswer] = useState('')
+  const [feedback, setFeedback] = useState<string | null>(null)
+  return (
+    <section className="flow-study" aria-labelledby="study-title">
+      <p>Study · integrate the current claim</p>
+      <h1 id="study-title">Explain the governing idea in your own words.</h1>
+      <article>
+        <p>
+          State what this frame means and what would have to be true for it to apply. This draft
+          lesson has no reviewed scoring rubric yet, so PRISM will compare—not grade—your answer.
+        </p>
+        <label htmlFor="study-explanation">Your explanation</label>
+        <textarea
+          id="study-explanation"
+          value={answer}
+          onChange={(event) => setAnswer(event.target.value)}
+          placeholder="Explain the relation, qualification, or process shown in the current frame."
+        />
+        <div>
+          <button type="button" onClick={onShowSource}>Not ready · show source</button>
+          <button
+            type="button"
+            className="primary"
+            onClick={() => {
+              setFeedback(
+                answer.trim()
+                  ? `Compare your explanation with the exact source: “${frame.source_spans[0].extracted_text}”`
+                  : 'Write one sentence first, or open the source without recording an incorrect response.',
+              )
+            }}
+          >
+            Compare with source
+          </button>
+        </div>
+        {feedback ? <p className="flow-study-feedback" aria-live="polite">{feedback}</p> : null}
+      </article>
+    </section>
   )
 }
 
 function renderWithTerms(frame: SemanticFrame) {
   const terms = new Set(frame.representation.persistent_terms.map((term) => term.toLowerCase()))
   const tokens = frame.representation.content.split(/(\s+)/)
-  return tokens.map((token, index) => {
+  return tokens.map((token, tokenIndex) => {
     const normalized = token.replace(TERM_PUNCTUATION, '').toLowerCase()
-    return terms.has(normalized) ? <mark key={`${token}-${index}`}>{token}</mark> : token
+    return terms.has(normalized)
+      ? <mark key={`${token}-${tokenIndex}`}>{token}</mark>
+      : token
   })
-}
-
-function PlayerControls({
-  playing,
-  canGoBack,
-  canGoForward,
-  pace,
-  paceLabel,
-  reducedMotion,
-  onBack,
-  onForward,
-  onPlayPause,
-  onPace,
-  onReducedMotion,
-}: {
-  playing: boolean
-  canGoBack: boolean
-  canGoForward: boolean
-  pace: number
-  paceLabel: string
-  reducedMotion: boolean
-  onBack: () => void
-  onForward: () => void
-  onPlayPause: () => void
-  onPace: (value: number) => void
-  onReducedMotion: (value: boolean) => void
-}) {
-  return (
-    <div className="player-controls">
-      <div className="transport-controls">
-        <button type="button" onClick={onBack} disabled={!canGoBack} aria-label="Previous frame">←</button>
-        <button className="play-control" type="button" onClick={onPlayPause} aria-label={playing ? 'Pause' : 'Play'}>
-          {playing ? 'Pause' : 'Play'} <kbd>Space</kbd>
-        </button>
-        <button type="button" onClick={onForward} disabled={!canGoForward} aria-label="Next frame">→</button>
-      </div>
-      <label className="pace-control">
-        <span>Faster</span>
-        <input
-          type="range"
-          min="0.72"
-          max="1.45"
-          step="0.01"
-          value={pace}
-          onChange={(event) => onPace(Number(event.target.value))}
-          aria-valuetext={paceLabel}
-        />
-        <span>Deeper</span>
-        <strong>{paceLabel}</strong>
-      </label>
-      <label className="motion-control">
-        <input type="checkbox" checked={reducedMotion} onChange={(event) => onReducedMotion(event.target.checked)} />
-        Static transitions
-      </label>
-    </div>
-  )
-}
-
-function SourcePanel({ lesson, frame }: { lesson: LessonPackage; frame: SemanticFrame }) {
-  const span = frame.source_spans[0]
-  return (
-    <aside id="source-context" className="source-panel" aria-label="Original source context">
-      <header>
-        <p className="eyebrow">Original source</p>
-        <h2>Page {span.page_number}</h2>
-        <span>Region {span.bbox_normalized.map((value) => value.toFixed(2)).join(' · ')}</span>
-      </header>
-      <object
-        className="pdf-viewer"
-        data={sourceFileUrl(lesson.source.id, span.page_number)}
-        type="application/pdf"
-        aria-label={`${lesson.source.original_name}, page ${span.page_number}`}
-      >
-        <a href={sourceFileUrl(lesson.source.id, span.page_number)}>Open the source PDF</a>
-      </object>
-      <blockquote>{span.extracted_text}</blockquote>
-      <p className="provenance-note">Explicit source material · draft extraction · no generated paraphrase</p>
-    </aside>
-  )
 }
