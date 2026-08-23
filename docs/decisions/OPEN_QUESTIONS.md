@@ -1,6 +1,6 @@
 # Open technical questions
 
-**Last updated:** 2026-08-20
+**Last updated:** 2026-08-23
 
 The owner discovery interview and initial implementation-policy interview are complete. Confirmed choices are recorded in `V0_DECISIONS.md`; the original question inventory and rationale remain in `OWNER_DISCOVERY_QUESTIONNAIRE.md`. This file now tracks only choices that can be resolved through implementation evidence or a later owner decision.
 
@@ -29,20 +29,69 @@ The first three passages are structurally different:
 
 This set stress-tests precise definitions, dynamic processes, diagrams, and system reasoning. Algorithms, operating systems, Python, data engineering, cloud, and AI follow as corpus expansions rather than excluded topics.
 
-## Open: optional local generative model
+## Resolved on 2026-08-23
 
-The current development machine has 31.4 GB RAM and an RTX 5070 Laptop GPU with 8 GB VRAM. It can run document models and small local language models comfortably. A model such as `gpt-oss-20b` can fit in system memory, but on this GPU it will require hybrid CPU/GPU execution and may be materially slower than a cloud model.
+### Dossier integration terminology and scope
 
-The recommended policy is to keep local generation optional until a benchmark compares latency, fidelity, structured-output success, and power use on representative sections. Local parsing and local storage do not depend on this decision.
+- Adopt **Traceable Semantic Relay** as the official name of the Experimental Anchor, Advance, Integrate, and Repair mechanism.
+- Use **sparse learning loop** for v0 and remove mastery-loop language from the current product contract.
+- Retain one-word RSVP only as an optional research negative control; do not build it as a product feature.
+- Treat the enhanced static Source Reader as a first-class product surface and principal learning baseline.
+- Preserve TCP as the first engineering fixture and use transaction isolation as the first manually reviewed learning fixture.
+
+### Pre-implementation delivery authorization
+
+- Deliver one focused milestone/pull request at a time, beginning with the documentation integration pull request.
+- Build an owner-only local desktop-web research instrument before packaging or hosting.
+- Preserve and migrate current `.prism-data`; back it up before schema changes.
+- Select a commercially compatible open-license transaction-isolation source through a documented research pass.
+- Treat owner review as sufficient only for the private owner/debugging pilot, not as independent expert evidence for external claims.
+- Obtain approval on one polished Source Reader/TSR mockup before frontend reconstruction.
+- Keep the first pilot to the core learning path; defer notes, highlights, narration, text-to-speech, and external notifications.
+- Add generative AI only after the manual lesson and player pass; defer local-model benchmarking until a fair later comparison.
+- Begin the next local milestone automatically after the prior pull request is merged and `sevan-dev` is updated.
+
+### Optional local generative model
+
+Resolved for this cycle: defer. The current development machine may support smaller or hybrid CPU/GPU models, but no local runtime enters the core path until the manual package, provider boundary, evaluation fixtures, and optional cloud comparison exist. Any later adoption requires measured latency, fidelity, structured-output reliability, resource use, and power/thermal behavior.
 
 ## Next implementation gate
 
-The scope freeze is complete. Before efficacy comparisons begin:
+The scope freeze and dossier integration decisions are complete. The full sequence is in [`../engineering/IMPLEMENTATION_PLAN.md`](../engineering/IMPLEMENTATION_PLAN.md). Before efficacy comparisons begin:
 
-1. acquire and hash the transaction-isolation source, finalize its page window, and recheck rights for every selected benchmark version;
-2. define the three passages' claims, concepts, and assessment blueprints;
-3. freeze reviewed golden expectations for all three passages; the first TCP PDF-to-semantic-stream engineering slice is complete;
-4. benchmark an optional local model only after the cloud/local interfaces and representative fixtures exist.
+1. research, acquire, and hash a commercially compatible open-license transaction-isolation source, finalize its learning window, and record exact rights for every selected benchmark version;
+2. implement the enhanced Source Reader and contract-v2 migration path;
+3. define and freeze the transaction-isolation claims, concepts, relations, frames, rubric, repair, alternate delayed items, and accessibility expectations;
+4. complete learner-controlled TSR, recovery, and sparse-loop gates using the manual package;
+5. freeze reviewed expectations for the other passages only as each enters the next experiment; the TCP engineering slice is already complete;
+6. benchmark an optional local model only after the manual path, provider boundary, permission checks, and representative fixtures exist.
+
+## Open: pilot governance thresholds
+
+The dossier proposes conservative initial thresholds, including at least 98 percent fully supported audited clauses, a 0.20-standard-deviation or five-point noninferiority margin, at least 15 percent median active-time reduction for an efficiency interpretation, and 36–60 completers for a directional study.
+
+These are **project policy proposals**, not established scientific constants. Before preregistration, resolve them through:
+
+- assessment reliability and score-scale review;
+- domain-expert judgment about a practically meaningful learning loss;
+- owner and usability pilot variance;
+- within-person correlation and attrition estimates;
+- sample-size and power simulation;
+- sensitivity analysis for alternative margins and active-time rules.
+
+The 98 percent clause gate may govern an owner pilot only if zero known critical or major errors remains the overriding rule.
+
+## Open: contract-v2 identifier and migration details
+
+The dossier examples mix UUID-typed records with human-readable fixture identifiers. Before the first schema change, decide and document:
+
+- canonical stored identifier type and serialization;
+- compatibility for existing source, lesson, and event IDs;
+- exact publication-state vocabulary;
+- package-v1 read/regenerate/remove sequence;
+- forward and restore migration support for local development data.
+
+This is an implementation decision, not an owner product-policy question. Choose the smallest design that preserves current identities, deterministic hashes, and research reproducibility.
 
 ## Open: complex visual semantics
 
@@ -51,7 +100,7 @@ The native route now preserves source-faithful regions for detectable embedded i
 - associate fragmented vector objects and cross-page captions without merging unrelated regions;
 - recover table rows, columns, headers, and reading order in addition to the rendered source crop;
 - preserve equations, symbol definitions, code indentation, and figure legends as typed elements;
-- require reviewed accessible descriptions for uncaptioned visuals before anything can be marked reviewed or verified;
+- require reviewed accessible descriptions for uncaptioned visuals before a transformed representation can receive approved publication status;
 - measure false-positive and missed-visual rates on the frozen corpus before widening PDF compatibility claims.
 
 Docling or another layout adapter should be introduced only if it beats the native route on those reviewed expectations at an acceptable memory/runtime cost.

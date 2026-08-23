@@ -5,6 +5,8 @@
 
 **Status:** owner interview completed on 2026-08-19. Confirmed answers are consolidated in `V0_DECISIONS.md`; remaining implementation choices are tracked in `OPEN_QUESTIONS.md`. This file remains the original question inventory and rationale.
 
+**Historical note added 2026-08-23:** the GPT Pro dossier integration resolved later terminology and scope choices. The Experimental canvas mechanism is **Traceable Semantic Relay**, the v0 term is **sparse learning loop**, Faster/Deeper is a reversible bundle control, the enhanced Source Reader is the principal baseline, and one-word RSVP is research-only. Those current decisions supersede alternative wording in the original questions below; see [`V0_DECISIONS.md`](V0_DECISIONS.md).
+
 Questions marked **P0** should be answered before the v0 prototype scope is frozen. **P1** questions should be answered before a serious user study. **P2** questions can remain open during early prototyping.
 
 Answers can be short. “Unsure—use the recommendation” is a valid answer.

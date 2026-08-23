@@ -1,7 +1,8 @@
 # Evidence review: beyond conventional RSVP
 
-**Research date:** 2026-08-19  
+**Research date:** 2026-08-19; dossier integration reviewed 2026-08-23  
 **Question:** Can information be displayed faster than normal reading while preserving full comprehension, and what should PRISM build instead of a conventional RSVP reader?
+**Expanded review:** [`DOSSIER_INTEGRATION_REVIEW.md`](DOSSIER_INTEGRATION_REVIEW.md)
 
 ## Executive conclusion
 
@@ -9,14 +10,14 @@ There is no established presentation method that lets typical readers multiply t
 
 The project remains compelling if its goal changes from **maximum display speed** to **minimum time to durable understanding**.
 
-The best-supported PRISM concept is a hybrid:
+The best-supported project direction is a first-class enhanced Source Reader plus an Experimental hybrid now named **Traceable Semantic Relay (TSR)**:
 
 - segment by meaning, not by word count;
 - use a stable one-screen canvas rather than visually aggressive flashing;
 - keep recent context available and allow immediate repair;
-- vary dwell time based on linguistic and conceptual difficulty;
+- default Understand and Study to learner-stepped advancement;
 - introduce diagrams or animations only when they express structure more efficiently than prose;
-- use quick comprehension probes to adapt and verify;
+- use a sparse learning loop to obtain direct task evidence and repair one governing relation;
 - schedule retrieval later so exposure becomes durable learning.
 
 ## What conventional RSVP gets right
@@ -90,6 +91,7 @@ Picture RSVP studies show that detection can be much better than later recogniti
 | One-word RSVP | Tiny displays, short/simple text, specialized accessibility cases | Poor default for deep comprehension |
 | Phrase/clause RSVP | Short explanatory prose | Promising; preserves grouping better, but must remain self-correcting |
 | Cumulative semantic window | Focused reading with recent context visible | Strongest product hypothesis for PRISM; requires direct testing |
+| Traceable Semantic Relay | Anchor → Advance → Integrate → Repair over source-grounded frames | **Experimental** integration of promising/established components; must be compared with the enhanced Source Reader |
 | Guided sentence line | Preserve spatial text while cueing attention | Promising alternative if streaming itself harms integration |
 | Text plus relevant static diagram | Spatial, causal, structural, or quantitative concepts | Often useful when tightly integrated and signaled; not automatically superior |
 | Animation | Change over time, procedure, embodied motion | Useful for selected content; learner pacing and segmentation are important |
@@ -102,7 +104,7 @@ Picture RSVP studies show that detection can be much better than later recogniti
 
 Research and meta-analytic work on multimedia learning generally favors breaking continuous lessons into manageable, learner-paced segments, with positive effects on retention and transfer and lower cognitive load in many contexts. It often takes more elapsed time, which is acceptable if PRISM’s target is retained understanding rather than completion speed.
 
-**Product rule:** automatic playback must be pausable everywhere; important boundaries should default to learner-paced continuation until evidence shows a safe auto-advance policy.
+**Product rule:** Understand and Study default to learner-paced continuation. Preview may offer optional autoplay, off by default; Understand autoplay remains an explicit later experiment and is prohibited for interactive/high-inspection frames; Study has no instructional autoplay in v0.
 
 ### Signaling and contiguity
 
@@ -135,7 +137,8 @@ Adaptation should be based on variables that can change and be tested:
 - goal: preview, understand, remember, or apply;
 - prior knowledge and vocabulary;
 - performance on literal, inference, and transfer probes;
-- frame-level pauses, rewinds, replays, and response latency;
+- direct task evidence at literal, inferential, transfer, and delayed horizons;
+- frame-level pauses, rewinds, replays, Source use, focus, and response latency as ambiguous context rather than standalone comprehension labels;
 - content properties: word frequency, syntax, novelty, density, formulae, and prerequisites;
 - user preferences and accessibility settings;
 - optionally, later, gaze or physiological signals with explicit consent.
@@ -151,6 +154,10 @@ Large context windows do not eliminate retrieval and position problems. Liu and 
 **PRISM implication:** parse and index a full textbook locally, then retrieve the exact section, dependencies, and relevant page visuals for each compiler pass. Do not send a whole book merely because a model accepts the token count. Evaluate text, table, figure, equation, code, and cross-page fidelity separately.
 
 OmniDocBench also shows why “PDF accuracy” cannot be one character-level number: layout element detection, reading order, formulas, tables, and text can fail differently across document types. A parser should be selected and upgraded against PRISM’s own computing-textbook fixture corpus.
+
+Newer document-grounding work strengthens the attribution requirement. OHRBench evaluates how OCR defects cascade into retrieval-augmented question answering. The 2026 CiteVQA, DocScope, and XL-DocBench preprints separately stress evidence-region citation, page/region localization, fact extraction, verification, and very long-document evidence. These results are **Promising engineering evidence**, not proof that any current parser/model is safe for PRISM.
+
+**PRISM implication:** a correct answer with the wrong page or region is a failure. Measure text/layout recovery, retrieval, evidence localization, clause support, and downstream correctness separately; require a closed selected-unit evidence manifest before publication.
 
 ### Gaze and behavior as implicit feedback — promising
 
@@ -184,9 +191,9 @@ Recommended stricter rule: do not use full-field flashes or saturated-red flashe
 
 The most defensible initial hypothesis is:
 
-> For short explanatory nonfiction, a learner-controlled cumulative semantic stream—with linguistically coherent chunks, content-aware timing, visible recent context, and sparse retrieval checkpoints—can produce equal or better delayed comprehension per minute than one-word RSVP and may reduce navigation effort relative to conventional page reading.
+> For bounded unfamiliar technical material, learner-controlled TSR plus a sparse learning loop is noninferior to an enhanced static Source Reader on seven-day transfer and either improves transfer or reduces active time without crossing a predeclared learning-loss margin.
 
-This hypothesis does not assume PRISM will beat normal reading. It defines a fair comparison and a valuable outcome if successful.
+Seven-day transfer is primary. Active time, workload, fatigue, source use, and accessibility are interpreted beside absolute learning; an efficiency ratio cannot make a materially worse learning result look favorable. One-word RSVP may appear only as an optional research negative control.
 
 The detailed mapping from these findings to implementation and ablation order is maintained in [`RESEARCH_TO_PRODUCT_MAP.md`](RESEARCH_TO_PRODUCT_MAP.md).
 
@@ -203,10 +210,11 @@ The detailed mapping from these findings to implementation and ablation order is
 
 ### Promising, to test directly
 
-- semantic phrase streaming beats word RSVP;
+- TSR matches or beats the enhanced Source Reader on seven-day transfer;
 - cumulative context preserves integration while maintaining focus;
 - sparse, content-aware visuals improve efficiency;
-- behavioral adaptation improves outcomes over fixed pacing.
+- the sparse learning loop improves transfer enough to justify interruption cost;
+- transparent rule-based adaptation improves outcomes over a fixed Study bundle.
 
 ### Not ready for an MVP claim
 
@@ -214,4 +222,5 @@ The detailed mapping from these findings to implementation and ablation order is
 - EEG-driven consumer adaptation;
 - automatic selection of a uniquely “best” representation for each person;
 - fully automatic textbook transformation with no fidelity errors;
-- effortless one-glance mastery of complex information.
+- effortless one-glance mastery of complex information;
+- inferring comprehension or confusion from a pause, rewind, dwell time, focus loss, source opening, preference, or confidence alone.

@@ -8,3 +8,7 @@
 *.jpg binary
 *.jpeg binary
 *.webp binary
+
+# Preserve imported research evidence byte-for-byte; review it through the canonical integration documents.
+docs/research/dossiers/**/PRISM_RESEARCH_AND_IMPLEMENTATION_DOSSIER.md binary
+docs/research/dossiers/**/PRISM_RESEARCH_AND_IMPLEMENTATION_DOSSIER.html binary

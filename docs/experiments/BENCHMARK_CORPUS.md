@@ -1,18 +1,19 @@
 # Initial benchmark corpus
 
 **Status:** selected for the first vertical slice  
-**Decision date:** 2026-08-19  
+**Decision date:** 2026-08-19; scope reviewed 2026-08-23  
 **Machine-readable manifest:** [`../../benchmarks/sources.json`](../../benchmarks/sources.json)
+**Research integration:** [`../research/DOSSIER_INTEGRATION_REVIEW.md`](../research/DOSSIER_INTEGRATION_REVIEW.md)
 
 ## Selection rule
 
-The first corpus uses three open-license computing passages with different knowledge structures. Each selected window is intended to contain roughly 800-2,000 words, remain understandable as a bounded unit, and expose a different failure mode for PDF parsing and semantic streaming.
+The corpus uses three open-license computing passages with different knowledge structures. Each selected window is intended to contain roughly 800–2,000 words, remain understandable as a bounded unit, and expose a different failure mode for PDF parsing and semantic streaming. The passages now have distinct roles so parser evidence cannot be mistaken for learning evidence.
 
 | Benchmark | Source and license | Selected unit | What it tests |
 |---|---|---|---|
-| Database transaction isolation | CUNY Academic Works, CC BY-NC-SA 4.0 | Chapter 6 window on isolation, schedules, anomalies, and concurrency control; exact pages await manual acquisition | Exact definitions, interleavings, exceptions, and comparison among guarantees |
-| TCP congestion control | Peterson and Davie, *Computer Networks: A Systems Approach* 6.1, CC BY 4.0 | PDF pages 308-311, printed pages 304-307, centered on Section 6.3.2 “Slow Start” | A changing process, causal feedback, a code fragment, a time-series figure, and precise variable names |
-| Distributed consensus | Kleppmann, *Distributed Systems* course notes, CC BY-SA | PDF and printed pages 69-72, Section 7.1 “Introduction to consensus” | Definitions, equivalence, safety/liveness, a comparison table, system assumptions, quorums, and leader-election diagrams |
+| Database transaction isolation | CUNY Academic Works, CC BY-NC-SA 4.0 | Chapter 6 window on isolation, schedules, anomalies, and concurrency control; exact pages await manual acquisition | **First manual learning fixture:** exact definitions, interleavings, exceptions, comparisons, checkpoint and transfer design |
+| TCP congestion control | Peterson and Davie, *Computer Networks: A Systems Approach* 6.1, CC BY 4.0 | PDF pages 308–311, printed pages 304–307, centered on Section 6.3.2 “Slow Start” | **Golden engineering fixture:** causal change, code, visual regions, exact identifiers, parser recovery and performance |
+| Distributed consensus | Kleppmann, *Distributed Systems* course notes, CC BY-SA | PDF and printed pages 69–72, Section 7.1 “Introduction to consensus” | **Second learning/generalization fixture:** definitions, safety/liveness, assumptions, quorums, tables and diagrams |
 
 The CUNY source landing page documents the textbook chapter and its [CC BY-NC-SA 4.0 license](https://academicworks.cuny.edu/ny_oers/31/). The networking project records its [CC BY 4.0 license and attribution](https://github.com/SystemsApproach/book#about-this-book). The Cambridge PDF states its Creative Commons BY-SA license on the first page and is published from the [course site](https://www.cst.cam.ac.uk/teaching/2425/ConcDisSys/).
 
@@ -41,7 +42,11 @@ Before a benchmark becomes an efficacy passage:
 2. extraction order and page-furniture removal must be visually reviewed;
 3. an essential-claim inventory and prerequisite list must be frozen;
 4. literal, inferential, transfer, and seven-day items must be separately reviewed;
-5. normal reading, one-word RSVP, and PRISM conditions must use the same canonical content;
+5. all compared conditions—including the enhanced Source Reader and TSR—must use the same canonical content and content coverage;
 6. licensing and attribution must be rechecked for the exact acquired version.
+
+If one-word RSVP is retained in a locked research protocol, it is an optional negative control that uses the same canonical content. It is not a product package or a gate that TSR must beat.
+
+The transaction-isolation fixture must additionally include a manually reviewed package manifest, clause-origin/support records, an Anchor → Advance → Integrate → Repair trace, static and reduced-motion parity, two matched assessment forms, and a seven-day transfer rubric before it is eligible for the owner pilot.
 
 No passage is yet approved for a learning-performance claim. Selection makes it a parser and lesson-design fixture, not validated instructional content.

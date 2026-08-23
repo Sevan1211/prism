@@ -1,8 +1,9 @@
 # Technical stack
 
 **Status:** adopted for the local clean-PDF vertical slice; complex-document adapters remain evidence-gated  
-**Reviewed:** 2026-08-19  
+**Reviewed:** 2026-08-23  
 **Decision rule:** choose the smallest stack that preserves source fidelity, supports large local PDFs, and can run controlled learning experiments.
+**Implementation sequence:** [`../engineering/IMPLEMENTATION_PLAN.md`](../engineering/IMPLEMENTATION_PLAN.md)
 
 ## Recommendation
 
@@ -152,7 +153,7 @@ Do not pin today’s framework versions in a design document and then forget the
 - end-to-end agent frameworks for a deterministic document pipeline;
 - fine-tuning before prompts, schemas, retrieval, and evals are strong.
 
-## Adoption gate
+## Adoption and next gate
 
 The stack becomes accepted only after a thin vertical slice can:
 
@@ -167,3 +168,5 @@ The stack becomes accepted only after a thin vertical slice can:
 ### First-slice evidence
 
 The stack cleared its engineering adoption gate on 2026-08-19 using the 489-page TCP benchmark and synthetic recovery fixtures. The implementation preserves source hashes and regions, resumes without duplicate page elements, invalidates stale parser artifacts, emits deterministic draft packages, plays them with learner control and inline Source mode, exports research events, and passes the repository quality command. The lesson remains `draft`; this evidence adopts the engineering stack, not the learning claim.
+
+The next gate does not require a framework or parser replacement. It requires an enhanced Source Reader, local security envelope, contract-v2 migration, and one manually reviewed transaction-isolation package before TSR automation or model integration. PDF.js becomes a dependency only if the Source Reader’s exact overlay and controlled-rendering acceptance cases demonstrate that the current inline viewer cannot meet them. Docling, vector search, a local model runtime, a cloud provider, Tauri, and complex-document adapters remain separately justified additions rather than roadmap defaults.

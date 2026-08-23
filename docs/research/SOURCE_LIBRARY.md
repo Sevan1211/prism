@@ -1,8 +1,8 @@
 # Annotated source library
 
-**Last reviewed:** 2026-08-19
+**Last reviewed:** 2026-08-23
 
-This library prioritizes peer-reviewed papers, primary research, meta-analyses, and authoritative standards. A source’s inclusion does not mean every claim in it has been independently replicated.
+This library prioritizes peer-reviewed papers, primary research, meta-analyses, and authoritative standards. A source’s inclusion does not mean every claim in it has been independently replicated. The imported dossier adds a 77-entry annotated bibliography across these topics; see its full [`Section 13`](dossiers/2026-08-21/PRISM_RESEARCH_AND_IMPLEMENTATION_DOSSIER.md#13-annotated-bibliography-and-source-quality-notes) and the project’s [integration review](DOSSIER_INTEGRATION_REVIEW.md). The entries below preserve the original 32-source review and add the decision-critical dossier sources that materially changed the product or implementation contract.
 
 ## Reading rate and RSVP
 
@@ -111,3 +111,78 @@ This library prioritizes peer-reviewed papers, primary research, meta-analyses, 
 
 32. **Adhikari, N. S., & Agarwal, S. (2024). _A Comparative Study of PDF Parsing Tools Across Diverse Document Categories._** arXiv preprint. [Preprint](https://arxiv.org/abs/2410.09871)  
     **Engineering preprint.** Reports substantial parser differences by document class and continued difficulty with scientific and patent documents. Supports routing by page/document type and evaluating on PRISM’s own fixtures.
+
+## Dossier additions: durable learning and instructional support
+
+33. **Dunlosky, J., Rawson, K. A., Marsh, E. J., Nathan, M. J., & Willingham, D. T. (2013). _Improving Students’ Learning With Effective Learning Techniques._** Psychological Science in the Public Interest. [DOI](https://doi.org/10.1177/1529100612453266)  
+    Broad review supporting practice testing and distributed practice while cautioning against treating fluent rereading or polished summaries as sufficient learning.
+
+34. **Pashler, H., McDaniel, M., Rohrer, D., & Bjork, R. (2008). _Learning Styles: Concepts and Evidence._** Psychological Science in the Public Interest. [DOI](https://doi.org/10.1111/j.1539-6053.2009.01038.x)  
+    Critical review finding inadequate evidence for fixed learning-style matching; adaptation should use content, goal, accessibility, knowledge, and performance.
+
+35. **Rowland, C. A. (2014). _The Effect of Testing Versus Restudy on Retention: A Meta-Analytic Review of the Testing Effect._** Psychological Bulletin. [DOI](https://doi.org/10.1037/a0037559)  
+    Supports retrieval over restudy on average, with moderators that argue for sparse, purposeful checks rather than a question after every frame.
+
+36. **Pan, S. C., & Rickard, T. C. (2018). _Transfer of Test-Enhanced Learning: Meta-Analytic Review and Synthesis._** Psychological Bulletin. [DOI](https://doi.org/10.1037/bul0000151)  
+    Retrieval benefits transfer on average but less automatically than practiced retention; PRISM must test new-case application.
+
+37. **Cepeda, N. J. et al. (2006). _Distributed Practice in Verbal Recall Tasks: A Review and Quantitative Synthesis._** Psychological Bulletin. [DOI](https://doi.org/10.1037/0033-2909.132.3.354)  
+    Broad spacing evidence supporting delayed review as part of the product contract.
+
+38. **Bisra, K., Liu, Q., Nesbit, J. C., Salimi, F., & Winne, P. H. (2018). _Inducing Self-Explanation: A Meta-Analysis._** Educational Psychology Review. [DOI](https://doi.org/10.1007/s10648-018-9434-x)  
+    Positive average self-explanation effects with meaningful task and prompt variation; motivates one relation-focused prompt with a reviewed rubric.
+
+39. **Atkinson, R. K., Derry, S. J., Renkl, A., & Wortham, D. (2000). _Learning From Examples: Instructional Principles From the Worked Examples Research._** Review of Educational Research. [DOI](https://doi.org/10.3102/00346543070002181)  
+    Supports worked technical states before novice prediction and later fading.
+
+40. **Brunmair, M., & Richter, T. (2019). _Similarity Matters: A Meta-Analysis of Interleaved Learning and Its Moderators._** Psychological Bulletin. [DOI](https://doi.org/10.1037/bul0000209)  
+    Interleaving is most defensible where discriminating confusable categories matters; it is not a default for initial mental-model construction.
+
+## Dossier additions: multimedia, diagrams, and multiple representations
+
+41. **Noetel, M. et al. (2022). _Multimedia Design for Learning: An Overview of Reviews With Meta-Meta-Analysis._** Review of Educational Research. [DOI](https://doi.org/10.3102/00346543211052329)  
+    Large overview supporting several coordinated multimedia principles while reinforcing that multimedia is not automatically beneficial.
+
+42. **Cromley, J. G., & Chen, R. (2025). _A Meta-Analysis of Richard Mayer’s Multimedia Learning Research._** Educational Research Review. [DOI](https://doi.org/10.1016/j.edurev.2025.100730)  
+    Searches for boundary conditions across media; supports an evidence-weighted representation planner rather than universal transformations.
+
+43. **Schneider, S., Beege, M., Nebel, S., & Rey, G. D. (2018). _A Meta-Analysis of How Signaling Affects Learning With Media._** Educational Research Review. [DOI](https://doi.org/10.1016/j.edurev.2017.11.001)  
+    Supports restrained signaling of the current relation while measuring time, load, and attention rather than assuming more cues are better.
+
+44. **Ginns, P. (2006). _Integrating Information: A Meta-Analysis of the Spatial and Temporal Contiguity Effects._** Learning and Instruction. [DOI](https://doi.org/10.1016/j.learninstruc.2006.10.001)  
+    Supports placing mutually dependent verbal and visual information together to reduce avoidable integration search.
+
+45. **Höffler, T. N., & Leutner, D. (2007). _Instructional Animation Versus Static Pictures: A Meta-Analysis._** Learning and Instruction. [DOI](https://doi.org/10.1016/j.learninstruc.2007.09.013)  
+    Animation benefits depend on content and design; movement should represent actual change rather than decorate the lesson.
+
+46. **Berney, S., & Bétrancourt, M. (2016). _Does Animation Enhance Learning? A Meta-Analysis._** Computers & Education. [DOI](https://doi.org/10.1016/j.compedu.2015.12.020)  
+    Reports a modest heterogeneous average benefit, supporting static or learner-stepped states as the safer default.
+
+47. **Larkin, J. H., & Simon, H. A. (1987). _Why a Diagram Is (Sometimes) Worth Ten Thousand Words._** Cognitive Science. [DOI](https://doi.org/10.1111/j.1551-6708.1987.tb00863.x)  
+    Explains task-dependent diagram efficiency; supports diagrams for topology, state, timing, and causality, not every qualification.
+
+48. **Rexigel, E., Kuhn, J., Becker, S., & Malone, S. (2024). _The More the Better?_** Educational Psychology Review. [DOI](https://doi.org/10.1007/s10648-024-09958-y)  
+    Finds a small average benefit for more than two external STEM representations with high heterogeneity; argues for one active representation plus a bounded anchor and supported switching.
+
+## Dossier additions: attributable document intelligence and provenance
+
+49. **Zhang, J. et al. (2025). _OCR Hinders RAG: Evaluating the Cascading Impact of OCR on Retrieval-Augmented Generation._** ICCV 2025. [Paper](https://openaccess.thecvf.com/content/ICCV2025/html/Zhang_OCR_Hinders_RAG_Evaluating_the_Cascading_Impact_of_OCR_on_ICCV_2025_paper.html)  
+    Peer-reviewed OHRBench work showing that OCR errors can cascade through retrieval and answering; motivates end-to-end fixtures and fail-closed downstream gates.
+
+50. **Ma, D. et al. (2026). _CiteVQA: Benchmarking Evidence Attribution for Trustworthy Document Intelligence._** [Preprint](https://arxiv.org/abs/2605.12882)  
+    **Preprint.** Requires element-level bounding-box citations and exposes correct answers grounded in the wrong evidence.
+
+51. **Feng, X. et al. (2026). _DocScope: Benchmarking Verifiable Reasoning for Trustworthy Long-Document Understanding._** [Preprint](https://arxiv.org/abs/2605.08888)  
+    **Preprint.** Separates evidence pages, regions, extracted facts, verification, and final answers; supports pass-level evaluation.
+
+52. **Wei, H. et al. (2026). _XL-DocBench: Benchmarking Evidence-Grounded Extra-Long Document Understanding._** [Preprint](https://arxiv.org/abs/2608.00036)  
+    **Preprint.** Stresses evidence-grounded understanding of extra-long professional documents; does not justify a full-book model prompt.
+
+53. **Gao, T. et al. (2023). _Enabling Large Language Models to Generate Text With Citations._** EMNLP 2023. [ACL Anthology](https://aclanthology.org/2023.emnlp-main.398/)  
+    ALCE separates citation correctness, completeness, and answer quality; supports clause-level attribution rather than citation decoration.
+
+54. **Geng, S. et al. (2025). _JSONSchemaBench: A Rigorous Benchmark of Structured Outputs for Language Models._** [Preprint](https://arxiv.org/abs/2501.10868)  
+    **Preprint.** Supports provider-specific schema reliability tests while demonstrating that syntactic validity remains separate from factual support.
+
+55. **W3C. _PROV-O: The PROV Ontology._** [Recommendation](https://www.w3.org/TR/prov-o/)  
+    Defines entities, activities, agents, attribution, and derivation relations useful for source, parser, compiler, review, and package provenance.
