@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LessonPackage, SemanticFrame } from './types'
 
 vi.mock('./api', () => ({
@@ -10,6 +10,8 @@ vi.mock('./api', () => ({
 }))
 
 import { SemanticPlayer } from './SemanticPlayer'
+
+afterEach(cleanup)
 
 function frame(id: string, content: string, page: number): SemanticFrame {
   return {
@@ -93,37 +95,62 @@ const lesson: LessonPackage = {
 }
 
 describe('SemanticPlayer', () => {
-  it('keeps navigation reversible and exposes the exact source context', async () => {
+  it('keeps the semantic flow reversible and exposes exact source evidence', async () => {
     const user = userEvent.setup()
     render(<SemanticPlayer lesson={lesson} onExit={() => undefined} />)
 
-    expect(screen.getByRole('article')).toHaveTextContent(
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
       'TCP begins with a small congestion window.',
     )
-    expect(screen.getByRole('button', { name: 'Previous frame' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /previous idea/i })).toBeDisabled()
 
-    await user.click(screen.getByRole('button', { name: 'Next frame' }))
-    expect(screen.getByRole('article')).toHaveTextContent(
+    await user.click(screen.getByRole('button', { name: /continue the flow/i }))
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
       'Acknowledgements permit the congestion window to grow.',
     )
     expect(screen.getByLabelText('Previous semantic frame')).toHaveTextContent(
       'TCP begins with a small congestion window.',
     )
-    expect(screen.getByRole('figure', { name: 'Most recent source visual' })).toHaveTextContent(
-      'Figure 1. TCP congestion window growth.',
-    )
+    expect(screen.getByRole('figure', { name: 'Source visual' })).toBeInTheDocument()
+    expect(screen.getByText('Source figure · page 2')).toBeInTheDocument()
     expect(screen.getByRole('img')).toHaveAttribute(
       'src',
       '/sources/source_tcp_fixture/visual_tcp.webp',
     )
 
-    await user.click(screen.getByRole('button', { name: /show source/i }))
-    expect(screen.getByRole('complementary', { name: 'Original source context' })).toHaveTextContent(
-      'Region 0.10 · 0.20 · 0.90 · 0.40',
+    await user.click(screen.getByRole('button', { name: /see exact source/i }))
+    expect(screen.getByRole('complementary', { name: 'Exact source evidence' })).toHaveTextContent(
+      'Page 2 · offsets',
     )
-    expect(screen.getByRole('button', { name: /close source/i })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /hide exact source/i })).toHaveAttribute(
       'aria-expanded',
       'true',
     )
+
+    await user.click(screen.getByRole('button', { name: 'Open full Reader' }))
+    expect(screen.getByRole('heading', { name: 'TCP Slow Start' })).toBeInTheDocument()
+    expect(screen.getByLabelText('tcp.pdf, page 2')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /return to frame/i }))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /see exact source/i })).toHaveFocus()
+    })
+  })
+
+  it('keeps Preview and Study distinct from demonstrated learning', async () => {
+    const user = userEvent.setup()
+    render(<SemanticPlayer lesson={lesson} onExit={() => undefined} />)
+
+    await user.click(screen.getByRole('button', { name: 'Preview' }))
+    expect(screen.getByRole('heading', { name: /see the structure/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Study' }))
+    expect(screen.getByText(/no reviewed scoring rubric yet/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Compare with source' }))
+    expect(screen.getByText(/write one sentence first/i)).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Your explanation'), 'TCP grows after acknowledgements.')
+    await user.click(screen.getByRole('button', { name: 'Compare with source' }))
+    expect(screen.getByText(/compare your explanation with the exact source/i)).toBeInTheDocument()
   })
 })
