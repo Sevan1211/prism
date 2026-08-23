@@ -8,7 +8,7 @@ The core idea is not conventional speed reading. PRISM aims to optimize **durabl
 
 ## Current status
 
-This repository now contains the documentation foundation and the first local PDF-to-semantic-stream vertical slice. The implementation is an engineering prototype, not evidence that PRISM improves learning. No performance claim should be treated as proven until it has passed the experiments described here.
+This repository now contains the documentation foundation, an independently generated research-and-implementation dossier, its project-level integration review, a milestone implementation plan, and the first local PDF-to-semantic-stream vertical slice. The implementation is an engineering prototype, not evidence that PRISM improves learning. No performance claim should be treated as proven until it has passed the experiments described here.
 
 Implemented in the current slice:
 
@@ -17,12 +17,12 @@ Implemented in the current slice:
 - body/front/back document-region classification that preserves navigation material for search while skipping it in playback;
 - source spans and lazy, cached figure/table assets with one-based page numbers and normalized regions;
 - deterministic, source-verbatim draft semantic frames with persistent source-visual state;
-- a keyboard-accessible semantic player with pause, step, rewind, downward prior-frame context, Faster/Deeper pacing, reduced motion, and inline Source mode;
+- a keyboard-accessible semantic-player prototype with pause, step, rewind, downward prior-frame context, a preliminary pacing control, reduced motion, and inline Source mode;
 - append-only research events and versioned JSON export through the local API;
 - local-only source policy with no upload-time blanket cloud permission;
 - generated OpenAPI and TypeScript contracts plus locked Python and npm dependencies.
 
-The slice has imported and visually checked the 489-page TCP benchmark textbook. It supports reliable embedded text plus lazy, source-faithful figure/table regions, and skips detected front/back matter during playback while preserving it for search and Source view. OCR, table-cell/equation semantics, generated explanations or visuals, cloud AI, adaptive learning claims, and efficacy conclusions are not implemented or validated.
+The slice has imported and visually checked the 489-page TCP benchmark textbook. It supports reliable embedded text plus lazy, source-faithful figure/table regions, and skips detected front/back matter during playback while preserving it for search and Source view. The reviewed next step is an enhanced static Source Reader and a manually authored transaction-isolation package for **Traceable Semantic Relay (TSR)**: Anchor → Advance → Integrate → Repair. TSR is an **Experimental** mechanism, not a validated learning method. OCR, table-cell/equation semantics, generated explanations or visuals, cloud AI, adaptive learning claims, and efficacy conclusions are not implemented or validated.
 
 ## Run locally on Windows
 
@@ -61,6 +61,8 @@ npm run quality
 - [`schemas/openapi.json`](schemas/openapi.json) — generated API contract
 - [`docs/00_PROJECT_BRIEF.md`](docs/00_PROJECT_BRIEF.md) — concise project thesis and boundaries
 - [`docs/research/EVIDENCE_REVIEW.md`](docs/research/EVIDENCE_REVIEW.md) — research synthesis and design implications
+- [`docs/research/DOSSIER_INTEGRATION_REVIEW.md`](docs/research/DOSSIER_INTEGRATION_REVIEW.md) — section-by-section audit of the imported GPT Pro dossier and adopted project deltas
+- [`docs/research/dossiers/2026-08-21/PRISM_RESEARCH_AND_IMPLEMENTATION_DOSSIER.md`](docs/research/dossiers/2026-08-21/PRISM_RESEARCH_AND_IMPLEMENTATION_DOSSIER.md) — preserved Markdown research artifact; the companion HTML is stored beside it
 - [`docs/research/SOURCE_LIBRARY.md`](docs/research/SOURCE_LIBRARY.md) — annotated primary and authoritative sources
 - [`docs/research/RESEARCH_TO_PRODUCT_MAP.md`](docs/research/RESEARCH_TO_PRODUCT_MAP.md) — evidence-to-mechanism map and frontier research sequence
 - [`docs/product/PRODUCT_SPEC.md`](docs/product/PRODUCT_SPEC.md) — proposed experience, modes, MVP, and requirements
@@ -69,6 +71,7 @@ npm run quality
 - [`docs/architecture/PDF_PIPELINE.md`](docs/architecture/PDF_PIPELINE.md) — resumable full-textbook ingestion and fidelity gates
 - [`docs/architecture/AI_STRATEGY.md`](docs/architecture/AI_STRATEGY.md) — hybrid local/cloud model roles, privacy, cost, and eval policy
 - [`docs/engineering/ENGINEERING_STANDARDS.md`](docs/engineering/ENGINEERING_STANDARDS.md) — code hygiene, stale-code removal, performance, and release gates
+- [`docs/engineering/IMPLEMENTATION_PLAN.md`](docs/engineering/IMPLEMENTATION_PLAN.md) — dependency-ordered milestones, contract slices, acceptance gates, and first issue sequence
 - [`docs/experiments/VALIDATION_PLAN.md`](docs/experiments/VALIDATION_PLAN.md) — hypotheses, baselines, metrics, and gates
 - [`docs/experiments/BENCHMARK_CORPUS.md`](docs/experiments/BENCHMARK_CORPUS.md) — open-license source selections and passage gates
 - [`docs/decisions/OPEN_QUESTIONS.md`](docs/decisions/OPEN_QUESTIONS.md) — deferred choices and implementation-evidence gates
@@ -77,7 +80,7 @@ npm run quality
 
 ## One-sentence thesis
 
-PRISM should be a **representation compiler plus adaptive semantic player plus mastery loop**, not a word-flashing speed reader.
+PRISM should be a **representation compiler plus Source Reader/TSR player plus sparse learning loop**, not a word-flashing speed reader.
 
 It remains a reading-centered learner product. Diagnostic checks are sparse evidence and repair mechanisms, not the main interface, and instructor/course-management features are intentionally excluded.
 

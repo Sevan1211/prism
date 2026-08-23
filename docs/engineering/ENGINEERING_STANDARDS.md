@@ -1,7 +1,9 @@
 # Engineering standards
 
-**Status:** required once implementation begins  
+**Status:** required  
+**Reviewed:** 2026-08-23  
 **Goal:** keep PRISM lean, explainable, reproducible, and safe to change.
+**Current plan:** [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md)
 
 ## Operating principle
 
@@ -16,6 +18,7 @@ A change is complete only when:
 - the user-visible or research outcome is stated;
 - tests cover the new behavior and important failure path;
 - source/version/provenance contracts remain valid;
+- every changed factual clause, diagram relation, table focus, equation step, code state, prompt answer, and repair preserves typed support or fails closed;
 - accessibility behavior is included, not postponed;
 - obsolete code, flags, schema fields, fixtures, and documentation made redundant by the change are removed in the same change;
 - direct dependencies are still necessary and licensed appropriately;
@@ -30,12 +33,13 @@ A change is complete only when:
 
 Build in end-to-end slices:
 
-1. one representative PDF fixture;
-2. one canonical extraction path;
-3. one reviewed semantic-frame package;
-4. one accessible player flow;
-5. one persisted learner/research event path;
-6. one restart/recovery test.
+1. one representative engineering PDF fixture and one bounded learning fixture;
+2. one canonical extraction path and first-class Source Reader fallback;
+3. one manually reviewed, clause-grounded semantic-frame package;
+4. one accessible Anchor → Advance → Integrate → Repair flow;
+5. one sparse prompt/repair plus 24-hour and seven-day evidence path;
+6. one persisted learner/research event and source-free export path;
+7. one restart/recovery test at every durable boundary.
 
 Do not build generic plugin systems, provider marketplaces, distributed queues, or broad format abstractions ahead of a second proven implementation.
 
@@ -104,11 +108,14 @@ AI evals do not run implicitly against paid services during every local test. A 
 
 ### Player integration tests
 
-- keyboard-complete pause, continue, step, rewind, Source, and speed/depth controls;
+- keyboard-complete pause, step, rewind, Source, mode, transcript, and Faster/Deeper bundle controls;
 - focus loss and interruption recovery;
 - reduced-motion/static equivalence;
 - screen-reader names, roles, states, and announcements;
 - no irrecoverable auto-advance;
+- no Study instructional autoplay and no autoplay on interactive/high-inspection frames;
+- Source inspection returns to the exact frame, region, scroll position, and invoking control;
+- visual/transcript claim and order parity;
 - event order and active-time accounting.
 
 ### End-to-end recovery tests
@@ -117,6 +124,7 @@ AI evals do not run implicitly against paid services during every local test. A 
 - parser dies mid-window;
 - database commit succeeds but artifact rename fails, and vice versa;
 - cloud request times out or returns a schema-valid but unsupported claim;
+- cloud request outcome is unknown after submission, requiring reconciliation before retry;
 - model/file deletion reconciliation fails;
 - migration is interrupted;
 - disk fills or monthly cloud budget is reached.
@@ -157,7 +165,9 @@ Do not accept microbenchmarks that bypass PDF fidelity, player behavior, or real
 - Never log source text, learner answers, API keys, or file passwords by default.
 - Keep secrets outside the repository and browser bundle.
 - Bind the local API to loopback by default and use an unguessable per-launch token if browser-origin threats require it.
+- Enforce explicit Host and Origin/CORS allowlists, a restrictive content-security policy, safe external-link handling, and sanitization of source/model-derived Markdown and SVG.
 - Validate file type from content, not extension alone.
+- Bound import bytes, page count, object count, decoded pixels, CPU, memory, temporary disk, output size, and wall time; seeded adversarial files must fail without corrupting canonical state.
 - Preserve a recoverable backup before local database migrations.
 - Patch known security advisories promptly, but run golden parser tests before promotion.
 
@@ -165,6 +175,7 @@ Do not accept microbenchmarks that bypass PDF fidelity, player behavior, or real
 
 - Immutable source and versioned derived artifacts; no silent in-place rewriting.
 - Append-only research events with schema version and session/package identity.
+- Raw ambiguous traces remain observations; derived learner evidence must name the task, rubric/policy version, time horizon, and state-transition reason.
 - Derived progress views are rebuildable from canonical data.
 - Experimental parameters are versioned and exported with results.
 - Migrations are forward-tested on the oldest supported fixture and restore-tested from backup.

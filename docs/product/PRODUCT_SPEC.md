@@ -1,8 +1,12 @@
 # Product specification
 
+**Reviewed:** 2026-08-23  
+**Research integration:** [`../research/DOSSIER_INTEGRATION_REVIEW.md`](../research/DOSSIER_INTEGRATION_REVIEW.md)  
+**Experimental mechanism:** Traceable Semantic Relay (TSR)
+
 ## Product statement
 
-PRISM converts trustworthy source material into a sequence of source-linked semantic frames and plays those frames on a stable, adaptive canvas. It helps a learner preview, understand, and retain information while continuously distinguishing what was shown from what was actually learned.
+PRISM provides an enhanced static Source Reader and may compile trustworthy source material into source-linked semantic frames for a learner-controlled Traceable Semantic Relay canvas. It helps a learner preview, understand, and retain information while continuously distinguishing source exposure, immediate task evidence, and delayed learning evidence.
 
 ## Primary user job
 
@@ -26,12 +30,12 @@ These assumptions are the v0 validation boundary, not the long-range format limi
 
 ## Reading-centered contract
 
-PRISM is an adaptive reading medium. Its default surface is the source map plus semantic stream—not a queue of questions.
+PRISM is an adaptive reading medium. Source Reader is a first-class surface and the evidence baseline; TSR is an Experimental transformation surface—not a queue of questions.
 
 - Most active session time should be spent receiving, integrating, and controlling source-grounded representations.
 - A check appears only when it can diagnose a high-value relation, expose an illusion of understanding, or choose a useful repair.
-- The learner can skip a check and continue reading; PRISM then labels the affected evidence as exposure rather than verified learning.
-- Reviews are brief continuations of reading, not a gamified flashcard home screen.
+- The learner can skip a check and continue reading; PRISM then labels the affected evidence as exposure rather than demonstrated learning.
+- Reviews are brief continuations of reading, not a gamified flashcard home screen or mastery dashboard.
 - There are no streaks, leaderboards, assignment dashboards, class rosters, or instructor workflows.
 
 The exact ratio of reading to diagnostic activity is an experimental parameter. The product should not manufacture questions merely to appear interactive.
@@ -46,17 +50,17 @@ The user chooses:
 - **Understand:** build a coherent mental model;
 - **Study:** remember and apply later.
 
-The choice changes pacing, checkpoints, and the definition of completion. PRISM never reports a Preview session as mastery.
+The choice changes representation, support, checkpoints, and the definition of completion. PRISM never reports a Preview session as demonstrated understanding or retention.
 
-Every goal exposes a continuous **Faster ↔ Deeper** slider, with **Auto** as the learning-first default. It does not silently convert Study into Preview. Instead, it changes the path taken within the selected outcome contract.
+Every goal exposes a **Faster ↔ Deeper** bundle control, with **Auto** as the learning-first recommendation. It does not silently convert Study into Preview. Each change lists the exact frames, examples, anchors, checks, transitions, and estimated time affected and can be undone.
 
 ### 2. Calibrate
 
-A short onboarding passage estimates a comfortable phrase rate and asks a few prior-knowledge questions. The user can skip calibration and use conservative defaults.
+A short onboarding passage checks interaction access, preferred information density, optional Preview transition comfort, and a few content-relevant prior-knowledge questions. The user can skip calibration and use conservative learner-stepped defaults. It does not assign a universal reading rate or learning trait.
 
 Calibration measures:
 
-- comfortable pace;
+- comfortable bundle depth and optional Preview transition pace;
 - preferred amount of visible context;
 - ability to pause/advance with keyboard or pointer;
 - optional reduced-motion, contrast, font, and text-to-speech settings;
@@ -75,7 +79,7 @@ Before streaming, PRISM shows a compact map:
 
 This creates a scaffold for incoming details.
 
-### 4. Play the semantic stream
+### 4. Use Traceable Semantic Relay
 
 The central canvas keeps stable spatial zones:
 
@@ -91,7 +95,9 @@ The central canvas keeps stable spatial zones:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-This is one screen, but it is not one disappearing word. The preceding semantic frame sits directly below the active frame for a quick downward skim; it is not rendered as low-contrast background text. On desktop, the most recently introduced source figure or table remains on the left until a new visual appears or a section boundary resets the field. A section boundary without a visual uses a quiet section marker rather than carrying an unrelated diagram forward.
+This is one screen, but it is not one disappearing word. TSR cycles through **Anchor, Advance, Integrate, and Repair**. The preceding semantic frame sits directly below the active frame for a quick downward skim; it is not rendered as low-contrast background text. On desktop, one relevant source figure, table, equation, code region, or structural marker may remain on the left while it supports the active relation. It resets when irrelevant or at a section boundary rather than carrying unrelated material forward.
+
+Advancement is learner-controlled by default. Preview may offer optional autoplay, off by default. Understand autoplay is off by default and never advances through equations, code traces, tables, source inspection, prompts, or repairs. Study has no automatic advancement through instructional frames in v0.
 
 ### 5. Integrate
 
@@ -106,7 +112,7 @@ At concept boundaries the stream pauses or slows for one of:
 
 ### 6. Verify
 
-Every few concepts—not every few sentences—the user receives a low-friction check:
+At selected concept boundaries—not on a fixed clock—the user may receive one low-friction check:
 
 - recall the main relation;
 - select the missing step;
@@ -115,7 +121,7 @@ Every few concepts—not every few sentences—the user receives a low-friction 
 - place labels or arrows;
 - distinguish an example from a nonexample.
 
-Incorrect or uncertain answers trigger a repair sequence tied to the source.
+An answer that misses or reverses a specific governing relation may trigger one source-linked repair and one recheck. A skip or “not ready” response remains meaningful and does not create a learner trait.
 
 ### 7. Retain
 
@@ -125,21 +131,23 @@ The default validation path includes an interim 24-hour check and a central 7-da
 
 ## Semantic frame model
 
-A frame is the smallest independently paced unit that carries a coherent instructional function.
+A frame is the smallest independently controlled unit that carries one coherent instructional function.
 
 Required attributes:
 
 - stable identifier;
-- source span(s);
-- canonical claim;
+- source span(s) for every factual clause;
+- canonical claim and primary relation identifiers;
+- explicit content origin for every visible block;
 - frame type;
 - prerequisite concept identifiers;
 - estimated novelty and complexity;
-- selected representation;
-- minimum/initial dwell policy;
+- selected representation and inspectable selection reason;
+- expected-active-time range as a UX estimate, never a mastery estimate;
 - accessible alternative;
 - optional checkpoint link;
-- generation status and confidence;
+- extraction, grounding, review, and publication states kept separate;
+- provenance and quality-check bundle;
 - learner events and outcome references.
 
 Proposed frame types:
@@ -166,17 +174,17 @@ Representation is selected by the idea and task before user preference.
 | Precise claim, definition, qualification | Text with persistent key terms |
 | Spatial relationship or part–whole structure | Labeled static diagram |
 | Causal chain | Node-link or step diagram plus short text |
-| Change over time | Segmented animation or ordered static frames |
+| Change over time | Ordered static or user-stepped state frames; short reversible animation only when continuous change is essential |
 | Quantity or invariant relationship | Equation plus variable mapping and example |
 | Comparison across several attributes | Small table or aligned cards |
 | Abstract unfamiliar concept | Definition, concrete example, then boundary/nonexample |
 | Procedure | Worked steps with state carried forward |
 
-User preference chooses among valid alternatives; it does not override fidelity or suitability.
+User preference chooses among valid alternatives; it does not override fidelity or suitability. The default representation budget is one active representation plus at most one source or structural anchor. If highlighted source content already expresses the relation well, PRISM should not redraw it.
 
-## Pacing policy
+## Faster, Deeper, and advancement policy
 
-### Learning-first pace contract
+### Learning-first bundle contract
 
 The product objective is ordered rather than collapsed into one opaque score:
 
@@ -184,19 +192,19 @@ The product objective is ordered rather than collapsed into one opaque score:
 2. preserve source fidelity, accessibility, and user control;
 3. minimize active learning time and avoid unnecessary workload.
 
-The continuous slider adjusts a bundle of instructional parameters. The labels below describe regions of the control rather than three fixed presets:
+The control adjusts a bundle of instructional parameters and always produces an itemized, reversible receipt:
 
-| Slider region | Likely adjustments | Outcome contract |
+| Bundle direction | Allowed adjustments | Guard |
 |---|---|---|
-| Faster | Shorter dwell, less persistent context, fewer optional examples, wider spacing between checks | Still verifies the selected learning goal; risk is shown and mastery is withheld without evidence |
-| Auto | Fastest policy supported by current performance, prior knowledge, content difficulty, and validated bounds | Default learning-first policy |
-| Deeper | More context, slower integration frames, additional examples, more generative checks, stronger review | Optimizes robustness, inference, and transfer over session speed |
+| Faster | Merge adjacent micro-frames that express one relation, hide optional examples, reduce optional checks, shorten transition delays, collapse already demonstrated definitions | Never removes qualifiers, source links, learner control, accessibility content, required evidence, or the selected goal |
+| Auto | Recommend the least costly currently supported bundle from goal, accessibility settings, prior-knowledge evidence, task evidence, and delayed results | Recommendation remains explainable and reversible; no silent mode change |
+| Deeper | Split a dense frame, keep the source anchor longer, add a worked contrast/example, show a different representation, insert a boundary prompt or prerequisite repair | Added time and content are shown; more is not presumed better |
 
-In Understand and Study, PRISM automatically moves the effective pace toward Deeper when evidence shows that the selected rate is exceeding the learner’s current processing capacity. The change is visible and its reason is inspectable. A user who wants to continue faster can switch to Preview, whose contract is explicitly gist/orientation rather than verified durable learning. PRISM must not silently claim durable learning without later evidence.
+In Understand and Study, PRISM may **offer** a Deeper bundle when task evidence shows that a governing relation is unresolved. Explicit learner choice applies immediately and outranks behavioral inference. An automatic content change is not permitted merely because the learner paused, rewound, replayed, inspected the source, responded slowly, or lost focus.
 
 Preview mode is a separate contract: it may maximize orientation and gist, but its completion report explicitly says that retention and transfer were not established.
 
-Do not compute dwell time from word count alone. Initial pacing should account for:
+Do not compute a learning claim or an auto-advance decision from word count alone. Frame planning and expected-active-time estimates may account for:
 
 - phrase length;
 - word frequency and technical vocabulary;
@@ -207,20 +215,22 @@ Do not compute dwell time from word count alone. Initial pacing should account f
 - negation, exception, contrast, or uncertainty;
 - equation or visual inspection time;
 - preceding checkpoint result;
-- user pauses, replays, and manual speed changes.
+- source/representation inspection demands.
 
-The MVP can implement these as transparent rules. A learned policy comes only after enough outcome data exist and must be compared with the rules.
+The MVP implements transparent, versioned rules and a fixed nonadaptive Study bundle. A learned policy comes only after adequate randomized delayed-outcome data and must beat the fixed and deterministic policies under fidelity, accessibility, workload, and control constraints.
 
 ### Conservative adaptation rules
 
-- Two rewinds within a concept: slow that concept and expose more context.
-- Incorrect literal answer: replay the source-grounded claim with a concrete example.
-- Incorrect inference with correct literal answer: show the missing relation, not the same wording.
-- Correct fast responses with high confidence across several concepts: gradually shorten noncritical frame dwell.
-- Long inactivity or focus loss: pause; never silently skip ahead.
-- User moves the slider faster: apply it inside the current validated bound; automatically slow in Understand/Study if learning evidence crosses the risk rule, or allow the user to continue under Preview’s exposure-only contract.
-- A Faster setting produces good immediate performance but weak delayed evidence: lower the future Auto pace for comparable content and explain why.
-- A Deeper setting adds time without improving delayed outcomes: remove the unproductive elaboration rather than assuming slower is always better.
+- Required-prerequisite miss: offer a short prerequisite, exact source definition, or skip.
+- High-confidence governing-relation error: offer a contrastive repair with exact source evidence.
+- Low-confidence correct answer: offer one confirmation case or continue; do not mark the response wrong.
+- Repeated navigation **plus** a failed or “not ready” task: offer a representation switch or Deeper bundle and state both evidence types used.
+- Two distinct successful items including application: offer, never silently apply, one Faster step.
+- Long inactivity: stop active-time accumulation; make no content inference.
+- Focus loss: pause optional autoplay and offer prior context on return; do not infer distraction.
+- Manual Faster, Deeper, Source, transcript, or accessibility choice: apply immediately when safe and do not reverse it automatically in the same concept.
+- Seven-day failure: use a new case and representation rather than merely replaying the original wording.
+- Repeated rejection of one recommendation: suppress that recommendation class for the session.
 
 ## Source view and trust
 
@@ -242,8 +252,8 @@ If a frame synthesizes nonadjacent source spans, all spans are shown. If a diagr
 - headings and paragraphs;
 - definitions and causal relations;
 - source-provided static images and captions;
-- simple generated diagrams;
-- short checkpoints.
+- manually authored or reviewed typed diagrams only where source text is inadequate;
+- one sparse concept-boundary checkpoint and repair in the gold lesson.
 
 ### Stage 2: textbook sections
 
@@ -258,7 +268,7 @@ If a frame synthesizes nonadjacent source spans, all spans are shown. If a diagr
 ### Stage 3: textbook systems
 
 - chapter dependencies;
-- adaptive path based on mastery;
+- adaptive path based on concept-specific immediate and delayed evidence;
 - multi-session spacing;
 - cumulative problems;
 - provenance across editions and sources;
@@ -270,29 +280,29 @@ If a frame synthesizes nonadjacent source spans, all spans are shown. If a diagr
 
 - paste text or upload `.txt`, Markdown, or a clean text-based PDF, including a large/full-book source within tested resource limits;
 - resumable whole-document structural indexing with section-level deep transformation on demand;
-- preserve paragraphs and headings;
-- semantic chunking into phrases/clauses;
-- conventional reading baseline;
-- one-word RSVP experimental baseline;
-- cumulative semantic stream;
-- manual pace and context controls;
-- rule-based content-aware timing;
-- source highlights;
-- text-only and small static-diagram frames;
+- preserve and inspect paragraphs, headings, regions, and extraction status;
+- first-class enhanced static Source Reader and conventional-reading baseline;
+- one manually reviewed transaction-isolation lesson package;
+- learner-controlled Traceable Semantic Relay frames;
+- manual Faster/Deeper bundles with itemized receipts;
+- source highlights and one-action exact context inspection;
+- text, source-region, annotated-source, table-lens, and reviewed typed-diagram frames;
 - lazy source-faithful figure and table regions for clean PDFs, with caption provenance and Source fallback;
-- automatic, source-linked practice-question drafts;
-- literal, inference, and transfer checks;
+- one reviewed, source-linked explanation/application prompt, rubric, and repair;
 - 24-hour and 7-day local review scheduling;
-- persistent local learner profile and personal overlays;
-- optional complementary narration;
-- in-flow note and question capture;
-- exportable research data, progress reports, and optional review cards.
+- persistent local concept evidence without a single mastery probability;
+- in-flow note capture that remains outside model payloads by default;
+- source-free research export and an evidence-labeled progress report.
 
 ### Out of scope
 
 - arbitrary scanned PDFs;
+- one-word RSVP as a product feature; it is an optional research-only negative control;
 - generated video;
+- open-ended generated images;
 - camera/gaze/EEG adaptation;
+- learned pacing or representation policy;
+- user accounts, sync, mobile, social, instructor, or course-management features;
 - minors or clinical claims;
 - high-stakes professional certification;
 - automatic publication of copyrighted transformed material;
@@ -300,16 +310,16 @@ If a frame synthesizes nonadjacent source spans, all spans are shown. If a diagr
 
 ## Functional requirements
 
-1. The user can pause, resume, step forward, step backward, and jump to a concept at any time.
-2. No auto-advance can make content irrecoverable.
+1. The user can step forward, step backward, pause optional Preview/Understand autoplay, open Source Reader, and jump to a concept at any time.
+2. Study has no automatic instructional-frame advancement in v0, and no permitted auto-advance can make content irrecoverable.
 3. The user can open the original source context from every instructional frame.
-4. The player logs shown duration separately from active attention time when focus state is available.
+4. The player logs presentation and focus state needed for a versioned active-time derivation; it never labels focused time as attention.
 5. Checkpoints distinguish literal, inferential, and transfer questions.
 6. Confidence is recorded only with an answer, never as the sole comprehension signal.
 7. The user can choose static/reduced-motion presentation with equivalent information.
-8. A session report separates exposure, immediate performance, and later retention.
-9. Generated representations carry provenance and status.
-10. The system can run the three experimental presentation variants on the same content.
+8. A session report separates exposure, immediate task evidence, 24-hour evidence, seven-day evidence, and unmeasured outcomes.
+9. Every transformed block carries origin, source support, quality, provenance, and publication status.
+10. The system can compare enhanced Source Reader, semantic frames without the sparse loop, and full TSR on the same canonical content. One-word RSVP may be added only to a locked research protocol.
 
 ## Nonfunctional requirements
 
@@ -331,6 +341,7 @@ Use:
 - “Build a mental model, one meaningful frame at a time.”
 - “See the source behind every explanation.”
 - “Optimize for what you can still explain later.”
+- “Traceable Semantic Relay is an experimental way to move between source evidence, representations, integration, and repair.”
 
 Avoid:
 
@@ -338,3 +349,4 @@ Avoid:
 - “Read at 1,000 words per minute with full comprehension.”
 - “AI knows your learning style.”
 - “Gaze proves you understood.”
+- “Completion means mastery.”

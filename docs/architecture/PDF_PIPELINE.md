@@ -1,8 +1,10 @@
 # Large-PDF and textbook pipeline
 
 **Status:** clean-PDF structure and lazy visual route implemented; complex-document escalation proposed  
+**Reviewed:** 2026-08-23  
 **Primary target:** born-digital computing and AI textbooks on Windows  
 **Mission:** progressively support the full range of PDFs without hiding extraction uncertainty.
+**Research integration:** [`../research/DOSSIER_INTEGRATION_REVIEW.md`](../research/DOSSIER_INTEGRATION_REVIEW.md)
 
 ## Central decision
 
@@ -20,6 +22,7 @@ safe preflight + page inventory
 page-window extraction + visual assets
     ↓
 canonical blocks with page regions
+    ├────────────────────────────→ enhanced Source Reader
     ↓
 book structure + cross-reference graph
     ↓
@@ -161,6 +164,8 @@ Automated checks include:
 - visual overlay snapshots for golden fixtures;
 - cross-window continuity and page-number stability.
 
+Evaluation reports errors by element and stage rather than hiding them inside one document score. Text correctness, reading order, page localization, region localization, table structure, equation/code preservation, caption association, retrieval, citation correctness, and downstream answer verification are distinct measurements. A correct answer grounded in the wrong region is a source-fidelity failure.
+
 Page status is one of:
 
 - `trusted_for_transform`;
@@ -169,7 +174,7 @@ Page status is one of:
 - `source_only`;
 - `failed`.
 
-Only trusted content contributes automatically to a verified lesson. Warning content may appear in a draft with visible provenance. Source-only content remains navigable and can be manually bounded or corrected.
+Only trusted content contributes automatically to an approvable lesson package. Warning content may appear in a draft with visible provenance. Source-only content remains navigable and can be manually bounded or corrected.
 
 ## 7. Progressive textbook availability
 
@@ -180,7 +185,7 @@ Import has separate readiness levels:
 3. **Structure ready:** chapters, sections, figures, tables, and cross-references are indexed.
 4. **Section ready:** the chosen section has a validated claim/frame plan.
 5. **Lesson ready:** representations and accessibility alternatives passed gates.
-6. **Verified:** required human review and measurement assets are complete.
+6. **Research ready:** required human review, approved publication states, frozen measurement assets, and package/protocol hashes are complete.
 
 The UI must show the level rather than a vague spinner. A 900-page book can be useful at level 2 or 3 before every section reaches level 5.
 
@@ -198,6 +203,19 @@ When the learner opens a section, PRISM retrieves:
 Only this evidence bundle is sent to a generative model. The bundle contains stable element/span identifiers so structured output must cite them. Long-range links are retrieved explicitly instead of assuming a model will use a full textbook context reliably.
 
 This design follows the evidence that long-context models can underuse information in the middle of their inputs, and that multimodal long-document systems remain weaker on figure/table reasoning and can be distracted by irrelevant pages. See [Liu et al., 2024](https://doi.org/10.1162/tacl_a_00638) and [Chia et al., 2025](https://doi.org/10.18653/v1/2025.emnlp-main.469).
+
+### Selected-unit evidence closure
+
+A section is not compilation-ready merely because retrieval returned relevant-looking pages. Before publication, the unit manifest must close over:
+
+- every factual clause and its exact text or region locator;
+- essential definitions, conditions, exceptions, symbols, code states, and worked steps;
+- every figure/table/equation caption and in-text reference used by the lesson;
+- prerequisite claims imported from outside the selected window;
+- every assessment answer, rubric dimension, and repair claim;
+- unsupported or uncertain elements that force Source-only fallback.
+
+The manifest records what was intentionally excluded and why. Retrieval recall, evidence localization, and support review are therefore separate gates. The 2026 CiteVQA, DocScope, and XL-DocBench results that motivate stronger attribution remain preprints; they justify testing, not confidence in a particular parser or model.
 
 ## 9. Cloud-file boundary
 

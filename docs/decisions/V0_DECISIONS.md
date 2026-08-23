@@ -1,6 +1,6 @@
 # PRISM v0 decision record
 
-**Decision session:** 2026-08-19  
+**Decision sessions:** 2026-08-19 and dossier integration on 2026-08-23  
 **Status:** confirmed unless explicitly marked open  
 **Owner:** project owner
 
@@ -16,24 +16,28 @@ This is the current source of truth for PRISM’s v0 product and research direct
 - The initial product promise is staged: understand in one session, then verify retention and application seven days later.
 - The bold long-range research target is equal durable learning in half the active time. This is an aspiration, not a public claim.
 - PRISM may decide that normal self-paced source reading is the best representation for a passage or learner.
+- The enhanced static Source Reader is a first-class product surface and the primary baseline that experimental semantic presentation must beat or complement.
 
 ## 2. Core experience
 
 - The one-screen canvas is the preferred north star, not an absolute restriction. Source inspection, concept maps, editing, and assessment may expand when that materially supports learning.
 - Activity is adaptive by mode:
   - Preview is mostly watchable and supports orientation;
-  - Understand uses sparse conceptual checks;
-  - Study uses explanation, application, and delayed review.
+  - Understand uses learner-controlled Traceable Semantic Relay with sparse optional conceptual checks;
+  - Study uses learner-controlled TSR, explanation, application, source-linked repair, and delayed review.
+- **Decision recorded 2026-08-23:** Traceable Semantic Relay is the official name of the Experimental Anchor, Advance, Integrate, and Repair mechanism. The name does not imply demonstrated efficacy.
 - Checks occur adaptively at meaningful conceptual boundaries rather than on a fixed clock.
-- Users may skip checks or review, but the outcome is relabeled as exposure rather than verified learning.
-- Pace/depth uses a continuous **Faster ↔ Deeper** control, with Auto available as the learning-first default policy.
-- In Understand or Study, PRISM automatically slows when evidence shows the chosen pace is exceeding the learner’s current processing capacity. A user who wants to continue without the durable-learning guardrail can move to the explicitly gist-oriented Preview contract.
+- Users may skip checks or review, but the outcome is relabeled as exposure rather than demonstrated learning.
+- **Decision recorded 2026-08-23:** the v0 term is **sparse learning loop**, not mastery loop. Learner state records specific immediate and delayed evidence rather than a generic mastery probability.
+- Pace/depth uses a **Faster ↔ Deeper** bundle control, with Auto available as a learning-first recommendation. Every bundle change is itemized, reversible, and constrained by source, accessibility, control, and goal contracts.
+- Understand and Study are learner-stepped by default. Preview may offer optional autoplay; Understand autoplay is off by default and blocked for high-inspection or interactive frames; Study has no instructional autoplay in v0.
+- PRISM may offer a Deeper bundle after task evidence reveals an unresolved governing relation. Pauses, rewinds, source inspection, replay, response time, or focus loss cannot independently trigger remediation or a learning-state inference.
 - Narration is optional and complementary; it should not duplicate identical on-screen prose by default.
 - Notes, highlights, and questions are available without leaving the flow, with deeper editing after the stream.
 - **Decision updated 2026-08-20:** the visual direction is **warm optical editorial**: mineral paper, near-black ink, restrained vermilion, and spectral blue. The PRISM mark remains; generic dark AI-dashboard styling, background text, decorative grids, and excessive card containers do not.
 - The desktop player keeps the most recent relevant source visual on the left, resets it at a section boundary, and places the preceding semantic frame below the active frame for quick skimming.
 - Front matter and back matter remain searchable and source-visible but are skipped by semantic playback by default.
-- Progress feedback shows evidence-based mastery and review strength, without addictive streak pressure.
+- Progress feedback shows specific evidence and review strength without a mastery badge, proprietary score, or addictive streak pressure.
 - The target session length is 15–30 minutes.
 
 ## 3. Initial user, content, and context
@@ -41,11 +45,13 @@ This is the current source of truth for PRISM’s v0 product and research direct
 - The project owner is the first primary and longitudinal user.
 - The first content domain is computing, with an initial emphasis on databases, computer networks, distributed systems, algorithms, operating systems, Python, data engineering, cloud systems, and AI-related technical material.
 - The initial benchmark uses three structurally different concepts rather than treating one subject as the permanent product boundary: database transaction isolation, TCP congestion control, and distributed consensus.
+- TCP congestion control remains the first engineering parser/performance fixture. Transaction isolation is the first manually reviewed learning and TSR fixture.
 - Initial sessions are focused Windows laptop/desktop study sessions.
 - English is the only v0 language.
 - General WCAG access is required, but no disability-specific or clinical research track is in v0.
 - Defer advanced mathematics and high-stakes medical transformation. Ordinary code and technical prose are not categorically excluded.
 - Begin validation with bounded computing passages or sections of roughly 800–2,000 words that have testable conceptual, procedural, or causal structure.
+- One-word RSVP is an optional, bounded research-only negative control. It is not a v0 product feature or roadmap dependency.
 - A source file may be much larger than the experimental passage. Large born-digital PDFs and full textbooks are a first-class ingestion and navigation target; PRISM creates bounded learning units from them rather than treating a whole book as one prompt or one stream.
 
 ## 4. Ingestion and transformation
@@ -57,7 +63,7 @@ This is the current source of truth for PRISM’s v0 product and research direct
 - Use public-domain/open-license passages plus private user uploads that are not redistributed.
 - Use one canonical source per lesson in v0. Multi-source synthesis comes later.
 - PRISM may simplify and reorganize wording through explicit, reversible layers while preserving the canonical source and source spans.
-- Generated examples and analogies may appear automatically as clearly labeled drafts. Verified lessons still require the appropriate review gate.
+- Generated examples and analogies may appear automatically as clearly labeled drafts. Approved lesson records still require the appropriate grounding and review gates.
 - Generated diagrams may show both explicit source relations and clearly marked PRISM inferences.
 - Produce a fast initial draft, then refine representations and quality checks without blocking basic use.
 - On import, preserve and hash the complete source, recover and quality-check its structure, and build local search plus section/concept indexes. Generate deep semantic frames only for the section the learner opens; optional background refinement remains bounded by the learner's privacy and cost policy.
@@ -72,7 +78,7 @@ This is the current source of truth for PRISM’s v0 product and research direct
 - v0 has a persistent local profile without an account.
 - v1 may add an account and encrypted synchronization.
 - Adaptation reasons are available on request while the live canvas remains calm.
-- v0 may use correctness, confidence, response time, pauses, rewinds, replays, browser focus state, and prior learning history.
+- v0 may use scored task evidence, post-answer confidence, and prior learning history. Response time, pauses, rewinds, replays, Source use, and browser focus remain ambiguous context and cannot independently create a learning state or remediation decision.
 - Future opt-in sensor research starts with gaze/eye-tracked displays, not EEG or broader biosignals.
 - Long-term learning history is local first, with optional encrypted sync later.
 - PRISM should eventually maintain a personal knowledge graph across sources and courses for prerequisites, connections, representation selection, and review scheduling.
@@ -84,10 +90,10 @@ This is the current source of truth for PRISM’s v0 product and research direct
 - Cloud transformation is approved separately for each private source. A PDF stays local unless the learner explicitly allows the disclosed source spans or page regions to be sent for that source; importing or indexing a file never grants cloud permission, and no blanket global approval substitutes for source-level consent. A usable local-only path remains available.
 - Keep providers replaceable, cache safe reusable work, and expose cost during development.
 - Lessons, profiles, playback, and tests remain local; approved cloud AI may receive only the content necessary for generation.
-- Human review is acceptable before a lesson receives `verified` status.
+- Human review is acceptable before lesson records receive `approved` publication status for a study package.
 - Practice and adaptive-check questions may be generated automatically with grounding and answerability checks.
 - Questions used as outcome measures for performance claims or controlled experiments must still be reviewed, versioned, and piloted. Automatically generated practice items cannot validate their own generator.
-- AI may choose among representations only within content, source-fidelity, accessibility, and author/owner guardrails.
+- AI may propose representation candidates only within content, source-fidelity, accessibility, and author/owner guardrails. Deterministic checks and required review decide what can enter a published package.
 
 ## 7. Research and claims
 
@@ -113,11 +119,26 @@ This is the current source of truth for PRISM’s v0 product and research direct
 ## 9. Runtime and delivery
 
 - v0 is a local Windows web application with optional approved cloud AI generation.
+- The first usable release is an owner-only desktop-web research instrument, not a packaged Windows application or hosted multi-user service.
 - The interaction and experiment contracts are sufficiently defined to propose the local-first React/TypeScript/Vite plus Python/FastAPI/SQLite stack in `../architecture/TECH_STACK.md`. Accept it only after the first recovery-tested PDF-to-stream vertical slice.
 - First tests support Windows laptop/desktop only.
 - Generated lesson packages, the player, profile, and assessments work offline after preparation.
 - Export versioned research JSON, a readable progress report, and optional study/review cards.
 - Eye-tracked displays are the preferred post-desktop research platform if core evidence is strong.
+
+### Pre-implementation authorization recorded 2026-08-23
+
+- Deliver implementation through one focused milestone and pull request at a time. Do not overlap scopes while the prior pull request remains open.
+- Finish, validate, commit, push, and open the dossier/documentation pull request before implementation begins.
+- Preserve and migrate the existing `.prism-data` database and TCP artifacts. Create a recoverable backup before schema changes; do not treat current local data as disposable.
+- Research and select the strongest suitable transaction-isolation source with a commercially compatible open license rather than defaulting to the earlier noncommercial fixture.
+- The owner is the approval authority for the private owner/debugging pilot. This is sufficient for early internal research only; it is not independent expert review and cannot support public efficacy, general-population, or external research claims.
+- Produce one polished Source Reader/TSR desktop mockup for owner approval before rebuilding the frontend.
+- Keep the first owner-pilot scope to the core learning path. Notes, highlights, narration, and text-to-speech do not block the pilot.
+- Do not introduce generative AI until the manually authored lesson and player pass their gates.
+- Defer local-model benchmarking until the manual and optional cloud paths can be evaluated fairly.
+- Use an in-app due/review queue initially; Windows, email, and calendar notifications are deferred.
+- After the documentation pull request is merged and the working branch is updated, begin the next approved local milestone without another general start confirmation.
 
 ## 10. Owner discovery status
 
@@ -133,4 +154,4 @@ The initial implementation-policy questions are resolved:
 2. full books are indexed locally, with deep section generation on demand;
 3. the first benchmarks cover transaction isolation, TCP congestion control, and distributed consensus.
 
-The optional local generative-model benchmark and future choices are tracked in `OPEN_QUESTIONS.md`.
+The remaining contract-migration, pilot-threshold, and complex-document choices are implementation-evidence questions tracked in `OPEN_QUESTIONS.md`.

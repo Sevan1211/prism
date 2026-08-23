@@ -1,5 +1,8 @@
 # PRISM project brief
 
+**Reviewed:** 2026-08-23 against the GPT Pro research dossier and current repository baseline  
+**Research integration:** [`research/DOSSIER_INTEGRATION_REVIEW.md`](research/DOSSIER_INTEGRATION_REVIEW.md)
+
 ## Name
 
 **PRISM — Personalized Representation and Information Streaming for Meaning**
@@ -21,16 +24,16 @@ That framing permits speed improvements where they are safe while treating under
 PRISM is three connected systems:
 
 1. **Representation compiler** — parses a source, builds a traceable semantic model, and proposes representations suited to each idea.
-2. **Adaptive semantic player** — presents one meaning-bearing frame at a time on a stable canvas, with context, learner control, and content-aware pacing.
-3. **Mastery loop** — uses low-friction retrieval, explanation, application, and spaced review to verify and strengthen learning.
+2. **Technical reader and Traceable Semantic Relay player** — preserves an enhanced static Source Reader and experimentally presents source-grounded frames through an Anchor, Advance, Integrate, and Repair cycle.
+3. **Sparse learning loop** — uses bounded retrieval, explanation, application, source-linked repair, and delayed review to collect and strengthen specific learning evidence.
 
-The proposed innovation is the coordination of these systems. Phrase-level streaming alone is useful but defensible competitors can copy it. A source-grounded compiler and validated mastery loop create the deeper product.
+The proposed innovation is the coordination of these systems. Phrase-level streaming alone is useful but defensible competitors can copy it. A source-grounded compiler, evidence-locked representation relay, and validated sparse learning loop create the deeper research contribution. Traceable Semantic Relay is **Experimental** until it beats or meaningfully complements the enhanced Source Reader on delayed outcomes.
 
 ## North star
 
 The aspirational experience is a single calm screen on which the most useful representation appears at the right moment. The learner can focus on that screen and emerge able to explain and use the material.
 
-This is a research direction, not a promise that arbitrary information can be “uploaded” through rapid flashes. Current evidence supports very fast extraction of visual gist, but not equally fast consolidation of durable, relational knowledge. PRISM should bridge that gap with semantic chunking, controlled dwell time, context, active checks, and later retrieval.
+This is a research direction, not a promise that arbitrary information can be “uploaded” through rapid flashes. Current evidence supports very fast extraction of visual gist, but not equally fast consolidation of durable, relational knowledge. PRISM should test whether coherent frames, stable context, learner-stepped advancement, sparse checks, source-linked repair, and delayed retrieval reduce wasted effort without removing productive rereading.
 
 ### Long-term research mission
 
@@ -49,13 +52,13 @@ Some parts of this destination are **Promising**, some are **Experimental**, and
 
 **Decision recorded 2026-08-19:** durable, transferable learning always outranks raw speed. PRISM should first meet a selected learning standard and then find the fastest comfortable path that continues to meet it.
 
-The user retains a clear pace/depth control:
+The user retains a clear Faster ↔ Deeper bundle control. It is not merely a speed slider:
 
-- **Faster:** shorter dwell and fewer optional elaborations, while preserving the chosen learning checks;
-- **Auto:** the fastest policy currently supported by the learner’s results and the content;
-- **Deeper:** more context, examples, integration time, generative activity, and review.
+- **Faster:** merges compatible frames, removes optional examples, reduces optional checks, and shortens nonessential transition delays without removing qualifiers, source links, accessibility content, or rewind;
+- **Auto:** recommends the least costly bundle supported by the selected goal and demonstrated task evidence, while keeping every change inspectable and reversible;
+- **Deeper:** splits dense frames, preserves the anchor longer, adds a worked contrast or example, and may insert one additional integration or repair opportunity.
 
-If the user chooses a gist-only Preview goal, PRISM may go faster but must label the outcome as orientation rather than mastery. The system never hides an expected speed–learning tradeoff.
+Understand and Study are learner-stepped by default; Study has no instructional autoplay in v0. If the user chooses a gist-only Preview goal, PRISM may go faster but must label the outcome as orientation rather than demonstrated learning. The system never hides an expected speed–learning tradeoff.
 
 ## Recommended initial audience
 
@@ -86,9 +89,9 @@ Private sources remain local by default. Cloud transformation requires explicit 
 ## Core product modes
 
 - **Preview:** fast structural map and key questions; optimized for orientation and gist.
-- **Understand:** adaptive semantic frames with context and optional explanatory visuals.
-- **Study:** slower loop with retrieval, application, feedback, and spaced follow-up.
-- **Source:** conventional document view for verification and unrestricted navigation.
+- **Understand:** learner-controlled Traceable Semantic Relay frames with context and optional explanatory representations.
+- **Study:** a deeper TSR bundle with sparse retrieval, application, repair, and spaced follow-up.
+- **Source:** an enhanced static reader for normal study, verification, search, structure, and unrestricted navigation.
 
 Keeping these goals separate prevents a fast preview from being mislabeled as deep study.
 
@@ -125,5 +128,5 @@ When two designs produce meaningfully different durable-learning outcomes, prefe
 - **Established:** normal reading speed and comprehension trade off; readers benefit from self-pacing, preview, and repair.
 - **Promising:** phrase/clause segmentation, cumulative context, signaling, and task-sensitive representation selection.
 - **Established for learning:** retrieval and spacing improve durable retention more reliably than passive re-exposure.
-- **Experimental:** using interaction or gaze signals to adapt pace and representation in real time.
+- **Experimental:** the complete Traceable Semantic Relay interaction, persistent source anchor, and transparent behavior-informed adaptation.
 - **Speculative:** seamless one-screen multimodal streaming that consistently outperforms careful textbook study across domains.

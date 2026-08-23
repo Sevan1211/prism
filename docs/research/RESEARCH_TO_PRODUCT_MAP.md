@@ -1,7 +1,8 @@
 # Research-to-product map
 
-**Reviewed:** 2026-08-19  
+**Reviewed:** 2026-08-23  
 **Purpose:** connect evidence to an implementable PRISM mechanism and a falsifiable outcome.
+**Dossier integration:** [`DOSSIER_INTEGRATION_REVIEW.md`](DOSSIER_INTEGRATION_REVIEW.md)
 
 ## Scientific position
 
@@ -15,7 +16,7 @@ PRISM is not based on a discovery that the brain can absorb arbitrary textbook k
 6. learn from delayed explanation and transfer, not engagement;
 7. keep the original source one action away.
 
-The combination is PRISM’s research contribution. Each component still has to earn its place through ablation.
+The proposed combination is **Traceable Semantic Relay (TSR)**: **Anchor → Advance → Integrate → Repair**. TSR is an **Experimental** project mechanism, not an established scientific construct. Its value has to be measured against an enhanced static Source Reader, and each component still has to earn its place through ablation.
 
 ## Core evidence-to-feature matrix
 
@@ -23,16 +24,18 @@ The combination is PRISM’s research contribution. Each component still has to 
 |---|---|---|---|
 | Reading speed trades off with comprehension; extreme speed claims are not credible | **Established** | Optimize time only after a learning threshold; show Preview separately from Understand/Study | Faster modes repeatedly miss delayed explanation or transfer |
 | Natural reading uses preview, variable fixation, and regression/repair | **Established** | Stable cumulative context, instant rewind, optional next-context preview, and Source mode | Removing context produces no learning/workload penalty across representative texts |
-| Meaning is grouped into phrases, clauses, propositions, and discourse relations | **Promising for this interface** | Semantic frames and content-aware dwell rather than equal-time isolated words | Word RSVP is noninferior on delayed outcomes and easier to use |
+| Meaning is grouped into phrases, clauses, propositions, and discourse relations | **Promising for this interface** | Semantic frames within learner-stepped TSR rather than equal-time isolated words | The enhanced Source Reader is noninferior or better on delayed outcomes and workload |
 | Segmented, learner-paced multimedia often improves retention/transfer but can take longer | **Established with boundary conditions** | Concept boundaries, pause/continue control, and explicit integration frames | Segmentation adds time/workload without improving retained understanding |
 | Signaling and spatial/temporal contiguity can guide attention | **Established with boundary conditions** | One visual focus, attached labels, synchronized cueing, minimal highlighting | Cues distract, split attention, or fail to improve relation learning |
 | Visual gist can be detected extremely quickly, but detection is not durable relational learning | **Established** | A visual may enter quickly but persists while relations are inspected and integrated | Brief presentation alone supports delayed reconstruction and transfer |
-| Retrieval and spacing improve durable access more reliably than passive re-exposure | **Established** | Sparse conceptual checks, source-linked repair, and later review | Added checks harm reading flow and provide no delayed benefit relative to time |
+| Retrieval and spacing improve durable access more reliably than passive re-exposure | **Established** | Sparse learning loop: conceptual checks, source-linked repair, and later review | Added checks harm reading flow and provide no delayed benefit relative to time |
 | Learner-generated explanations/visuals can improve organization but can overload novices | **Promising and conditional** | Bounded completion, prediction, one-sentence explanation, or one missing arrow | Open generation produces confusion, poor scoring reliability, or excessive interruption |
 | Learning-style matching lacks a defensible basis | **Established constraint** | Adapt from goal, knowledge, performance, behavior, preferences, and accessibility—not fixed types | No product experiment should attempt to “validate” visual/verbal learner labels |
 | Long-context models can underuse middle content | **Established model limitation in studied settings** | Hierarchical retrieval of exact sections and dependencies; never rely on a full-book prompt | Representative models pass PRISM’s long-context fidelity suite without retrieval |
 | Long multimodal document models still struggle with figures/tables and irrelevant context | **Promising engineering evidence** | Retrieve page-local visual evidence, validate figures/tables separately, and preserve Source mode | A simpler text-only pipeline clears figure/table fidelity and transfer gates |
 | Gaze/EEG/pupil signals can correlate with effort or difficulty but do not prove comprehension | **Experimental** | Sensor-free v0; later gaze may propose pace/context changes, always checked by outcomes | Gaze adds no value beyond answers and interaction behavior or creates unacceptable burden |
+| Pauses, rewinds, dwell, source opening, focus, and confidence are ambiguous traces | **Established constraint / project inference** | Log observations and reason codes, but do not infer comprehension or confusion from behavior alone | A preregistered model predicts delayed outcomes robustly and adds value beyond direct learning evidence |
+| OCR/layout errors cascade into retrieval and answer errors | **Promising engineering evidence; newest attribution benchmarks are preprints** | Element-specific extraction gates, selected-unit evidence closure, clause-level citations, and Source fallback | PRISM’s representative corpus shows no consequential cascade under a simpler route |
 
 The supporting papers and authoritative sources are catalogued in `SOURCE_LIBRARY.md`.
 
@@ -120,22 +123,23 @@ Initial transparent timing features include:
 - integration distance to the relevant earlier frame;
 - recent learner repair evidence.
 
-The policy selects a dwell range and continuation behavior. The user can always pause or move. A learned timing model is not justified until delayed outcomes exist.
+The policy estimates active-time demand and selects a learner-stepped bundle. Timing controls only optional, mode-legal transitions; the user can always pause or move. A learned timing or sequencing model is not justified until delayed outcomes exist.
 
 ## Faster ↔ Deeper as a constrained policy
 
-The slider should not merely multiply milliseconds. It changes a bundle while preserving the chosen mode’s outcome contract:
+The control does not multiply milliseconds. It changes an itemized, reversible bundle while preserving the chosen mode’s outcome contract:
 
 | Control effect | Faster direction | Deeper direction |
 |---|---|---|
-| Dwell | Shorter within validated bounds | More inspection/integration time |
+| Frame plan | Merge compatible micro-frames without losing a relation | Split dense frames and expose intermediate state |
 | Context | Less nonessential context | More persistent prerequisites and comparison state |
 | Elaboration | Skip optional examples | Add example, boundary case, or alternate explanation |
 | Representation | Prefer compact adequate form | Permit a worked trace or multi-step visual |
 | Diagnostics | Wider spacing when evidence is strong | More generative/inference evidence |
 | Review | Only high-value due concepts | Broader retrieval and application |
+| Transition | Shorter optional noninstructional transitions | More learner inspection time; no forced instructional advance |
 
-Auto searches for the fastest path that still clears the current learning-risk rules. It must not optimize nominal completion, clicks, or user confidence.
+Auto recommends the least costly supported bundle and shows the expected time/content change before application. It must not optimize nominal completion, clicks, or user confidence, and it retains a fixed Study bundle for comparison.
 
 ## Technical-subject representation patterns
 
@@ -192,7 +196,7 @@ These are representation hypotheses, not fixed templates. Each pattern needs com
 
 ### 4. Personal knowledge graph
 
-**Experimental.** Link source-grounded concepts across books and courses, then use demonstrated mastery to warn about prerequisites and schedule review. The graph must separate:
+**Experimental.** Link source-grounded concepts across books and courses, then use demonstrated learning evidence to warn about prerequisites and schedule review. The graph must separate:
 
 - source assertion;
 - PRISM mapping/inference;
@@ -207,15 +211,15 @@ It becomes valuable only if it improves transfer or reduces unnecessary explanat
 
 ## Research sequence
 
-1. Prove PDF/source fidelity on technical fixtures.
-2. Compare normal text, one-word RSVP, and cumulative semantic frames with identical source meaning.
-3. Ablate context persistence and content-aware timing.
-4. Add source-provided technical visuals where structurally appropriate.
-5. Add sparse diagnostic/repair and delayed review.
-6. Test rule-based Faster ↔ Deeper adaptation.
-7. Add generated diagram specifications only after fidelity gates pass.
-8. Test full textbook navigation, prerequisites, and cross-reference retrieval.
-9. Compare optional local/cloud generation configurations.
+1. Preserve PDF/source fidelity on the existing TCP engineering fixture.
+2. Build an enhanced static Source Reader as the principal baseline and first-class product surface.
+3. Manually author the transaction-isolation package with clause provenance and the TSR Anchor → Advance → Integrate → Repair sequence.
+4. Compare Source Reader with learner-stepped TSR using identical canonical content; one-word RSVP is optional research-only.
+5. Ablate Anchor persistence and Integrate frames, then add the sparse learning loop and delayed review.
+6. Add source-provided technical visuals where structurally appropriate.
+7. Test itemized, reversible Faster ↔ Deeper bundles and rule-based adaptation after a fixed Study bundle passes.
+8. Add generated diagram specifications only after fidelity gates pass.
+9. Test full textbook navigation, prerequisites, cross-reference retrieval, and optional local/cloud generation.
 10. Study gaze and learned policies only after sensor-free delayed learning is strong.
 
 ## What would make PRISM genuinely new?

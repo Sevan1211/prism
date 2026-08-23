@@ -1,8 +1,9 @@
 # AI strategy: local-first, hybrid, and evidence-gated
 
-**Status:** proposed  
-**Reviewed:** 2026-08-19  
+**Status:** boundaries adopted; provider and compiler passes not implemented  
+**Reviewed:** 2026-08-23  
 **Budget:** no more than $25/month in v0 without a new owner decision
+**Research integration:** [`../research/DOSSIER_INTEGRATION_REVIEW.md`](../research/DOSSIER_INTEGRATION_REVIEW.md)
 
 ## Position
 
@@ -19,7 +20,7 @@ Local and cloud providers implement the same internal task contracts. A lesson p
 
 ## AI is a set of compiler passes
 
-Do not ask one model to “turn this chapter into the best lesson.” Use bounded passes with typed inputs and outputs:
+Do not ask one model to “turn this chapter into the best lesson.” A full book is locally indexed, but deep compilation closes over one selected learning unit and its explicitly retrieved prerequisites. Use bounded passes with typed inputs and outputs:
 
 1. **Element classification** — label definitions, claims, examples, warnings, equations, figures, and exercises.
 2. **Claim extraction** — produce atomic propositions with exact source element/span identifiers and preserved qualifiers.
@@ -28,9 +29,16 @@ Do not ask one model to “turn this chapter into the best lesson.” Use bounde
 5. **Frame planning** — group claims into coherent instructional units without changing truth conditions.
 6. **Representation proposal** — select text, source visual, table, equation, code trace, or a typed diagram specification.
 7. **Practice draft** — create sparse diagnostic items tied to claims and a repair path.
-8. **Fidelity review** — check omissions, contradictions, unsupported relations, answerability, and accessibility metadata.
+8. **Clause binding** — resolve every visible factual clause to immutable spans/regions and mark partial or absent support.
+9. **Qualification review** — preserve modality, negation, conditions, scope, exceptions, symbols, units, and uncertainty.
+10. **Representation specification** — emit constrained nodes, edges, cells, equation steps, code states, labels, and source bindings.
+11. **Practice draft** — create a sparse diagnostic tied to a governing relation, scoring rubric, and separate repair path.
+12. **Answerability and leakage review** — prove taught evidence supports the intended response without exposing it prematurely.
+13. **Accessibility draft** — propose transcript text, long description, reading order, and static/reduced-motion alternatives.
+14. **Independent fidelity review** — check omissions, contradictions, broadened claims, unsupported relations, and asset coverage.
+15. **Deterministic package validation** — product code resolves identifiers, permissions, publication states, fallbacks, and immutable hashes.
 
-Each pass can be rerun, compared, cached, or replaced independently.
+Each pass can be rerun, compared, cached, or replaced independently. Every run records selected-unit hash, retrieved evidence, input and output contract versions, model/provider revision, prompt/configuration hash, permission identity, latency, cost, abstention, and quality results. The generator cannot promote its own output.
 
 ## Tasks AI must not own
 
@@ -41,7 +49,7 @@ Each pass can be rerun, compared, cached, or replaced independently.
 | Minimum dwell and flash/motion limits | Safety constraints are policy, not suggestions |
 | Player state transitions | Reproducible experiments require deterministic behavior |
 | Learner evidence state | Exposure, recall, inference, transfer, and retention have explicit rules |
-| Final verification status | A generator cannot certify itself |
+| Support and publication state transitions | A generator cannot certify or publish itself |
 | Research randomization and scoring versions | Experimental integrity requires frozen instruments |
 | Cloud-consent decisions | Source privacy belongs to the learner |
 
@@ -144,7 +152,7 @@ accessibility validation
 draft | needs_review | blocked
 ```
 
-No single model verdict makes an artifact `verified`. Independent deterministic checks, a differently configured review pass, and human review can all contribute, but disagreement remains visible.
+No single model verdict makes an artifact approved. Independent deterministic checks, a differently configured review pass, and human review can all contribute, but disagreement remains visible. Schema validity and answer correctness are insufficient when the cited evidence is wrong.
 
 ### Specific rejection rules
 
@@ -158,6 +166,8 @@ Reject or block a candidate that:
 - creates a diagram arrow without an explicit or labeled inferred relation;
 - creates an unanswerable check or leaks the answer before the learner responds;
 - introduces outside facts without a separate source.
+
+Fail closure is granular. One unsafe diagram may fall back to its source figure or a text relation list without blocking a sound text frame; a wrong source hash, unresolved required claim, or critical contradiction blocks the entire package.
 
 ## Representation generation
 
@@ -187,11 +197,12 @@ Do not place an LLM in the frame-by-frame playback loop. The initial player uses
 - goal and Faster ↔ Deeper position;
 - content difficulty features;
 - prior knowledge;
-- correctness, confidence, latency, rewinds, and pauses;
+- direct task evidence and optional post-answer confidence;
+- latency, rewinds, pauses, Source use, and focus only as ambiguous context—not standalone comprehension labels;
 - accessibility constraints;
 - recent and delayed outcomes.
 
-AI may prepare representation alternatives before playback. A learned sequencing policy becomes reasonable only after enough consented delayed-outcome data exist and it beats the transparent rule policy.
+AI may prepare representation alternatives before playback. A learned sequencing policy becomes reasonable only after enough consented delayed-outcome data exist and it beats the transparent rule policy plus a fixed Study bundle.
 
 ## Cost controls
 
@@ -244,6 +255,8 @@ Build a frozen evaluation set from the first three passages plus adversarial fix
 - latency, local peak RAM/VRAM, and cloud cost;
 - reviewer repair time;
 - sensitivity to context order and irrelevant pages.
+
+Document-intelligence evaluation must separate page localization, region localization, fact extraction, citation correctness, and answer verification. Recent benchmarks such as OHRBench and the 2026 CiteVQA, DocScope, and XL-DocBench preprints reinforce this separation, but do not select a permanent parser or model. See the annotated [source library](../research/SOURCE_LIBRARY.md).
 
 Choose the lowest-cost configuration that clears every fidelity threshold. Re-run this suite before model aliases, prompts, parsers, or schemas change.
 

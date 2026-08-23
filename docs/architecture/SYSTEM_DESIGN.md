@@ -1,8 +1,12 @@
 # Conceptual system design
 
+**Reviewed:** 2026-08-23  
+**Research integration:** [`../research/DOSSIER_INTEGRATION_REVIEW.md`](../research/DOSSIER_INTEGRATION_REVIEW.md)  
+**Implementation sequence:** [`../engineering/IMPLEMENTATION_PLAN.md`](../engineering/IMPLEMENTATION_PLAN.md)
+
 ## Design goal
 
-Create a pipeline in which every presented representation is traceable, versioned, measurable, and replaceable. The architecture must support fair experiments: the same canonical content can be rendered as normal text, one-word RSVP, or PRISM semantic frames without changing what is tested.
+Create a pipeline in which every presented representation is traceable, versioned, measurable, and replaceable. The architecture must support fair experiments: the same canonical content can be rendered as normal self-paced text, the enhanced Source Reader, or Traceable Semantic Relay (TSR) without changing what is taught. One-word RSVP is an optional research-only negative control, not a product architecture requirement.
 
 ## System flow
 
@@ -14,18 +18,19 @@ structure-preserving ingestion
 canonical document model
   ↓
 claims + concepts + relations + prerequisites
+  ├──────────────────────────────→ enhanced Source Reader
+  ↓                                      ↕ exact source location
+semantic frame plan → representation candidates
   ↓
-semantic frame plan
+deterministic selection + fidelity/accessibility gates
   ↓
-representation generation / selection
+immutable lesson package + static transcript
   ↓
-fidelity and accessibility checks
+TSR player: Anchor → Advance → Integrate → Repair
   ↓
-versioned lesson package
+sparse learning loop ↔ versioned learner evidence
   ↓
-adaptive player ↔ learner state
-  ↓
-checkpoints + delayed review + research outcomes
+24-hour / 7-day review + research export
 ```
 
 ## Component boundaries
@@ -68,7 +73,7 @@ Responsibilities:
 - identify required earlier claims;
 - distinguish explicit source claims from generated inferences.
 
-Each node and edge includes source spans. No edge created only by the model is marked “explicit.”
+Each node and edge includes source spans or an explicit project-inference label. No edge created only by the model is marked `source_explicit`, and no model-created record becomes approved through self-review.
 
 For a full textbook, source structure and learner knowledge remain separate graphs. The source graph represents chapters, references, and claims; the learner graph represents observed evidence across those claims.
 
@@ -81,6 +86,13 @@ Responsibilities:
 - order frames without violating source logic or prerequisites;
 - insert integration and retrieval points;
 - generate a deterministic baseline plan.
+
+The planner emits the TSR roles explicitly:
+
+- **Anchor:** the definition, relation, diagram skeleton, equation, code state, or comparison pole that must remain recoverable;
+- **Advance:** the next coherent proposition, worked state, or source visual change;
+- **Integrate:** a boundary frame that makes the governing relation or changed mental model inspectable;
+- **Repair:** a source-linked contrast or re-representation triggered only by direct task evidence or a learner request.
 
 Hard segmentation constraints:
 
@@ -116,8 +128,10 @@ Before a lesson is playable, checks evaluate:
 - ordering: are prerequisites available before dependent frames?
 - accessibility: is equivalent text present, and are motion/flash constraints met?
 - answerability: can each checkpoint be answered from taught content?
+- locator closure: do all selected-unit claims, visual relations, prompts, answers, and repairs resolve to immutable source evidence?
+- publication authority: did an allowed deterministic rule or human reviewer—not a generator—make the state transition?
 
-Automated checks assist but do not prove correctness. A lesson can have `draft`, `reviewed`, or `verified` status.
+Automated checks assist but do not prove correctness. Publication and support are separate axes: a record may be `draft`, `needs_review`, `approved`, `rejected`, or `superseded`, while clause support may be `supported`, `partially_supported`, `unsupported`, or `not_applicable`. “Verified” must name exactly what was checked and by whom rather than acting as a universal badge.
 
 Automatic practice questions may ship in a draft lesson after grounding and answerability checks. Outcome-measure questions used for performance claims require reviewed, versioned, and piloted status.
 
@@ -132,9 +146,11 @@ A versioned lesson package contains:
 - representation variants;
 - checkpoint bank and rubrics;
 - presentation configurations;
+- a static transcript rendered from the same ordered records;
 - accessibility alternatives;
+- source-reader fallback bindings;
 - content and generation licenses;
-- verification status.
+- publication, support, provenance, and quality-check states.
 
 Once prepared, the package is self-contained enough for offline playback, note capture, assessment, and review scheduling.
 
@@ -146,8 +162,8 @@ The player controls:
 
 - which representation variant is shown;
 - active/persistent/preview frame regions;
-- dwell time and boundary pauses;
-- the continuous Faster ↔ Deeper control and Auto policy;
+- learner-stepped transitions and any mode-legal timing;
+- the itemized Faster ↔ Deeper bundle and its reversible receipt;
 - manual controls;
 - repair sequences;
 - focus and visibility pauses;
@@ -156,7 +172,7 @@ The player controls:
 
 It does not change the canonical claim. Adaptation changes timing, context, explanation, example, or review—not factual content.
 
-In Understand and Study, a versioned safety rule can automatically slow effective presentation when correctness, confidence, latency, or repair behavior crosses the configured learning-risk threshold. The event and reason are logged and inspectable. Continuing without that guardrail requires the explicit Preview contract.
+Preview may offer autoplay, but it is off by default. Understand is learner-stepped by default; any later autoplay experiment is off by default and prohibited for interactive or high-inspection frames. Study has no instructional autoplay in v0. A policy may recommend more context, a source check, or a slower bundle after direct task evidence, but the receipt and undo remain inspectable. Pause, rewind, dwell, source opening, focus loss, and response latency are observations—not comprehension diagnoses by themselves.
 
 ### 9. Learner model
 
@@ -164,14 +180,14 @@ Initial learner state should be small and explainable:
 
 - content goal;
 - prior-knowledge results;
-- concept status: unseen, exposed, retrieved, inferred, transferred, retained;
+- concept evidence: unseen, exposed, literal response, inference response, transfer response, delayed response, each with task/version/time and scoring evidence;
 - latest correctness and confidence;
 - response latency;
-- pause/rewind/replay history;
+- pause/rewind/replay/source/focus history as ambiguous interaction traces;
 - preferred pace and context window;
 - accessibility settings.
 
-v0 persists this state in a local profile without an account. v1 may add optional encrypted synchronization. A longer-term personal knowledge graph connects mastered, weak, and prerequisite concepts across lesson packages without weakening source-level provenance.
+v0 persists this state in a local profile without an account. v1 may add optional encrypted synchronization. A longer-term personal knowledge graph connects demonstrated, weak, and prerequisite concepts across lesson packages without weakening source-level provenance.
 
 Avoid a single “comprehension score.” A learner can recall a definition while failing inference or application.
 
@@ -196,11 +212,18 @@ Practice items can be generated automatically and versioned with their source li
 
 ```yaml
 source_span:
+  id: string
+  source_hash: string
   document_version: string
+  element_id: string
   section_path: [string]
   start_offset: integer
   end_offset: integer
+  page_index: integer | null
+  region_normalized: [number, number, number, number] | null
   extracted_text: string
+  text_snapshot_hash: string
+  locator_version: integer
 ```
 
 ### Canonical claim
@@ -208,10 +231,15 @@ source_span:
 ```yaml
 claim:
   id: string
-  proposition: string
-  source_spans: [source_span]
-  status: explicit | inferred | added_explanation
+  clauses:
+    - text: string
+      source_span_ids: [string]
+      support_status: supported | partially_supported | unsupported | not_applicable
+  content_origin: source_verbatim | source_paraphrase | prism_inference | added_explanation
+  publication_status: draft | needs_review | approved | rejected | superseded
   qualifiers: [string]
+  polarity: positive | negative
+  modality: string | null
   concepts: [concept_id]
 ```
 
@@ -231,20 +259,24 @@ frame:
     integration_distance: integer
   minimum_dwell_ms: integer
   auto_advance_allowed: boolean
-  verification_status: draft | reviewed | verified
+  inspection_level: low | medium | high | interactive
+  publication_status: draft | needs_review | approved | rejected | superseded
+  accessibility_alternative_ids: [string]
+  source_fallback_ids: [string]
 ```
 
 ### Learner concept state
 
 ```yaml
-concept_state:
+concept_evidence:
+  id: string
   concept_id: string
-  exposure_count: integer
-  literal_status: unknown | incorrect | correct
-  inference_status: unknown | incorrect | correct
-  transfer_status: unknown | incorrect | correct
-  retention_status: untested | incorrect | correct
+  outcome_type: exposure | literal | inference | transfer | delayed_transfer
+  task_id: string | null
+  rubric_version: string | null
+  score: number | null
   confidence: number | null
+  observed_at: timestamp
   due_at: timestamp | null
 ```
 
@@ -280,7 +312,7 @@ The system should refuse unsupported elements and fall back to Source mode rathe
 MVP event data can be useful without biometrics:
 
 - frame shown/hidden timestamps;
-- pause, rewind, replay, and speed controls;
+- pause, rewind, replay, Source, mode, and bundle controls;
 - answers, confidence, and latency;
 - browser visibility state;
 - accessibility settings.
@@ -316,16 +348,13 @@ Explicitly opted-in, anonymized interaction data may later support model researc
 
 ## Build sequence
 
-1. Representative clean computing-PDF fixture, immutable source storage, and canonical page records.
-2. PDF.js Source mode, page-region provenance, and extraction confidence gates.
-3. Deterministic semantic segmentation plus normal-reading and RSVP baselines.
-4. Stable cumulative semantic player with pause, step, rewind, context, and reduced motion.
-5. Source traceability, deterministic lesson packages, and research event logging.
-6. Resumable full-book structure/search indexing with section-level compilation on demand.
-7. Persistent local learner profile, notes, and overlays.
-8. Outcome-labeled sparse checkpoints plus 24-hour and 7-day retests.
-9. Rule-based Faster ↔ Deeper adaptation, automatic slowdown, and repair.
-10. Typed relation/code/process diagrams with inference labels.
-11. Equation, table, figure, and mixed/OCR page adapters behind explicit capability gates.
-12. Learned adaptation after adequate consented delayed-outcome data.
-13. Optional gaze research as a separate track.
+The repository-grounded milestone and test plan is authoritative in [`../engineering/IMPLEMENTATION_PLAN.md`](../engineering/IMPLEMENTATION_PLAN.md). Its dependency order is:
+
+1. lock documentation and contract-v2 migration decisions;
+2. build the enhanced Source Reader and local security envelope on the existing TCP import foundation;
+3. author an evidence-locked transaction-isolation package with clause-level support;
+4. replace timer-first playback with learner-stepped TSR and complete accessibility/recovery gates;
+5. add one sparse prompt/repair path, active-time derivation, and 24-hour/seven-day review;
+6. run the owner pilot before automating compilation;
+7. add bounded AI proposal passes and one typed representation grammar only after the manual path passes;
+8. widen PDF classes, full-book navigation, and learned/sensor adaptation only through separate evidence gates.
