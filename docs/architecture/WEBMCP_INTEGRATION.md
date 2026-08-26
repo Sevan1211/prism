@@ -71,9 +71,11 @@ Tool results flow to the agent vendor's servers. Agent exposure is therefore a p
 - registration happens only on surfaces the learner opened; closing the lesson or reader aborts every registration;
 - the feature detects `document.modelContext ?? navigator.modelContext` and degrades to nothing — no polyfill that fakes agent presence.
 
-## Engineering prerequisite
+## Engineering approach
 
-Player state (current frame, mode, bundle, playing) is currently component-local React state. Tools need to read and drive it from outside the component tree, so the WebMCP work begins by lifting player state into a small store with an imperative controller — the same refactor the research-instrumentation gaps need. Tool handlers call the existing typed API client and the store; no parallel data path.
+Tools register from inside the components that own the relevant state, through a `useModelContextTool` hook that keeps the executor in a ref (fresh state, stable registration) and unregisters via `AbortSignal` on unmount. Registration is mirrored into a local `window.__prismWebMCP` registry so the surface is inspectable and testable in any browser, including ones without the experimental API; the fake-context test helper drives the same executors the real agent would call. Library tools live in the App shell; player tools register only while a lesson is open. No store rewrite was required.
+
+**Implementation status (2026-08-26):** Ring 1 plus `get_frame_evidence` is implemented and verified end to end — `list_sources`, `get_source_readiness`, `prepare_stream`, `open_source_page`, `get_player_state`, `goto_frame`, `set_mode`, `set_pace`, `set_playback`, `get_frame_evidence` — including a live agent-simulated run that compiled and drove a real lesson from the Erickson corpus source, and tests covering the private-source refusal path. Remaining: `search_source` (Ring 2, with the Reader's FTS5 endpoint) and the Ring 3 tutor loop.
 
 ## Hackathon deliverable (2026-09-03)
 

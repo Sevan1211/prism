@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { recordEvent, sourceFileUrl, sourceVisualUrl } from './api'
+import { agentContentAllowed, AGENT_ACCESS_REFUSAL, refusalResult, textResult } from './webmcp/context'
+import { useModelContextTool } from './webmcp/useModelContextTool'
 import type { LessonPackage, ResearchEvent, SemanticFrame, SourceVisual } from './types'
 
 const TERM_PUNCTUATION = /[^A-Za-z0-9_()]/g
@@ -194,6 +196,188 @@ export function SemanticPlayer({ lesson, onExit }: SemanticPlayerProps) {
     return () => window.removeEventListener('keydown', handleKey)
   }, [changeMode, frame?.auto_advance_allowed, mode, move, nextFrame])
 
+  const applyBundle = useCallback(
+    (nextBundle: LearningBundle) => {
+      setBundle(nextBundle)
+      emit('pace_changed', {
+        bundle: nextBundle,
+        pace_multiplier: BUNDLES[nextBundle].multiplier,
+      })
+    },
+    [emit],
+  )
+
+  const contentAllowed = agentContentAllowed(lesson.source.rights_status)
+  const frameSummary = useCallback(
+    (target: SemanticFrame, frameNumber: number) => ({
+      frame_number: frameNumber,
+      of_frames: lesson.frames.length,
+      type: target.type,
+      verification_status: target.verification_status,
+      auto_advance_allowed: target.auto_advance_allowed,
+      source_page: target.source_spans[0]?.page_number ?? null,
+      ...(contentAllowed
+        ? {
+            section_title: target.section_title,
+            content: target.representation.content,
+            source_spans: target.source_spans.map((span) => ({
+              page_number: span.page_number,
+              start_offset: span.start_offset,
+              end_offset: span.end_offset,
+              extracted_text: span.extracted_text,
+            })),
+          }
+        : { content_withheld: AGENT_ACCESS_REFUSAL }),
+    }),
+    [contentAllowed, lesson.frames.length],
+  )
+
+  // WebMCP Ring 1 — player tools; registered only while a lesson is open.
+  useModelContextTool({
+    name: 'get_player_state',
+    description:
+      'Current player state: mode, frame position, pace bundle, and whether optional '
+      + 'playback is running. Frame content appears only for openly licensed sources.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    readOnly: true,
+    execute: async () => {
+      const current = lesson.frames[index]
+      return textResult({
+        lesson_id: lesson.id,
+        title: lesson.title,
+        mode,
+        playing,
+        bundle,
+        rights_status: lesson.source.rights_status,
+        ...(current ? { frame: frameSummary(current, index + 1) } : {}),
+      })
+    },
+  })
+
+  useModelContextTool({
+    name: 'goto_frame',
+    description:
+      'Move the player the learner is watching to a specific frame (1-based). '
+      + 'Stops optional playback so the learner stays in control.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        frame_number: { type: 'integer', minimum: 1 },
+      },
+      required: ['frame_number'],
+      additionalProperties: false,
+    },
+    execute: async (args) => {
+      const requested = typeof args.frame_number === 'number' ? Math.trunc(args.frame_number) : null
+      if (!requested || requested < 1 || requested > lesson.frames.length) {
+        return refusalResult(`frame_number must be between 1 and ${lesson.frames.length}`)
+      }
+      setIndex(requested - 1)
+      setPlaying(false)
+      setSourceEvidenceOpen(false)
+      return textResult(frameSummary(lesson.frames[requested - 1], requested))
+    },
+  })
+
+  useModelContextTool({
+    name: 'set_mode',
+    description:
+      'Switch the player surface: reader (original PDF), preview (section path), '
+      + 'understand (semantic stream), or study (free-recall explanation).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        mode: { type: 'string', enum: ['reader', 'preview', 'understand', 'study'] },
+      },
+      required: ['mode'],
+      additionalProperties: false,
+    },
+    execute: async (args) => {
+      const requested = args.mode
+      if (
+        requested !== 'reader'
+        && requested !== 'preview'
+        && requested !== 'understand'
+        && requested !== 'study'
+      ) {
+        return refusalResult('mode must be reader, preview, understand, or study')
+      }
+      changeMode(requested)
+      return textResult({ mode: requested })
+    },
+  })
+
+  useModelContextTool({
+    name: 'set_pace',
+    description:
+      'Set the learning-path bundle: faster, auto, or deeper. The player shows the '
+      + 'learner an itemized receipt of what the bundle changes.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        bundle: { type: 'string', enum: ['faster', 'auto', 'deeper'] },
+      },
+      required: ['bundle'],
+      additionalProperties: false,
+    },
+    execute: async (args) => {
+      const requested = args.bundle
+      if (requested !== 'faster' && requested !== 'auto' && requested !== 'deeper') {
+        return refusalResult('bundle must be faster, auto, or deeper')
+      }
+      applyBundle(requested)
+      return textResult({ bundle: requested, receipt: BUNDLES[requested].receipt })
+    },
+  })
+
+  useModelContextTool({
+    name: 'set_playback',
+    description:
+      'Start or stop optional auto-advance in Understand mode. Refused on frames that '
+      + 'require inspection; the learner can always pause manually.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        playing: { type: 'boolean' },
+      },
+      required: ['playing'],
+      additionalProperties: false,
+    },
+    execute: async (args) => {
+      if (typeof args.playing !== 'boolean') {
+        return refusalResult('playing must be true or false')
+      }
+      if (args.playing) {
+        const current = lesson.frames[index]
+        if (mode !== 'understand') return refusalResult('playback runs only in understand mode')
+        if (!current?.auto_advance_allowed) {
+          return refusalResult('this frame requires inspection and cannot auto-advance')
+        }
+        if (index >= lesson.frames.length - 1) {
+          return refusalResult('already at the final frame')
+        }
+      }
+      setPlaying(args.playing)
+      emit(args.playing ? 'play' : 'pause')
+      return textResult({ playing: args.playing })
+    },
+  })
+
+  useModelContextTool({
+    name: 'get_frame_evidence',
+    description:
+      'The exact source spans backing the current frame: page numbers, character '
+      + 'offsets, and verbatim extracted text. Openly licensed sources only.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    readOnly: true,
+    execute: async () => {
+      if (!contentAllowed) return refusalResult(AGENT_ACCESS_REFUSAL)
+      const current = lesson.frames[index]
+      if (!current) return refusalResult('no active frame')
+      return textResult(frameSummary(current, index + 1))
+    },
+  })
+
   if (!frame) {
     return (
       <main className="flow-player empty-player">
@@ -281,10 +465,7 @@ export function SemanticPlayer({ lesson, onExit }: SemanticPlayerProps) {
             setPlaying((current) => !current)
             emit(playing ? 'pause' : 'play')
           }}
-          onBundle={(nextBundle) => {
-            setBundle(nextBundle)
-            emit('pace_changed', { bundle: nextBundle, pace_multiplier: BUNDLES[nextBundle].multiplier })
-          }}
+          onBundle={applyBundle}
           onReducedMotion={setReducedMotion}
           onSourceToggle={toggleSourceEvidence}
           onOpenReader={() => changeMode('reader')}

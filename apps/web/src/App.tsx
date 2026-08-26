@@ -8,6 +8,8 @@ import {
   uploadSource,
 } from './api'
 import { SemanticPlayer } from './SemanticPlayer'
+import { agentContentAllowed, refusalResult, textResult } from './webmcp/context'
+import { useModelContextTool } from './webmcp/useModelContextTool'
 import type {
   ImportJob,
   LessonPackage,
@@ -132,6 +134,153 @@ export function App() {
     }, 650)
     return () => window.clearInterval(timer)
   }, [activeJob, pageEnd, pageStart, refreshSources, selectedSourceId])
+
+  const prepareStream = useCallback(
+    async (sourceId: string, start: number, end: number, title?: string) => {
+      const nextReadiness = await sourceReadiness(sourceId, start, end)
+      const range = nextReadiness.selected_range
+      if (!range?.can_compile) {
+        throw new Error(range?.message ?? 'This page range is not ready for a stream.')
+      }
+      const compiled = await compileLesson(sourceId, start, end, title)
+      setSelectedSourceId(sourceId)
+      setReadiness(nextReadiness)
+      setLesson(compiled)
+      window.scrollTo(0, 0)
+      return compiled
+    },
+    [],
+  )
+
+  // WebMCP Ring 1 — library tools available to the visitor's browser agent.
+  // See docs/architecture/WEBMCP_INTEGRATION.md for the ring contracts.
+  useModelContextTool({
+    name: 'list_sources',
+    description:
+      'List the PDFs in this PRISM library with indexing status, page counts, rights '
+      + 'status, and whether each source permits agent access to its content.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    readOnly: true,
+    execute: async () => {
+      const current = await listSources()
+      return textResult(
+        current.map((source) => ({
+          source_id: source.id,
+          name: source.original_name,
+          pages: source.page_count,
+          status: source.status,
+          rights_status: source.rights_status,
+          agent_content_allowed: agentContentAllowed(source.rights_status),
+        })),
+      )
+    },
+  })
+
+  useModelContextTool({
+    name: 'get_source_readiness',
+    description:
+      'Report whether a source (and optionally a page range) is ready for a semantic '
+      + 'stream: trusted body pages, the recommended entry window, and recovery state.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source_id: { type: 'string', description: 'Source id from list_sources' },
+        page_start: { type: 'integer', minimum: 1 },
+        page_end: { type: 'integer', minimum: 1 },
+      },
+      required: ['source_id'],
+      additionalProperties: false,
+    },
+    readOnly: true,
+    execute: async (args) => {
+      const sourceId = typeof args.source_id === 'string' ? args.source_id : null
+      if (!sourceId) return refusalResult('source_id is required')
+      const start = typeof args.page_start === 'number' ? args.page_start : undefined
+      const end = typeof args.page_end === 'number' ? args.page_end : undefined
+      try {
+        const report = await sourceReadiness(sourceId, start, end)
+        return textResult({
+          phase: report.phase,
+          parser_current: report.parser_current,
+          trusted_body_pages: report.trusted_body_pages,
+          recommended_range: report.recommended_range,
+          selected_range: report.selected_range,
+          capability_notes: report.capability_notes,
+        })
+      } catch (cause) {
+        return refusalResult(cause instanceof Error ? cause.message : 'readiness_unavailable')
+      }
+    },
+  })
+
+  useModelContextTool({
+    name: 'prepare_stream',
+    description:
+      'Compile a trusted page range of a source into a draft semantic stream and open '
+      + 'it in the player the learner is watching. Fails when the range is not ready.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source_id: { type: 'string' },
+        page_start: { type: 'integer', minimum: 1 },
+        page_end: { type: 'integer', minimum: 1 },
+        title: { type: 'string', maxLength: 180 },
+      },
+      required: ['source_id', 'page_start', 'page_end'],
+      additionalProperties: false,
+    },
+    execute: async (args) => {
+      const sourceId = typeof args.source_id === 'string' ? args.source_id : null
+      const start = typeof args.page_start === 'number' ? Math.trunc(args.page_start) : null
+      const end = typeof args.page_end === 'number' ? Math.trunc(args.page_end) : null
+      if (!sourceId || !start || !end) {
+        return refusalResult('source_id, page_start, and page_end are required')
+      }
+      try {
+        const compiled = await prepareStream(
+          sourceId,
+          start,
+          end,
+          typeof args.title === 'string' ? args.title : undefined,
+        )
+        return textResult({
+          lesson_id: compiled.id,
+          title: compiled.title,
+          frames: compiled.frames.length,
+          visuals: compiled.visuals.length,
+          verification_status: compiled.verification_status,
+          note: 'Draft stream opened in the player. Draft status does not establish learning.',
+        })
+      } catch (cause) {
+        return refusalResult(cause instanceof Error ? cause.message : 'compile_failed')
+      }
+    },
+  })
+
+  useModelContextTool({
+    name: 'open_source_page',
+    description:
+      'Get a link to (and try to open) an exact page of the original PDF, so the '
+      + 'learner can always inspect the untransformed source.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source_id: { type: 'string' },
+        page_number: { type: 'integer', minimum: 1 },
+      },
+      required: ['source_id', 'page_number'],
+      additionalProperties: false,
+    },
+    readOnly: true,
+    execute: async (args) => {
+      const sourceId = typeof args.source_id === 'string' ? args.source_id : null
+      const page = typeof args.page_number === 'number' ? Math.trunc(args.page_number) : null
+      if (!sourceId || !page) return refusalResult('source_id and page_number are required')
+      const url = sourceFileUrl(sourceId, page)
+      window.open(url, '_blank', 'noopener')
+      return textResult({ url, note: 'Original PDF page; opens in a new tab when permitted.' })
+    },
+  })
 
   if (lesson) {
     return (
