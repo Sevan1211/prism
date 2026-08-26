@@ -109,6 +109,28 @@
         "title": "CompileLessonRequest",
         "type": "object"
       },
+      "DocumentRegion": {
+        "enum": [
+          "body",
+          "front_matter",
+          "back_matter"
+        ],
+        "title": "DocumentRegion",
+        "type": "string"
+      },
+      "ElementKind": {
+        "enum": [
+          "heading",
+          "paragraph",
+          "code",
+          "caption",
+          "figure",
+          "table",
+          "furniture"
+        ],
+        "title": "ElementKind",
+        "type": "string"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -381,6 +403,81 @@
         "title": "PacingFeatures",
         "type": "object"
       },
+      "PageStatus": {
+        "enum": [
+          "trusted_for_transform",
+          "transform_with_warning",
+          "source_only"
+        ],
+        "title": "PageStatus",
+        "type": "string"
+      },
+      "ReadingState": {
+        "description": "Per-source reading position. Exposure evidence only — never a learning claim.",
+        "properties": {
+          "furthest_page": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Furthest Page",
+            "type": "integer"
+          },
+          "last_page": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Last Page",
+            "type": "integer"
+          },
+          "last_scroll_ratio": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Last Scroll Ratio",
+            "type": "number"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "source_id"
+        ],
+        "title": "ReadingState",
+        "type": "object"
+      },
+      "ReadingStateUpdate": {
+        "properties": {
+          "last_page": {
+            "minimum": 1.0,
+            "title": "Last Page",
+            "type": "integer"
+          },
+          "last_scroll_ratio": {
+            "default": 0.0,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Last Scroll Ratio",
+            "type": "number"
+          }
+        },
+        "required": [
+          "last_page"
+        ],
+        "title": "ReadingStateUpdate",
+        "type": "object"
+      },
       "ResearchEventIn": {
         "properties": {
           "event_type": {
@@ -562,6 +659,77 @@
         ],
         "title": "RightsStatus",
         "type": "string"
+      },
+      "SearchHit": {
+        "properties": {
+          "bbox_normalized": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Bbox Normalized",
+            "type": "array"
+          },
+          "document_region": {
+            "$ref": "#/components/schemas/DocumentRegion"
+          },
+          "element_id": {
+            "title": "Element Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ElementKind"
+          },
+          "page_number": {
+            "title": "Page Number",
+            "type": "integer"
+          },
+          "snippet": {
+            "title": "Snippet",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PageStatus"
+          }
+        },
+        "required": [
+          "element_id",
+          "page_number",
+          "kind",
+          "document_region",
+          "status",
+          "bbox_normalized",
+          "snippet"
+        ],
+        "title": "SearchHit",
+        "type": "object"
+      },
+      "SearchResponse": {
+        "properties": {
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/SearchHit"
+            },
+            "title": "Hits",
+            "type": "array"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "query",
+          "hits"
+        ],
+        "title": "SearchResponse",
+        "type": "object"
       },
       "SectionReadiness": {
         "description": "Inspectable readiness evidence for one requested PDF page range.",
@@ -816,6 +984,71 @@
         "title": "SourceReadiness",
         "type": "object"
       },
+      "SourceSection": {
+        "description": "One navigable section of a source, from its outline or computed headings.",
+        "properties": {
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "level": {
+            "maximum": 4.0,
+            "minimum": 1.0,
+            "title": "Level",
+            "type": "integer"
+          },
+          "origin": {
+            "enum": [
+              "outline",
+              "computed"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "page_end": {
+            "minimum": 1.0,
+            "title": "Page End",
+            "type": "integer"
+          },
+          "page_start": {
+            "minimum": 1.0,
+            "title": "Page Start",
+            "type": "integer"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "level",
+          "page_start",
+          "page_end",
+          "origin",
+          "confidence"
+        ],
+        "title": "SourceSection",
+        "type": "object"
+      },
       "SourceSpan": {
         "properties": {
           "bbox_normalized": {
@@ -869,6 +1102,37 @@
         ],
         "title": "SourceStatus",
         "type": "string"
+      },
+      "SourceStructure": {
+        "properties": {
+          "origin": {
+            "enum": [
+              "outline",
+              "computed",
+              "none"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SourceSection"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "origin",
+          "sections"
+        ],
+        "title": "SourceStructure",
+        "type": "object"
       },
       "SourceSummary": {
         "properties": {
@@ -1349,6 +1613,43 @@
         "summary": "Import Source"
       }
     },
+    "/api/sources/{source_id}/cover": {
+      "get": {
+        "operationId": "source_cover_api_sources__source_id__cover_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Source Cover"
+      }
+    },
     "/api/sources/{source_id}/file": {
       "get": {
         "operationId": "source_file_api_sources__source_id__file_get",
@@ -1506,6 +1807,193 @@
           }
         },
         "summary": "Source Readiness"
+      }
+    },
+    "/api/sources/{source_id}/reading-state": {
+      "get": {
+        "operationId": "get_reading_state_api_sources__source_id__reading_state_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Reading State"
+      },
+      "put": {
+        "operationId": "put_reading_state_api_sources__source_id__reading_state_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingStateUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingState"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Reading State"
+      }
+    },
+    "/api/sources/{source_id}/search": {
+      "get": {
+        "operationId": "source_search_api_sources__source_id__search_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 40,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Source Search"
+      }
+    },
+    "/api/sources/{source_id}/structure": {
+      "get": {
+        "operationId": "source_structure_api_sources__source_id__structure_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceStructure"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Source Structure"
       }
     },
     "/api/sources/{source_id}/visuals/{visual_id}": {

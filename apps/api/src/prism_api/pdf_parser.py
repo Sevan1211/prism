@@ -93,6 +93,28 @@ class PdfParseSession:
     def page_count(self) -> int:
         return len(self.document)
 
+    def read_outline(self, *, max_depth: int = 3) -> list[dict[str, Any]]:
+        """Return the PDF outline as {level (0-based), title, page_index} records."""
+
+        entries: list[dict[str, Any]] = []
+        try:
+            bookmarks = list(self.document.get_toc(max_depth=max_depth))
+        except Exception:
+            return entries
+        for bookmark in bookmarks:
+            try:
+                title = str(bookmark.get_title() or "").strip()
+                destination = bookmark.get_dest()
+                page_index = destination.get_index() if destination is not None else None
+            except Exception:
+                continue
+            if not title or page_index is None or page_index < 0:
+                continue
+            entries.append(
+                {"level": int(bookmark.level), "title": title, "page_index": int(page_index)}
+            )
+        return entries
+
     def parse_page(self, source_hash: str, page_index: int) -> list[dict[str, Any]]:
         page = self.document[page_index]
         try:

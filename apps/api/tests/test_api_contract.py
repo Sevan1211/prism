@@ -86,6 +86,41 @@ def test_api_runs_local_import_compile_source_and_event_path(
             )
             assert event.status_code == 204
 
+            structure = await client.get(f"/api/sources/{source_id}/structure")
+            assert structure.status_code == 200
+            structure_payload = structure.json()
+            assert structure_payload["source_id"] == source_id
+            assert structure_payload["origin"] in {"outline", "computed", "none"}
+
+            search = await client.get(f"/api/sources/{source_id}/search?q=congestion")
+            assert search.status_code == 200
+            search_payload = search.json()
+            assert search_payload["hits"]
+            first_hit = search_payload["hits"][0]
+            assert first_hit["page_number"] >= 1
+            assert "[congestion]" in first_hit["snippet"].lower()
+
+            injection = await client.get(
+                f"/api/sources/{source_id}/search?q=%22congestion%20OR%20NEAR("
+            )
+            assert injection.status_code == 200
+
+            moved = await client.put(
+                f"/api/sources/{source_id}/reading-state",
+                json={"last_page": 2, "last_scroll_ratio": 0.5},
+            )
+            assert moved.status_code == 200
+            back = await client.put(
+                f"/api/sources/{source_id}/reading-state",
+                json={"last_page": 1, "last_scroll_ratio": 0.0},
+            )
+            assert back.json()["furthest_page"] == 2
+            assert back.json()["last_page"] == 1
+
+            cover = await client.get(f"/api/sources/{source_id}/cover")
+            assert cover.status_code == 200
+            assert cover.headers["content-type"] == "image/webp"
+
             exported_events = await client.get(f"/api/lessons/{lesson['id']}/events")
             assert exported_events.status_code == 200
             event_payload = exported_events.json()

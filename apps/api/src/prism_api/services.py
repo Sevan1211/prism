@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 import shutil
 import sqlite3
 import threading
 import time
 import uuid
 from pathlib import Path
-from typing import BinaryIO, Literal
+from typing import Any, BinaryIO, Literal
 
 from prism_api.compiler import compile_lesson, validate_lesson_package
 from prism_api.config import Settings
@@ -18,13 +19,18 @@ from prism_api.models import (
     ImportResponse,
     JobState,
     LessonPackage,
+    ReadingState,
     RightsStatus,
+    SearchHit,
+    SearchResponse,
     SectionReadiness,
     SourceReadiness,
+    SourceSection,
     SourceStatus,
+    SourceStructure,
     SourceSummary,
 )
-from prism_api.pdf_parser import NativePdfParser
+from prism_api.pdf_parser import CHAPTER_BOUNDARY, SECTION_HEADING, NativePdfParser
 from prism_api.storage import Store
 
 logger = logging.getLogger(__name__)
@@ -200,6 +206,8 @@ class SourceService:
                         raise PageImportError(page_index + 1, error) from error
                     if fail_after_page is not None and page_index + 1 >= fail_after_page:
                         raise RuntimeError("simulated_parser_interruption")
+                outline_entries = document.read_outline()
+            self._store_sections(source.id, outline_entries, page_count=total)
             self.store.update_source_status(
                 source.id, SourceStatus.STRUCTURE_READY, page_count=total
             )
@@ -403,6 +411,93 @@ class SourceService:
         self.store.save_lesson(payload)
         return package
 
+    def _store_sections(
+        self,
+        source_id: str,
+        outline_entries: list[dict[str, Any]],
+        *,
+        page_count: int,
+    ) -> None:
+        """Persist navigable sections: outline route first, computed headings fallback."""
+
+        sections = outline_sections(outline_entries, page_count)
+        if not sections:
+            headings = [
+                element
+                for element in self.store.elements_for_range(source_id, 1, page_count)
+                if element["kind"] == "heading" and element["document_region"] == "body"
+            ]
+            sections = computed_sections(headings, page_count)
+        self.store.replace_sections(source_id, sections)
+        logger.info(
+            "stored %d section(s) for source %s (%s route)",
+            len(sections),
+            source_id,
+            sections[0]["origin"] if sections else "none",
+        )
+
+    def structure(self, source_id: str) -> SourceStructure:
+        source = self.store.source(source_id)
+        if source is None:
+            raise LookupError("Source not found.")
+        sections = self.store.sections_for_source(source_id)
+        origin: Literal["outline", "computed", "none"] = "none"
+        if sections:
+            origin = "outline" if sections[0]["origin"] == "outline" else "computed"
+        return SourceStructure(
+            source_id=source_id,
+            origin=origin,
+            sections=[SourceSection.model_validate(section) for section in sections],
+        )
+
+    def search(self, source_id: str, query: str, *, limit: int = 40) -> SearchResponse:
+        source = self.store.source(source_id)
+        if source is None:
+            raise LookupError("Source not found.")
+        sanitized = fts_query(query)
+        hits: list[SearchHit] = []
+        if sanitized is not None:
+            hits = [
+                SearchHit.model_validate(hit)
+                for hit in self.store.search_elements(source_id, sanitized, limit=limit)
+            ]
+        return SearchResponse(source_id=source_id, query=query, hits=hits)
+
+    def reading_state(self, source_id: str) -> ReadingState:
+        source = self.store.source(source_id)
+        if source is None:
+            raise LookupError("Source not found.")
+        stored = self.store.reading_state(source_id)
+        if stored is None:
+            return ReadingState(source_id=source_id)
+        return ReadingState.model_validate(stored)
+
+    def update_reading_state(
+        self, source_id: str, *, last_page: int, last_scroll_ratio: float
+    ) -> ReadingState:
+        source = self.store.source(source_id)
+        if source is None:
+            raise LookupError("Source not found.")
+        if source.page_count is not None:
+            last_page = min(last_page, source.page_count)
+        stored = self.store.upsert_reading_state(
+            source_id, last_page=last_page, last_scroll_ratio=last_scroll_ratio
+        )
+        return ReadingState.model_validate(stored)
+
+    def cover_asset(self, source_id: str) -> Path:
+        source = self.store.source(source_id)
+        source_path = self.store.source_path(source_id)
+        if source is None or source_path is None or not source_path.exists():
+            raise LookupError("Source not found.")
+        output_path = self.settings.visual_cache_dir / source.content_hash[:16] / "cover.webp"
+        if output_path.exists():
+            return output_path
+        with self._visual_render_lock:
+            if not output_path.exists():
+                self.parser.render_region(source_path, 0, [0.0, 0.0, 1.0, 1.0], output_path)
+        return output_path
+
     def visual_asset(self, source_id: str, visual_id: str) -> Path:
         source = self.store.source(source_id)
         source_path = self.store.source_path(source_id)
@@ -429,6 +524,108 @@ class SourceService:
                     output_path,
                 )
         return output_path
+
+
+def outline_sections(
+    entries: list[dict[str, Any]], page_count: int
+) -> list[dict[str, Any]]:
+    """Convert raw outline entries into stored sections with inclusive page ranges."""
+
+    valid = [
+        entry
+        for entry in entries
+        if 0 <= int(entry["page_index"]) < page_count and str(entry["title"]).strip()
+    ]
+    if not valid:
+        return []
+    base_level = min(int(entry["level"]) for entry in valid)
+    sections: list[dict[str, Any]] = []
+    parents: dict[int, str] = {}
+    for position, entry in enumerate(valid):
+        level = min(4, int(entry["level"]) - base_level + 1)
+        page_start = int(entry["page_index"]) + 1
+        page_end = page_count
+        for later in valid[position + 1 :]:
+            if int(later["level"]) - base_level + 1 <= level:
+                page_end = max(page_start, int(later["page_index"]))
+                break
+        section_id = f"sec_{position:04d}_{page_start:04d}"
+        sections.append(
+            {
+                "id": section_id,
+                "parent_id": parents.get(level - 1),
+                "title": str(entry["title"]).strip()[:200],
+                "level": level,
+                "page_start": page_start,
+                "page_end": page_end,
+                "origin": "outline",
+                "confidence": 0.9,
+            }
+        )
+        parents[level] = section_id
+        for deeper in [key for key in parents if key > level]:
+            del parents[deeper]
+    return sections
+
+
+def computed_sections(
+    heading_elements: list[dict[str, Any]], page_count: int
+) -> list[dict[str, Any]]:
+    """Fallback structure from detected chapter/section headings, one per page at most."""
+
+    candidates: list[dict[str, Any]] = []
+    seen_pages: set[int] = set()
+    for element in heading_elements:
+        page = int(element["page_number"])
+        if page in seen_pages:
+            continue
+        text = str(element["text"]).strip()
+        if CHAPTER_BOUNDARY.fullmatch(text):
+            level = 1
+        elif SECTION_HEADING.match(text):
+            numbering = re.match(r"^(\d+(?:\.\d+)*)", text)
+            level = min(4, numbering.group(1).count(".") + 1) if numbering else 2
+        else:
+            continue
+        seen_pages.add(page)
+        candidates.append({"page": page, "title": text[:200], "level": level})
+    sections: list[dict[str, Any]] = []
+    parents: dict[int, str] = {}
+    for position, candidate in enumerate(candidates):
+        page_end = page_count
+        for later in candidates[position + 1 :]:
+            if later["level"] <= candidate["level"]:
+                page_end = max(candidate["page"], later["page"] - 1)
+                break
+        section_id = f"sec_{position:04d}_{candidate['page']:04d}"
+        sections.append(
+            {
+                "id": section_id,
+                "parent_id": parents.get(candidate["level"] - 1),
+                "title": candidate["title"],
+                "level": candidate["level"],
+                "page_start": candidate["page"],
+                "page_end": page_end,
+                "origin": "computed",
+                "confidence": 0.6,
+            }
+        )
+        parents[candidate["level"]] = section_id
+        for deeper in [key for key in parents if key > candidate["level"]]:
+            del parents[deeper]
+    return sections
+
+
+def fts_query(raw: str) -> str | None:
+    """Quote user terms so arbitrary input cannot become FTS5 query syntax."""
+
+    tokens = [token for token in re.split(r"\s+", raw.strip()) if token][:8]
+    quoted = []
+    for token in tokens:
+        cleaned = token.replace('"', "")[:40]
+        if cleaned:
+            quoted.append(f'"{cleaned}"')
+    return " ".join(quoted) if quoted else None
 
 
 def recommended_section(
