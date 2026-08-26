@@ -76,6 +76,8 @@ class ImportJob(BaseModel):
     progress_current: int
     progress_total: int | None
     error_class: str | None = None
+    error_message: str | None = None
+    parser_version: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -83,6 +85,36 @@ class ImportJob(BaseModel):
 class ImportResponse(BaseModel):
     source: SourceSummary
     job: ImportJob
+
+
+class SectionReadiness(BaseModel):
+    """Inspectable readiness evidence for one requested PDF page range."""
+
+    page_start: int
+    page_end: int
+    status: Literal["ready", "indexing", "needs_attention", "source_only", "invalid_range"]
+    can_compile: bool
+    trusted_text_characters: int = 0
+    warning_text_characters: int = 0
+    source_only_text_characters: int = 0
+    body_pages: int = 0
+    excluded_non_body_elements: int = 0
+    message: str
+
+
+class SourceReadiness(BaseModel):
+    """Source-level capability and recovery state exposed to the local library."""
+
+    source_id: str
+    source_status: SourceStatus
+    phase: Literal["indexing", "ready", "needs_attention", "source_only"]
+    parser_current: bool
+    latest_job: ImportJob | None = None
+    trusted_body_pages: int = 0
+    source_only_body_pages: int = 0
+    recommended_range: SectionReadiness | None = None
+    selected_range: SectionReadiness | None = None
+    capability_notes: list[str] = Field(default_factory=list)
 
 
 NormalizedBBox = Annotated[list[float], Field(min_length=4, max_length=4)]
@@ -195,6 +227,7 @@ class ResearchEventIn(BaseModel):
         "source_closed",
         "pace_changed",
         "focus_paused",
+        "study_submitted",
         "session_ended",
     ]
     frame_id: str | None = None

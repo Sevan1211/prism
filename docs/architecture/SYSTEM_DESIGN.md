@@ -133,6 +133,8 @@ Before a lesson is playable, checks evaluate:
 
 Automated checks assist but do not prove correctness. Publication and support are separate axes: a record may be `draft`, `needs_review`, `approved`, `rejected`, or `superseded`, while clause support may be `supported`, `partially_supported`, `unsupported`, or `not_applicable`. “Verified” must name exactly what was checked and by whom rather than acting as a universal badge.
 
+**Implemented deterministic baseline, 2026-08-23:** the source-verbatim compiler now rejects a draft package before storage when an exact text offset or region does not match its indexed element, a claim/visual/prerequisite reference is orphaned or forward-pointing, an accessible equivalent is empty, a dwell order is invalid, or the package identity does not match its content. The package hash covers the complete stable instructional payload rather than only an ID list, and a rejected recompilation leaves the last valid stored lesson unchanged. These checks establish locator and graph integrity for the current baseline; they do not establish semantic entailment, essential-claim coverage, or human approval.
+
 Automatic practice questions may ship in a draft lesson after grounding and answerability checks. Outcome-measure questions used for performance claims require reviewed, versioned, and piloted status.
 
 ### 7. Lesson package

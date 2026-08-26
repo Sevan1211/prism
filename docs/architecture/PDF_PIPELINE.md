@@ -52,6 +52,23 @@ The learner declares one of: public domain, open license, personally authorized/
 
 ## 2. Safe preflight
 
+### Current v0 boundary
+
+The implemented importer validates the PDF signature and byte limit, preserves immutable bytes,
+then obtains page count and page-local evidence in the local worker. It does **not** yet claim
+to provide the full encrypted-file, adversarial-resource, column, rotation, or object-count
+preflight described below. Those checks remain part of the M1 security envelope.
+
+After indexing, the v0 API exposes an inspectable page inventory instead of a generic
+“ready” flag. For a requested range it reports trusted, warning, and source-only body text,
+excluded front/back matter, and whether a draft semantic stream is permitted. The library
+defaults to the earliest bounded range containing enough trusted explanatory paragraph text
+rather than PDF pages 1–3. The conservative early-page classifier recognizes title/publisher,
+edition, preface, and contents signals (including numbered running headers), while an explicit
+chapter boundary—including a split-line `CHAPTER` / ordinal / title banner—breaks inherited
+front-matter classification. Numeric code or byte-listing rows do not count as table-of-contents
+rows. The user can still change the range or open the original PDF at any time.
+
 The importer reads only enough to determine:
 
 - valid PDF signature and parseability;
@@ -78,7 +95,18 @@ An encrypted PDF requests a password locally. PRISM never sends that password to
 
 The implemented clean-PDF route uses `pypdfium2` for deterministic embedded-text extraction with page numbers, reading order, normalized bounding boxes, document-region labels, element status, and parser-version identity. The sequential worker reuses one PDF document handle for the import, closes every page/text object promptly, and commits recovery progress page by page. It detects exact figure/table captions plus meaningful embedded-image or vector regions. Visual pixels are rendered from the immutable PDF only when requested, capped to a bounded image size, encoded as WebP, and cached by source hash, parser version, and element identity. The browser holds only the active image and preloads at most the next distinct visual. Full-book indexing therefore stores coordinates and captions rather than rasterizing every page or embedding image bytes in lesson JSON.
 
-Tables of contents, lists of figures/tables, copyright matter, prefaces, indexes, bibliographies, references, and glossaries are classified conservatively from page position plus page-local evidence. Detected front/back matter stays in the canonical index and Source view but receives `playback_eligible: false`. This default may produce false negatives rather than silently streaming navigational material; a later reviewed structure pass can repair classification.
+The parser removes **exact** duplicate page artifacts before assigning durable identities. If two
+distinct records would otherwise share a text-and-bounds hash, a deterministic occurrence suffix
+keeps their identities separate. Storage validates unique IDs and contiguous reading order before
+replacing a page, so a malformed parse produces a page-specific recovery error rather than a raw
+SQLite constraint failure or a partially erased page.
+
+Before normalization, adjacent PDF text rectangles reconnect a trailing soft hyphen to a lowercase
+continuation (for example, `to-` / `gether` becomes `together`). This is a deterministic layout
+repair with an exact output span, not an inferred spelling correction; unrelated word boundaries
+remain unchanged.
+
+Tables of contents, lists of figures/tables, copyright matter, prefaces, indexes, bibliographies, references, and glossaries are classified conservatively from page position plus page-local evidence. Detected front/back matter stays in the canonical index and Source view but receives `playback_eligible: false`. A real chapter banner can break inherited front-matter classification; numbered code/ASCII rows alone cannot trigger a table-of-contents classification. This default may produce false negatives rather than silently streaming navigational material; a later reviewed structure pass can repair classification.
 
 Docling remains the candidate escalation route for mixed or structurally complex documents. When introduced through an adapter and accepted against the golden corpus, configure it to retain:
 
@@ -94,6 +122,21 @@ Docling remains the candidate escalation route for mixed or structurally complex
 Process bounded page windows, with a small overlap when a section, table, or figure crosses a boundary. Window size is tuned from memory and latency measurements; it is not encoded into content identity. The resulting page records use the original one-based PDF page index and retain printed page labels separately.
 
 Docling supports page ranges, page batching, local layout models, table structure extraction, multiple OCR engines, and page/picture image generation. Its structured output is a starting point, not truth. [Docling pipeline options](https://docling-project.github.io/docling/reference/pipeline_options/) and [minimal package extras](https://github.com/docling-project/docling/blob/main/packages/docling-slim/README.md) document these capabilities.
+
+### Parser landscape decision (recorded 2026-08-26)
+
+A 2026 survey of the leading open-source layout parsers confirms the adapter choice on licensing alone, before any fidelity comparison:
+
+- **Docling** (IBM / LF AI & Data): MIT-licensed, CPU-capable, structured `DoclingDocument` output — the only advanced candidate compatible with this project's licensing policy, and already version-gated at ≥ 2.91.0 for the archive/XML security fix.
+- **Marker** (Datalab): GPL-3.0 code plus RAIL-M-restricted model weights — excluded by the same rule that excludes PyMuPDF's AGPL.
+- **MinerU** (OpenDataLab): AGPL-3.0 — excluded.
+- **OCR models** (olmOCR and similar permissively licensed candidates) remain a separately gated Tier 2 evaluation for scanned pages; none enters the pipeline without the golden-corpus comparison.
+
+"Deterministic" for this pipeline means *versioned reproducibility with fail-closed gates*: identical source bytes plus identical parser identity must produce identical elements, and any component that cannot guarantee that (a layout model, an OCR engine) must pin model versions and decoding settings, carry its identity in `parser_version`, and lose to Source-only fallback whenever its confidence gates fail. Tiering stays: the native `pypdfium2` route (Tier 0) is the default and the baseline every adapter must beat on the reviewed corpus.
+
+### Agent-assisted extraction review — Experimental
+
+The WebMCP surface ([`WEBMCP_INTEGRATION.md`](WEBMCP_INTEGRATION.md)) enables a human-plus-agent review loop for pages the parser refuses to trust: read-only tools can expose a low-confidence page's rendered region, extracted candidates, and status to the learner's browser agent, which may *propose* corrections that the learner explicitly accepts into a `manual` extraction record. The agent never writes; acceptance is a learner action; provenance records the review. This is a review-throughput idea, not a fidelity shortcut, and it stays Experimental until the reviewed corpus shows it catches more errors than it introduces.
 
 ### Format routes
 
@@ -174,7 +217,18 @@ Page status is one of:
 - `source_only`;
 - `failed`.
 
-Only trusted content contributes automatically to an approvable lesson package. Warning content may appear in a draft with visible provenance. Source-only content remains navigable and can be manually bounded or corrected.
+Only trusted content contributes automatically to a draft lesson package. Warning content,
+source-only content, and unsupported pages remain navigable in the original PDF but do not enter
+the compiler until a later reviewed path exists. This is intentionally stricter than a generic
+“best effort” converter: the current compiler must not create a plausible-looking stream from
+warning-level extraction.
+
+The compiler also joins consecutive trusted heading fragments into one meaningful section frame
+instead of displaying isolated tokens such as `CHAPTER`, `ONE`, and a title as separate learning
+events. The combined frame retains one exact source span per original heading, so its displayed
+text is still source-verbatim and inspectable. When a narrowly recognized repeated running header
+is merged with the first paragraph by PDF extraction, the compiler starts its span after that header;
+the header remains available in Source and the displayed sentence remains an exact source substring.
 
 ## 7. Progressive textbook availability
 
@@ -187,7 +241,10 @@ Import has separate readiness levels:
 5. **Lesson ready:** representations and accessibility alternatives passed gates.
 6. **Research ready:** required human review, approved publication states, frozen measurement assets, and package/protocol hashes are complete.
 
-The UI must show the level rather than a vague spinner. A 900-page book can be useful at level 2 or 3 before every section reaches level 5.
+The UI must show the level rather than a vague spinner. The current local library displays the
+latest import job, page cursor, recoverable error message, parser currency, selected-range
+evidence, and the original-PDF route. A 900-page book can therefore be useful at source level
+while a specific stream remains blocked.
 
 ## 8. Section compilation, not whole-book generation
 
@@ -237,6 +294,15 @@ If PRISM temporarily uploads a file:
 
 Each job stage commits atomically. A restart resumes from the first missing or stale artifact.
 
+Current recovery behavior is deliberately explicit:
+
+- an interrupted current-parser job resumes at its durable page cursor;
+- a parser-version change creates a new page-zero reindex job without requiring re-upload;
+- the immutable source bytes remain unchanged during either path;
+- a failed page marks the source `needs_review`, keeps the latest job/error visible, and retains
+  the original PDF route;
+- stale or mixed parser versions block compilation until the new full reindex succeeds.
+
 Artifacts are invalidated by dependency, not by deleting the whole import:
 
 - parser version change → affected page extraction and downstream section artifacts;
@@ -264,6 +330,12 @@ The first fixture suite should contain licensed or synthetic examples of:
 - a malformed or resource-adversarial PDF.
 
 For each fixture, store reviewed expected elements, reading order, regions, and capability status. Parser upgrades pass the corpus before merge.
+
+The current synthetic regression fixture also seeds an exact duplicate text rectangle and a
+parser-version restart. It verifies that the importer deduplicates the artifact, never reuses an
+element ID, reports the failed page cleanly, and can rebuild the same immutable source from page
+one without a second upload. A real private textbook may be used for local smoke testing, but its
+bytes, title, and extracted text must remain outside the repository.
 
 ## Success criteria
 

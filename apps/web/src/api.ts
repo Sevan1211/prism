@@ -4,6 +4,7 @@ import type {
   LessonPackage,
   ResearchEvent,
   RightsStatus,
+  SourceReadiness,
   SourceSummary,
 } from './types'
 
@@ -41,6 +42,17 @@ export function importStatus(jobId: string): Promise<ImportJob> {
 
 export function resumeImport(jobId: string): Promise<ImportJob> {
   return request(`/api/imports/${encodeURIComponent(jobId)}/resume`, { method: 'POST' })
+}
+
+export function sourceReadiness(
+  sourceId: string,
+  pageStart?: number,
+  pageEnd?: number,
+): Promise<SourceReadiness> {
+  const search = pageStart !== undefined && pageEnd !== undefined
+    ? `?page_start=${encodeURIComponent(pageStart)}&page_end=${encodeURIComponent(pageEnd)}`
+    : ''
+  return request(`/api/sources/${encodeURIComponent(sourceId)}/readiness${search}`)
 }
 
 export function compileLesson(

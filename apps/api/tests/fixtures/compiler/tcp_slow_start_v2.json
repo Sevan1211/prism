@@ -1,0 +1,121 @@
+{
+  "fixture_schema_version": 1,
+  "source_sha256": "7d7a52619f26bc8e31d807238e6a110e1fdb051dfc55fc7d16eddb34136ae05d",
+  "schema_version": 2,
+  "compiler_version": "source-visual-semantic-v5-source-furniture-trim",
+  "package_id": "lesson_8aa69eaeb1d29946be3f",
+  "package_hash": "8aa69eaeb1d29946be3f57122af66fac1fab90728d88b89bf2f6c42067d3227d",
+  "title": "TCP Slow Start",
+  "page_range": [
+    1,
+    2
+  ],
+  "verification_status": "draft",
+  "claim_count": 11,
+  "frame_count": 11,
+  "visuals": [
+    {
+      "id": "el_7d7a52619f26_0002_3a09dacbf33d",
+      "page_number": 2,
+      "kind": "figure",
+      "bbox_normalized": [
+        0.209967,
+        0.429924,
+        0.786765,
+        0.660985
+      ],
+      "caption": "Figure 1.1.: Congestion window growth across acknowledged rounds.",
+      "accessible_text": "Figure 1.1.: Congestion window growth across acknowledged rounds."
+    }
+  ],
+  "frames": [
+    {
+      "id": "frame_9a36958ba59efd1e81",
+      "type": "section",
+      "text": "1. TCP Slow Start",
+      "active_visual_id": null,
+      "page_number": 1,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_b4ab34a158e020baa1",
+      "type": "causal",
+      "text": "TCP begins with a small congestion window because the sender does not yet know the path capacity.",
+      "active_visual_id": null,
+      "page_number": 1,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_9f99c95c6a9023fef3",
+      "type": "proposition",
+      "text": "Each acknowledged round increases the amount of data in flight, so growth is initially exponential.",
+      "active_visual_id": null,
+      "page_number": 1,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_068d61971af606883d",
+      "type": "proposition",
+      "text": "When loss occurs, the sender reduces the window and records a threshold for later additive increase.",
+      "active_visual_id": null,
+      "page_number": 1,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_7d64bc836e5949d6f9",
+      "type": "contrast",
+      "text": "However, a timeout does not prove that every packet was lost; it is a conservative congestion signal.",
+      "active_visual_id": null,
+      "page_number": 1,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_bd2b4ea410d25d7f4b",
+      "type": "section",
+      "text": "2. TCP Slow Start",
+      "active_visual_id": null,
+      "page_number": 2,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_ccb041849be1650613",
+      "type": "causal",
+      "text": "TCP begins with a small congestion window because the sender does not yet know the path capacity.",
+      "active_visual_id": null,
+      "page_number": 2,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_0af8aaed55a09190f6",
+      "type": "proposition",
+      "text": "Each acknowledged round increases the amount of data in flight, so growth is initially exponential.",
+      "active_visual_id": null,
+      "page_number": 2,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_4c47222fe9e9b9c3ef",
+      "type": "proposition",
+      "text": "When loss occurs, the sender reduces the window and records a threshold for later additive increase.",
+      "active_visual_id": null,
+      "page_number": 2,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_875f4708a834030249",
+      "type": "contrast",
+      "text": "However, a timeout does not prove that every packet was lost; it is a conservative congestion signal.",
+      "active_visual_id": null,
+      "page_number": 2,
+      "auto_advance_allowed": true
+    },
+    {
+      "id": "frame_baadc216a65e839c18",
+      "type": "integration",
+      "text": "Figure 1.1.: Congestion window growth across acknowledged rounds.",
+      "active_visual_id": "el_7d7a52619f26_0002_3a09dacbf33d",
+      "page_number": 2,
+      "auto_advance_allowed": false
+    }
+  ]
+}

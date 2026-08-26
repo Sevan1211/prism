@@ -12,17 +12,18 @@ This repository now contains the documentation foundation, an independently gene
 
 Implemented in the current slice:
 
-- streamed, content-addressed import of clean born-digital PDFs;
-- resumable page indexing into SQLite with parser-version invalidation;
+- streamed, content-addressed import of valid PDFs, with an original-PDF fallback for pages that cannot be safely transformed;
+- resumable page indexing into SQLite with parser-version invalidation, deterministic duplicate-artifact handling, and page-specific recovery errors;
 - body/front/back document-region classification that preserves navigation material for search while skipping it in playback;
+- per-source import state, parser currency, selected-range evidence, and an automatically suggested trusted body window rather than a fixed pages 1–3 default;
 - source spans and lazy, cached figure/table assets with one-based page numbers and normalized regions;
-- deterministic, source-verbatim draft semantic frames with persistent source-visual state;
-- a keyboard-accessible semantic-player prototype with pause, step, rewind, downward prior-frame context, a preliminary pacing control, reduced motion, and inline Source mode;
+- deterministic, source-verbatim draft semantic frames whose complete instructional payload is hashed and validated against exact indexed source spans before storage;
+- a responsive four-mode learning flow with Preview, Understand, Study, and a PDF-backed Reader; reversible navigation, exact source evidence, source visuals, bundle receipts, keyboard focus recovery, and reduced-motion behavior are implemented;
 - append-only research events and versioned JSON export through the local API;
 - local-only source policy with no upload-time blanket cloud permission;
 - generated OpenAPI and TypeScript contracts plus locked Python and npm dependencies.
 
-The slice has imported and visually checked the 489-page TCP benchmark textbook. It supports reliable embedded text plus lazy, source-faithful figure/table regions, and skips detected front/back matter during playback while preserving it for search and Source view. The reviewed next step is an enhanced static Source Reader and a manually authored transaction-isolation package for **Traceable Semantic Relay (TSR)**: Anchor → Advance → Integrate → Repair. TSR is an **Experimental** mechanism, not a validated learning method. OCR, table-cell/equation semantics, generated explanations or visuals, cloud AI, adaptive learning claims, and efficacy conclusions are not implemented or validated.
+The slice has imported and visually checked the 489-page TCP benchmark textbook. It supports reliable embedded text plus lazy, source-faithful figure/table regions, and skips detected front/back matter during playback while preserving it for Source view. A frozen synthetic TCP fixture now locks compiler identities, frame order, exact text, visual binding, source locations, high-inspection autoplay behavior, parser duplicate recovery, and stale-parser full reindexing. The next learning-content milestone remains a manually authored transaction-isolation package for **Traceable Semantic Relay (TSR)**: Anchor → Advance → Integrate → Repair. TSR is an **Experimental** mechanism, not a validated learning method. Full Source Reader search/overlay behavior, OCR, table-cell/equation semantics, generated explanations or visuals, cloud AI, adaptive learning claims, and efficacy conclusions are not implemented or validated.
 
 ## Run locally on Windows
 
@@ -47,6 +48,13 @@ npm run dev:web
 
 Open `http://127.0.0.1:5173`. Local application data defaults to `%LOCALAPPDATA%\PRISM`; set `PRISM_DATA_DIR` to use an explicit location.
 
+To test a textbook PDF, import it with the correct local rights declaration and wait for the page index.
+PRISM will recommend the first small window containing trusted explanatory body text; it will not silently stream a
+cover, table of contents, scan, or low-confidence extraction. You can change the page range, open the
+original PDF at any time, or use the visible local-reindex control if a parser upgrade or interrupted
+import requires recovery. A successful import does not mean that every page, table, equation, or scan is
+eligible for transformation.
+
 Run the complete repository gate with:
 
 ```powershell
@@ -66,10 +74,13 @@ npm run quality
 - [`docs/research/SOURCE_LIBRARY.md`](docs/research/SOURCE_LIBRARY.md) — annotated primary and authoritative sources
 - [`docs/research/RESEARCH_TO_PRODUCT_MAP.md`](docs/research/RESEARCH_TO_PRODUCT_MAP.md) — evidence-to-mechanism map and frontier research sequence
 - [`docs/product/PRODUCT_SPEC.md`](docs/product/PRODUCT_SPEC.md) — proposed experience, modes, MVP, and requirements
+- [`docs/product/READER_SPEC.md`](docs/product/READER_SPEC.md) — enhanced Source Reader: sections, progress, search, and PDF.js adoption
+- [`docs/product/DESIGN_DIRECTION.md`](docs/product/DESIGN_DIRECTION.md) — visual direction, type/color tokens, and adoption sequence
 - [`docs/architecture/SYSTEM_DESIGN.md`](docs/architecture/SYSTEM_DESIGN.md) — conceptual pipeline and data contracts
 - [`docs/architecture/TECH_STACK.md`](docs/architecture/TECH_STACK.md) — adopted lean local-first implementation stack and deferred capabilities
 - [`docs/architecture/PDF_PIPELINE.md`](docs/architecture/PDF_PIPELINE.md) — resumable full-textbook ingestion and fidelity gates
 - [`docs/architecture/AI_STRATEGY.md`](docs/architecture/AI_STRATEGY.md) — hybrid local/cloud model roles, privacy, cost, and eval policy
+- [`docs/architecture/WEBMCP_INTEGRATION.md`](docs/architecture/WEBMCP_INTEGRATION.md) — browser-agent tool surface, rights-gated exposure, and the WebMCP Challenge plan
 - [`docs/engineering/ENGINEERING_STANDARDS.md`](docs/engineering/ENGINEERING_STANDARDS.md) — code hygiene, stale-code removal, performance, and release gates
 - [`docs/engineering/IMPLEMENTATION_PLAN.md`](docs/engineering/IMPLEMENTATION_PLAN.md) — dependency-ordered milestones, contract slices, acceptance gates, and first issue sequence
 - [`docs/experiments/VALIDATION_PLAN.md`](docs/experiments/VALIDATION_PLAN.md) — hypotheses, baselines, metrics, and gates
@@ -77,6 +88,10 @@ npm run quality
 - [`docs/decisions/OPEN_QUESTIONS.md`](docs/decisions/OPEN_QUESTIONS.md) — deferred choices and implementation-evidence gates
 - [`docs/decisions/V0_DECISIONS.md`](docs/decisions/V0_DECISIONS.md) — confirmed product, research, data, and delivery decisions
 - [`docs/decisions/OWNER_DISCOVERY_QUESTIONNAIRE.md`](docs/decisions/OWNER_DISCOVERY_QUESTIONNAIRE.md) — comprehensive owner-alignment questionnaire
+
+## License
+
+PRISM is licensed under [Apache-2.0](LICENSE). Benchmark source PDFs are never redistributed from this repository; their provenance, licenses, and hashes live in [`benchmarks/sources.json`](benchmarks/sources.json).
 
 ## One-sentence thesis
 

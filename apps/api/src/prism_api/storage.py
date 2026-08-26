@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections import Counter
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -59,6 +60,7 @@ class Store:
                     state TEXT NOT NULL,
                     progress_current INTEGER NOT NULL DEFAULT 0,
                     progress_total INTEGER,
+                    parser_version TEXT,
                     error_class TEXT,
                     error_message TEXT,
                     created_at TEXT NOT NULL,
@@ -149,7 +151,44 @@ class Store:
                 "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES(3, ?)",
                 (utc_now(),),
             )
+            job_columns = {
+                str(row["name"])
+                for row in connection.execute("PRAGMA table_info(import_jobs)").fetchall()
+            }
+            if "parser_version" not in job_columns:
+                # SQLite's online backup API must not run while this connection has an
+                # uncommitted schema transaction of its own.
+                connection.commit()
+                self._backup_before_migration(connection, version=4)
+                connection.execute("ALTER TABLE import_jobs ADD COLUMN parser_version TEXT")
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES(4, ?)",
+                (utc_now(),),
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_events_lesson
+                    ON research_events(lesson_id, occurred_at)
+                """
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES(5, ?)",
+                (utc_now(),),
+            )
             connection.commit()
+
+    def _backup_before_migration(self, connection: sqlite3.Connection, *, version: int) -> None:
+        """Make a recoverable local copy before altering an existing user database."""
+
+        backup_dir = self.settings.data_dir / "backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        backup_path = backup_dir / f"prism-before-v{version}-{timestamp}.sqlite3"
+        backup_connection = sqlite3.connect(backup_path)
+        try:
+            connection.backup(backup_connection)
+        finally:
+            backup_connection.close()
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
@@ -268,6 +307,7 @@ class Store:
         state: JobState = JobState.QUEUED,
         progress_current: int = 0,
         progress_total: int | None = None,
+        parser_version: str | None = None,
     ) -> ImportJob:
         timestamp = utc_now()
         with self.connection() as connection:
@@ -275,8 +315,8 @@ class Store:
                 """
                 INSERT INTO import_jobs(
                     id, source_id, state, progress_current, progress_total,
-                    error_class, error_message, created_at, updated_at
-                ) VALUES(?, ?, ?, ?, ?, NULL, NULL, ?, ?)
+                    parser_version, error_class, error_message, created_at, updated_at
+                ) VALUES(?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)
                 """,
                 (
                     job_id,
@@ -284,6 +324,7 @@ class Store:
                     state,
                     progress_current,
                     progress_total,
+                    parser_version,
                     timestamp,
                     timestamp,
                 ),
@@ -297,6 +338,19 @@ class Store:
     def job(self, job_id: str) -> ImportJob | None:
         with self.connection() as connection:
             row = connection.execute("SELECT * FROM import_jobs WHERE id = ?", (job_id,)).fetchone()
+        return self._job_from_row(row) if row else None
+
+    def latest_job_for_source(self, source_id: str) -> ImportJob | None:
+        with self.connection() as connection:
+            row = connection.execute(
+                """
+                SELECT * FROM import_jobs
+                WHERE source_id = ?
+                ORDER BY created_at DESC, rowid DESC
+                LIMIT 1
+                """,
+                (source_id,),
+            ).fetchone()
         return self._job_from_row(row) if row else None
 
     def next_queued_job(self) -> ImportJob | None:
@@ -359,6 +413,7 @@ class Store:
         progress_current: int,
         progress_total: int,
     ) -> None:
+        self._validate_page_elements(page_number, elements)
         with self.connection() as connection:
             existing = connection.execute(
                 "SELECT id FROM elements WHERE source_id = ? AND page_number = ?",
@@ -407,6 +462,92 @@ class Store:
                 (progress_current, progress_total, utc_now(), job_id),
             )
             connection.commit()
+
+    @staticmethod
+    def _validate_page_elements(page_number: int, elements: list[dict[str, Any]]) -> None:
+        element_ids = [str(element["id"]) for element in elements]
+        duplicate_ids = sorted(
+            element_id for element_id, count in Counter(element_ids).items() if count > 1
+        )
+        if duplicate_ids:
+            raise ValueError(
+                f"Parser emitted duplicate element identities on PDF page {page_number}: "
+                + ", ".join(duplicate_ids[:3])
+            )
+
+        reading_orders = [int(element["reading_order"]) for element in elements]
+        if reading_orders != list(range(len(elements))):
+            raise ValueError(
+                f"Parser emitted non-contiguous reading order on PDF page {page_number}."
+            )
+
+    def page_inventory(self, source_id: str) -> list[dict[str, int]]:
+        """Return page-local text evidence without exposing the PDF text to the library UI."""
+
+        with self.connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    page_number,
+                    SUM(CASE
+                        WHEN document_region = 'body'
+                         AND playback_eligible = 1
+                         AND kind IN ('heading', 'paragraph')
+                         AND status = 'trusted_for_transform'
+                        THEN LENGTH(text) ELSE 0
+                    END) AS trusted_text_characters,
+                    SUM(CASE
+                        WHEN document_region = 'body'
+                         AND playback_eligible = 1
+                         AND kind = 'paragraph'
+                         AND status = 'trusted_for_transform'
+                        THEN LENGTH(text) ELSE 0
+                    END) AS trusted_paragraph_characters,
+                    SUM(CASE
+                        WHEN document_region = 'body'
+                         AND playback_eligible = 1
+                         AND kind IN ('heading', 'paragraph')
+                         AND status = 'transform_with_warning'
+                        THEN LENGTH(text) ELSE 0
+                    END) AS warning_text_characters,
+                    SUM(CASE
+                        WHEN document_region = 'body'
+                         AND playback_eligible = 1
+                         AND kind IN ('heading', 'paragraph')
+                         AND status = 'source_only'
+                        THEN LENGTH(text) ELSE 0
+                    END) AS source_only_text_characters,
+                    SUM(CASE
+                        WHEN document_region = 'body'
+                         AND playback_eligible = 1
+                         AND kind IN ('heading', 'paragraph')
+                        THEN 1 ELSE 0
+                    END) AS body_text_elements,
+                    SUM(CASE
+                        WHEN document_region != 'body' OR playback_eligible = 0
+                        THEN 1 ELSE 0
+                    END) AS excluded_non_body_elements
+                FROM elements
+                WHERE source_id = ?
+                GROUP BY page_number
+                ORDER BY page_number
+                """,
+                (source_id,),
+            ).fetchall()
+        return [
+            {
+                "page_number": int(row["page_number"]),
+                "trusted_text_characters": int(row["trusted_text_characters"] or 0),
+                "trusted_paragraph_characters": int(
+                    row["trusted_paragraph_characters"] or 0
+                ),
+                "warning_text_characters": int(row["warning_text_characters"] or 0),
+                "source_only_text_characters": int(row["source_only_text_characters"] or 0),
+                "body_text_elements": int(row["body_text_elements"] or 0),
+                "excluded_non_body_elements": int(row["excluded_non_body_elements"] or 0),
+            }
+            for row in rows
+        ]
 
     def elements_for_range(
         self, source_id: str, page_start: int, page_end: int
@@ -556,6 +697,8 @@ class Store:
                 int(row["progress_total"]) if row["progress_total"] is not None else None
             ),
             error_class=str(row["error_class"]) if row["error_class"] else None,
+            error_message=str(row["error_message"]) if row["error_message"] else None,
+            parser_version=str(row["parser_version"]) if row["parser_version"] else None,
             created_at=datetime.fromisoformat(str(row["created_at"])),
             updated_at=datetime.fromisoformat(str(row["updated_at"])),
         )
