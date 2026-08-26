@@ -5,6 +5,7 @@
   "workspaces": [
     "apps/web"
   ],
+  "license": "Apache-2.0",
   "scripts": {
     "dev:web": "npm --workspace @prism/web run dev",
     "dev:api": ".venv\\Scripts\\python.exe -m uvicorn prism_api.main:app --host 127.0.0.1 --port 8000",
@@ -13,13 +14,14 @@
     "typecheck:web": "npm --workspace @prism/web run typecheck",
     "lint:web": "npm --workspace @prism/web run lint",
     "quality:web": "npm run lint:web && npm run typecheck:web && npm run test:web && npm run build:web",
-    "format:api": ".venv\\Scripts\\python.exe -m ruff format apps\\api scripts\\export_openapi.py",
-    "lint:api": ".venv\\Scripts\\python.exe -m ruff check apps\\api scripts\\export_openapi.py",
-    "typecheck:api": ".venv\\Scripts\\python.exe -m mypy --config-file apps\\api\\pyproject.toml apps\\api\\src scripts\\export_openapi.py",
-    "test:api": ".venv\\Scripts\\python.exe -m pytest apps\\api",
+    "format:api": ".venv\\Scripts\\python.exe -m ruff format apps\\api scripts",
+    "lint:api": ".venv\\Scripts\\python.exe -m ruff check apps\\api scripts",
+    "typecheck:api": ".venv\\Scripts\\python.exe -m mypy --config-file apps\\api\\pyproject.toml apps\\api\\src scripts",
+    "test:api": ".venv\\Scripts\\python.exe -m pytest apps\\api --basetemp=.pytest-tmp",
     "quality:api": "npm run lint:api && npm run typecheck:api && npm run test:api",
     "schema:api": ".venv\\Scripts\\python.exe scripts\\export_openapi.py && openapi-typescript schemas\\openapi.json -o apps\\web\\src\\generated\\openapi.ts",
-    "check:docs": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\check-docs.ps1",
+    "check:docs": ".venv\\Scripts\\python.exe scripts\\check_docs.py",
+    "lock:api": ".venv\\Scripts\\python.exe scripts\\lock_api.py",
     "quality": "npm run schema:api && npm run quality:api && npm run quality:web && npm run check:docs"
   },
   "engines": {
