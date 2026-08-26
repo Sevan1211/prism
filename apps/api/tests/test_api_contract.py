@@ -41,6 +41,15 @@ def test_api_runs_local_import_compile_source_and_event_path(
             assert job.json()["state"] == "succeeded"
 
             source_id = import_payload["source"]["id"]
+            readiness = await client.get(
+                f"/api/sources/{source_id}/readiness?page_start=1&page_end=2"
+            )
+            assert readiness.status_code == 200
+            readiness_payload = readiness.json()
+            assert readiness_payload["phase"] == "ready"
+            assert readiness_payload["selected_range"]["can_compile"] is True
+            assert readiness_payload["latest_job"]["parser_version"]
+
             compiled = await client.post(
                 f"/api/sources/{source_id}/lessons",
                 json={"page_start": 1, "page_end": 2, "title": "TCP slow start"},

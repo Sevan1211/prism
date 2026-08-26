@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -19,6 +20,7 @@ from prism_api.models import (
     ResearchEventIn,
     ResearchEventRecord,
     RightsStatus,
+    SourceReadiness,
     SourceSummary,
 )
 from prism_api.pdf_parser import NativePdfParser
@@ -26,7 +28,22 @@ from prism_api.services import DurableImportWorker, InvalidUploadError, SourceSe
 from prism_api.storage import Store
 
 
+def configure_logging() -> None:
+    """Attach one console handler for the local API without duplicating uvicorn's."""
+
+    prism_logger = logging.getLogger("prism_api")
+    if prism_logger.handlers:
+        return
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    )
+    prism_logger.addHandler(handler)
+    prism_logger.setLevel(logging.INFO)
+
+
 def create_app(settings: Settings | None = None, *, start_worker: bool = True) -> FastAPI:
+    configure_logging()
     resolved_settings = settings or Settings.from_environment()
     store = Store(resolved_settings)
     parser = NativePdfParser()
@@ -37,6 +54,7 @@ def create_app(settings: Settings | None = None, *, start_worker: bool = True) -
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         store.initialize()
         store.recover_interrupted_jobs()
+        service.sweep_stale_uploads()
         if start_worker:
             worker.start()
         yield
@@ -96,10 +114,30 @@ def create_app(settings: Settings | None = None, *, start_worker: bool = True) -
 
     @app.post("/api/imports/{job_id}/resume", response_model=ImportJob)
     def resume_import(job_id: str) -> ImportJob:
-        job = store.resume_job(job_id)
-        if job is None:
-            raise HTTPException(status_code=404, detail="Import job not found.")
-        return job
+        try:
+            return service.restart_import(job_id)
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @app.get("/api/sources/{source_id}/readiness", response_model=SourceReadiness)
+    def source_readiness(
+        source_id: str,
+        page_start: Annotated[int | None, Query(ge=1)] = None,
+        page_end: Annotated[int | None, Query(ge=1)] = None,
+    ) -> SourceReadiness:
+        if (page_start is None) != (page_end is None):
+            raise HTTPException(
+                status_code=422,
+                detail="page_start and page_end must be supplied together.",
+            )
+        try:
+            return service.readiness(
+                source_id,
+                page_start=page_start,
+                page_end=page_end,
+            )
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
 
     @app.get("/api/sources/{source_id}/file")
     def source_file(source_id: str) -> FileResponse:

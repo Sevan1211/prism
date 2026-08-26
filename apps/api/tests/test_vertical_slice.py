@@ -2,13 +2,19 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sqlite3
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 import prism_api.services as services_module
-from prism_api.compiler import PackageValidationError, validate_lesson_package
+from prism_api.compiler import (
+    PackageValidationError,
+    compile_lesson,
+    trim_running_header_prefix,
+    validate_lesson_package,
+)
 from prism_api.config import Settings
 from prism_api.models import (
     CompileLessonRequest,
@@ -23,11 +29,12 @@ from prism_api.pdf_parser import (
     NativePdfParser,
     classify_document_region,
     classify_kind,
+    finalize_page_records,
     has_body_boundary,
     join_text,
     normalize_text,
 )
-from prism_api.services import SourceService
+from prism_api.services import SourceService, recommended_section, section_readiness
 from prism_api.storage import Store
 
 GOLDEN_COMPILER_MANIFEST = (
@@ -132,6 +139,7 @@ def test_line_reconstruction_dehyphenates_and_does_not_misclassify_prose() -> No
     assert join_text("throughout the life\x02", "time of the connection", dehyphenate=True) == (
         "throughout the lifetime of the connection"
     )
+    assert join_text("to\x02", "gether", dehyphenate=True) == "together"
     assert (
         classify_kind("Figure 6.11 traces the congestion window.", [0.1, 0.2, 0.9, 0.3])
         == ElementKind.PARAGRAPH
@@ -170,6 +178,51 @@ def test_structure_classifier_keeps_navigation_searchable_but_out_of_flow() -> N
         )
         == DocumentRegion.BACK_MATTER
     )
+    assert (
+        classify_document_region(
+            ["Computer Systems", "Third Global Edition", "Pearson"],
+            page_index=0,
+            page_count=1122,
+        )
+        == DocumentRegion.FRONT_MATTER
+    )
+    assert (
+        classify_document_region(["Preface 33", "Acknowledgments"], page_index=33, page_count=1122)
+        == DocumentRegion.FRONT_MATTER
+    )
+    assert (
+        classify_document_region(
+            [
+                "10 Contents",
+                "3.9 Heterogeneous Data Structures 301",
+                "3.9.1 Structures 301",
+                "3.9.2 Unions 305",
+            ],
+            page_index=10,
+            page_count=1122,
+        )
+        == DocumentRegion.FRONT_MATTER
+    )
+    assert (
+        classify_document_region(
+            [
+                "Section 1.1 Information Is Bits + Context 39",
+                "35 105 110 99 108 117 100 101 32 60 115 116 100 105 111 46",
+                "104 62 10 10 105 110 116 32 109 97 105 110 40 41 10 123",
+                "10 32 32 32 32 112 114 105 110 116 102 40 34 104 101 108",
+                "108 111 44 32 119 111 114 108 100 92 110 34 41 59 10 32",
+            ],
+            page_index=39,
+            page_count=1122,
+        )
+        == DocumentRegion.BODY
+    )
+    assert has_body_boundary(["CHAPTER 1", "A Tour of Computer Systems"])
+    assert has_body_boundary(["CHAPTER", "ONE", "FOUNDATION"])
+    assert has_body_boundary(
+        ["Chapter 1: A Tour of Computer Systems. This chapter introduces the major ideas"]
+    ) is False
+    assert has_body_boundary(["Chapter Topic", "1 Tour of systems"]) is False
     assert has_body_boundary(["9.4. Overlay Networks 485"]) is False
 
 
@@ -187,6 +240,35 @@ def test_parser_detects_a_source_visual_without_rasterizing_the_book(sample_pdf:
     table = next(element for element in table_elements if element["kind"] == "table")
     assert table["text"].startswith("Table 1.1.")
     assert table["bbox_normalized"][1] < table["bbox_normalized"][3]
+
+
+def test_parser_deduplicates_exact_pdf_artifacts_and_disambiguates_real_collisions() -> None:
+    base = {
+        "kind": ElementKind.PARAGRAPH,
+        "text": "0 0",
+        "bbox_normalized": [0.23, 0.42, 0.24, 0.43],
+        "status": "trusted_for_transform",
+        "document_region": DocumentRegion.BODY,
+        "playback_eligible": True,
+        "confidence": {"text": 0.98, "order": 0.86, "structure": 0.76},
+    }
+    exact_duplicate = base.copy()
+    distinct_collision = {
+        **base,
+        "confidence": {"text": 0.98, "order": 0.87, "structure": 0.76},
+    }
+
+    records = finalize_page_records(
+        [base, exact_duplicate, distinct_collision],
+        source_hash="a" * 64,
+        page_index=677,
+        parser_version="parser-test",
+    )
+
+    assert len(records) == 2
+    assert [record["reading_order"] for record in records] == [0, 1]
+    assert len({record["id"] for record in records}) == 2
+    assert any(record["id"].endswith("_2") for record in records)
 
 
 def test_import_is_local_only_even_for_openly_licensed_source(
@@ -238,6 +320,10 @@ def test_interrupted_import_resumes_without_duplicate_elements(
     assert failed_job is not None
     assert failed_job.state == JobState.RETRYABLE_FAILURE
     assert failed_job.progress_current == 1
+    assert failed_job.error_message == "simulated_parser_interruption"
+    failed_source = store.source(failed_job.source_id)
+    assert failed_source is not None
+    assert failed_source.status == SourceStatus.NEEDS_REVIEW
 
     resumed = store.resume_job(job_id)
     assert resumed is not None
@@ -272,6 +358,132 @@ def test_interrupted_import_resumes_without_duplicate_elements(
     assert duplicate_count == 0
 
 
+def test_parser_upgrade_restarts_from_page_one_without_reuploading(
+    tmp_path: Path, sample_pdf: Path
+) -> None:
+    store, service = make_service(tmp_path)
+    initial_job_id = import_fixture(service, sample_pdf)
+    service.process_job(initial_job_id)
+    initial_job = store.job(initial_job_id)
+    assert initial_job is not None
+
+    with store.connection() as connection:
+        connection.execute(
+            "UPDATE elements SET parser_version = 'obsolete-parser' WHERE source_id = ?",
+            (initial_job.source_id,),
+        )
+        connection.commit()
+    stale_job = store.create_job(
+        "job_stale_parser",
+        initial_job.source_id,
+        state=JobState.RETRYABLE_FAILURE,
+        progress_current=2,
+        progress_total=3,
+        parser_version="obsolete-parser",
+    )
+
+    restarted = service.restart_import(stale_job.id)
+
+    assert restarted.id != stale_job.id
+    assert restarted.state == JobState.QUEUED
+    assert restarted.progress_current == 0
+    assert restarted.parser_version == service.parser.version
+    source_during_reindex = store.source(initial_job.source_id)
+    assert source_during_reindex is not None
+    assert source_during_reindex.status == SourceStatus.INDEXING
+
+    service.process_job(restarted.id)
+    final_source = store.source(initial_job.source_id)
+    assert final_source is not None
+    assert final_source.status == SourceStatus.STRUCTURE_READY
+    assert store.source_parser_versions(final_source.id) == {service.parser.version}
+
+
+def test_existing_database_gets_a_recoverable_backup_before_parser_job_migration(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(data_dir=tmp_path / "prism-data")
+    settings.data_dir.mkdir(parents=True)
+    with sqlite3.connect(settings.database_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE import_jobs (
+                id TEXT PRIMARY KEY,
+                source_id TEXT NOT NULL,
+                state TEXT NOT NULL,
+                progress_current INTEGER NOT NULL DEFAULT 0,
+                progress_total INTEGER,
+                error_class TEXT,
+                error_message TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+
+    store = Store(settings)
+    store.initialize()
+
+    with store.connection() as connection:
+        columns = {
+            str(row["name"])
+            for row in connection.execute("PRAGMA table_info(import_jobs)").fetchall()
+        }
+    assert "parser_version" in columns
+    backups = list((settings.data_dir / "backups").glob("prism-before-v4-*.sqlite3"))
+    assert len(backups) == 1
+
+
+def test_section_readiness_chooses_body_content_and_blocks_front_matter() -> None:
+    inventory = [
+        {
+            "page_number": 1,
+            "trusted_text_characters": 0,
+            "trusted_paragraph_characters": 0,
+            "warning_text_characters": 0,
+            "source_only_text_characters": 0,
+            "body_text_elements": 0,
+            "excluded_non_body_elements": 8,
+        },
+        {
+            "page_number": 2,
+            "trusted_text_characters": 0,
+            "trusted_paragraph_characters": 0,
+            "warning_text_characters": 0,
+            "source_only_text_characters": 0,
+            "body_text_elements": 0,
+            "excluded_non_body_elements": 11,
+        },
+        {
+            "page_number": 24,
+            "trusted_text_characters": 721,
+            "trusted_paragraph_characters": 681,
+            "warning_text_characters": 0,
+            "source_only_text_characters": 0,
+            "body_text_elements": 5,
+            "excluded_non_body_elements": 1,
+        },
+    ]
+
+    recommendation = recommended_section(inventory, 400, source_ready=True)
+    front_matter = section_readiness(
+        inventory,
+        page_start=1,
+        page_end=3,
+        page_count=400,
+        source_ready=True,
+        parser_current=True,
+        source_status=SourceStatus.STRUCTURE_READY,
+    )
+
+    assert recommendation is not None
+    assert recommendation.page_start == 24
+    assert recommendation.page_end == 26
+    assert recommendation.can_compile is True
+    assert front_matter.can_compile is False
+    assert front_matter.status == "source_only"
+
+
 def test_compiler_is_deterministic_and_source_verbatim(tmp_path: Path, sample_pdf: Path) -> None:
     store, service = make_service(tmp_path)
     job_id = import_fixture(service, sample_pdf)
@@ -292,6 +504,10 @@ def test_compiler_is_deterministic_and_source_verbatim(tmp_path: Path, sample_pd
     assert renamed.package_hash != first.package_hash
     assert renamed.id != first.id
     assert len(first.frames) >= 4
+    assert first.frames[0].representation.content == "1. TCP Slow Start"
+    assert len(first.frames[0].source_spans) == 1
+    assert first.claims[0].proposition == "1. TCP Slow Start"
+    assert first.claims[0].source_spans == first.frames[0].source_spans
     assert len(first.visuals) == 1
     assert any(frame.active_visual_id == first.visuals[0].id for frame in first.frames)
     assert all(
@@ -304,6 +520,93 @@ def test_compiler_is_deterministic_and_source_verbatim(tmp_path: Path, sample_pd
         assert frame.representation.content == frame.source_spans[0].extracted_text
         assert frame.minimum_dwell_ms <= frame.initial_dwell_ms
         assert frame.source_spans[0].page_number in {1, 2}
+
+
+def test_compiler_groups_consecutive_heading_fragments_into_one_source_linked_frame(
+    tmp_path: Path, sample_pdf: Path
+) -> None:
+    store, service = make_service(tmp_path)
+    job_id = import_fixture(service, sample_pdf)
+    service.process_job(job_id)
+    job = store.job(job_id)
+    source = store.source(job.source_id) if job else None
+    assert source is not None
+
+    elements = [
+        {
+            "id": "heading_chapter",
+            "page_number": 1,
+            "bbox_normalized": [0.1, 0.1, 0.4, 0.15],
+            "kind": "heading",
+            "text": "CHAPTER",
+            "status": "trusted_for_transform",
+            "playback_eligible": True,
+            "confidence": {"text": 0.99, "order": 0.9, "structure": 0.9},
+        },
+        {
+            "id": "heading_one",
+            "page_number": 1,
+            "bbox_normalized": [0.1, 0.16, 0.4, 0.21],
+            "kind": "heading",
+            "text": "ONE",
+            "status": "trusted_for_transform",
+            "playback_eligible": True,
+            "confidence": {"text": 0.99, "order": 0.9, "structure": 0.9},
+        },
+        {
+            "id": "heading_foundation",
+            "page_number": 1,
+            "bbox_normalized": [0.1, 0.22, 0.6, 0.27],
+            "kind": "heading",
+            "text": "FOUNDATION",
+            "status": "trusted_for_transform",
+            "playback_eligible": True,
+            "confidence": {"text": 0.99, "order": 0.9, "structure": 0.9},
+        },
+        {
+            "id": "body_network",
+            "page_number": 1,
+            "bbox_normalized": [0.1, 0.32, 0.9, 0.43],
+            "kind": "paragraph",
+            "text": "A network connects computers so they can exchange information.",
+            "status": "trusted_for_transform",
+            "playback_eligible": True,
+            "confidence": {"text": 0.99, "order": 0.9, "structure": 0.9},
+        },
+    ]
+
+    lesson = compile_lesson(
+        source=source,
+        elements=elements,
+        page_start=1,
+        page_end=1,
+        title="Heading fragments",
+    )
+
+    assert lesson.frames[0].representation.content == "CHAPTER ONE FOUNDATION"
+    assert [span.element_id for span in lesson.frames[0].source_spans] == [
+        "heading_chapter",
+        "heading_one",
+        "heading_foundation",
+    ]
+    assert lesson.claims[0].proposition == "CHAPTER ONE FOUNDATION"
+    validate_lesson_package(lesson, elements, expected_source=source)
+
+
+def test_compiler_trims_only_a_recognized_running_header_from_a_source_span() -> None:
+    source_text = (
+        "38 Chapter 1 A Tour of Computer Systems A computer system consists of hardware "
+        "and systems software."
+    )
+
+    trimmed, start_offset = trim_running_header_prefix(source_text, 0)
+
+    assert trimmed == "A computer system consists of hardware and systems software."
+    assert source_text[start_offset:] == trimmed
+    assert trim_running_header_prefix("Chapter 1", 0) == ("Chapter 1", 0)
+    assert trim_running_header_prefix(
+        "Chapter 1 A Tour of Computer Systems A computer system begins here.", 0
+    ) == ("Chapter 1 A Tour of Computer Systems A computer system begins here.", 0)
 
 
 def test_compiler_matches_frozen_golden_manifest(tmp_path: Path, sample_pdf: Path) -> None:
@@ -324,7 +627,7 @@ def test_validator_rejects_broken_source_and_graph_references(
     corrupted.frames[1].prerequisite_frame_ids = ["frame_missing"]
     corrupted.frames[1].representation.persistent_terms = []
     corrupted.frames[-1].auto_advance_allowed = True
-    corrupted.claims[2].qualifiers = []
+    corrupted.claims[3].qualifiers = []
     corrupted.visuals[0].accessible_text = ""
     corrupted.source.original_name = "wrong-source.pdf"
 
@@ -337,11 +640,11 @@ def test_validator_rejects_broken_source_and_graph_references(
         error.value.issues
     )
     assert "visuals[0].accessible_text: missing_accessible_equivalent" in error.value.issues
-    assert "claims[2].qualifiers: qualifier_extraction_mismatch" in error.value.issues
+    assert "claims[3].qualifiers: qualifier_extraction_mismatch" in error.value.issues
     assert "frames[1].representation.persistent_terms: term_extraction_mismatch" in (
         error.value.issues
     )
-    assert "frames[12].auto_advance_allowed: high_inspection_frame_cannot_autoplay" in (
+    assert "frames[10].auto_advance_allowed: high_inspection_frame_cannot_autoplay" in (
         error.value.issues
     )
     assert "package.source: source_snapshot_mismatch" in error.value.issues

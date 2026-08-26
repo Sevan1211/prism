@@ -159,9 +159,31 @@
             ],
             "title": "Error Class"
           },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "parser_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parser Version"
           },
           "progress_current": {
             "title": "Progress Current",
@@ -373,6 +395,7 @@
               "source_closed",
               "pace_changed",
               "focus_paused",
+              "study_submitted",
               "session_ended"
             ],
             "title": "Event Type",
@@ -453,6 +476,7 @@
               "source_closed",
               "pace_changed",
               "focus_paused",
+              "study_submitted",
               "session_ended"
             ],
             "title": "Event Type",
@@ -538,6 +562,72 @@
         ],
         "title": "RightsStatus",
         "type": "string"
+      },
+      "SectionReadiness": {
+        "description": "Inspectable readiness evidence for one requested PDF page range.",
+        "properties": {
+          "body_pages": {
+            "default": 0,
+            "title": "Body Pages",
+            "type": "integer"
+          },
+          "can_compile": {
+            "title": "Can Compile",
+            "type": "boolean"
+          },
+          "excluded_non_body_elements": {
+            "default": 0,
+            "title": "Excluded Non Body Elements",
+            "type": "integer"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "page_end": {
+            "title": "Page End",
+            "type": "integer"
+          },
+          "page_start": {
+            "title": "Page Start",
+            "type": "integer"
+          },
+          "source_only_text_characters": {
+            "default": 0,
+            "title": "Source Only Text Characters",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "indexing",
+              "needs_attention",
+              "source_only",
+              "invalid_range"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "trusted_text_characters": {
+            "default": 0,
+            "title": "Trusted Text Characters",
+            "type": "integer"
+          },
+          "warning_text_characters": {
+            "default": 0,
+            "title": "Warning Text Characters",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "page_start",
+          "page_end",
+          "status",
+          "can_compile",
+          "message"
+        ],
+        "title": "SectionReadiness",
+        "type": "object"
       },
       "SemanticFrame": {
         "properties": {
@@ -643,6 +733,87 @@
           "auto_advance_allowed"
         ],
         "title": "SemanticFrame",
+        "type": "object"
+      },
+      "SourceReadiness": {
+        "description": "Source-level capability and recovery state exposed to the local library.",
+        "properties": {
+          "capability_notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Capability Notes",
+            "type": "array"
+          },
+          "latest_job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImportJob"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parser_current": {
+            "title": "Parser Current",
+            "type": "boolean"
+          },
+          "phase": {
+            "enum": [
+              "indexing",
+              "ready",
+              "needs_attention",
+              "source_only"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "recommended_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReadiness"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selected_range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReadiness"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_only_body_pages": {
+            "default": 0,
+            "title": "Source Only Body Pages",
+            "type": "integer"
+          },
+          "source_status": {
+            "$ref": "#/components/schemas/SourceStatus"
+          },
+          "trusted_body_pages": {
+            "default": 0,
+            "title": "Trusted Body Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source_id",
+          "source_status",
+          "phase",
+          "parser_current"
+        ],
+        "title": "SourceReadiness",
         "type": "object"
       },
       "SourceSpan": {
@@ -1262,6 +1433,79 @@
           }
         },
         "summary": "Compile Source"
+      }
+    },
+    "/api/sources/{source_id}/readiness": {
+      "get": {
+        "operationId": "source_readiness_api_sources__source_id__readiness_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "title": "Source Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page Start"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceReadiness"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Source Readiness"
       }
     },
     "/api/sources/{source_id}/visuals/{visual_id}": {

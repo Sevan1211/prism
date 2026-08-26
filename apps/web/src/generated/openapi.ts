@@ -158,6 +158,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sources/{source_id}/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Source Readiness */
+        get: operations["source_readiness_api_sources__source_id__readiness_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sources/{source_id}/visuals/{visual_id}": {
         parameters: {
             query?: never;
@@ -246,8 +263,12 @@ export interface components {
             created_at: string;
             /** Error Class */
             error_class?: string | null;
+            /** Error Message */
+            error_message?: string | null;
             /** Id */
             id: string;
+            /** Parser Version */
+            parser_version?: string | null;
             /** Progress Current */
             progress_current: number;
             /** Progress Total */
@@ -330,7 +351,7 @@ export interface components {
              * Event Type
              * @enum {string}
              */
-            event_type: "session_started" | "frame_shown" | "play" | "pause" | "step_forward" | "step_back" | "source_opened" | "source_closed" | "pace_changed" | "focus_paused" | "session_ended";
+            event_type: "session_started" | "frame_shown" | "play" | "pause" | "step_forward" | "step_back" | "source_opened" | "source_closed" | "pace_changed" | "focus_paused" | "study_submitted" | "session_ended";
             /** Frame Id */
             frame_id?: string | null;
             /** Lesson Id */
@@ -353,7 +374,7 @@ export interface components {
              * Event Type
              * @enum {string}
              */
-            event_type: "session_started" | "frame_shown" | "play" | "pause" | "step_forward" | "step_back" | "source_opened" | "source_closed" | "pace_changed" | "focus_paused" | "session_ended";
+            event_type: "session_started" | "frame_shown" | "play" | "pause" | "step_forward" | "step_back" | "source_opened" | "source_closed" | "pace_changed" | "focus_paused" | "study_submitted" | "session_ended";
             /** Frame Id */
             frame_id?: string | null;
             /** Id */
@@ -379,6 +400,50 @@ export interface components {
          * @enum {string}
          */
         RightsStatus: "public_domain" | "open_license" | "private_authorized" | "unknown";
+        /**
+         * SectionReadiness
+         * @description Inspectable readiness evidence for one requested PDF page range.
+         */
+        SectionReadiness: {
+            /**
+             * Body Pages
+             * @default 0
+             */
+            body_pages: number;
+            /** Can Compile */
+            can_compile: boolean;
+            /**
+             * Excluded Non Body Elements
+             * @default 0
+             */
+            excluded_non_body_elements: number;
+            /** Message */
+            message: string;
+            /** Page End */
+            page_end: number;
+            /** Page Start */
+            page_start: number;
+            /**
+             * Source Only Text Characters
+             * @default 0
+             */
+            source_only_text_characters: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ready" | "indexing" | "needs_attention" | "source_only" | "invalid_range";
+            /**
+             * Trusted Text Characters
+             * @default 0
+             */
+            trusted_text_characters: number;
+            /**
+             * Warning Text Characters
+             * @default 0
+             */
+            warning_text_characters: number;
+        };
         /** SemanticFrame */
         SemanticFrame: {
             /** Active Visual Id */
@@ -412,6 +477,37 @@ export interface components {
              * @enum {string}
              */
             verification_status: "draft" | "reviewed" | "verified";
+        };
+        /**
+         * SourceReadiness
+         * @description Source-level capability and recovery state exposed to the local library.
+         */
+        SourceReadiness: {
+            /** Capability Notes */
+            capability_notes?: string[];
+            latest_job?: components["schemas"]["ImportJob"] | null;
+            /** Parser Current */
+            parser_current: boolean;
+            /**
+             * Phase
+             * @enum {string}
+             */
+            phase: "indexing" | "ready" | "needs_attention" | "source_only";
+            recommended_range?: components["schemas"]["SectionReadiness"] | null;
+            selected_range?: components["schemas"]["SectionReadiness"] | null;
+            /** Source Id */
+            source_id: string;
+            /**
+             * Source Only Body Pages
+             * @default 0
+             */
+            source_only_body_pages: number;
+            source_status: components["schemas"]["SourceStatus"];
+            /**
+             * Trusted Body Pages
+             * @default 0
+             */
+            trusted_body_pages: number;
         };
         /** SourceSpan */
         SourceSpan: {
@@ -802,6 +898,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LessonPackage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    source_readiness_api_sources__source_id__readiness_get: {
+        parameters: {
+            query?: {
+                page_start?: number | null;
+                page_end?: number | null;
+            };
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceReadiness"];
                 };
             };
             /** @description Validation Error */

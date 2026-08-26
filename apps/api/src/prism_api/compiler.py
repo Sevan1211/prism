@@ -18,9 +18,14 @@ from prism_api.models import (
     TextRepresentation,
 )
 
-COMPILER_VERSION = "source-visual-semantic-v3-validated"
+COMPILER_VERSION = "source-visual-semantic-v5-source-furniture-trim"
 SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9])")
 TECHNICAL_TERM = re.compile(r"\b(?:[A-Z]{2,}|[A-Za-z]+[A-Z][A-Za-z]*|\w+_\w+|\w+\(\))\b")
+RUNNING_HEADER_PREFIX = re.compile(
+    r"^\d+\s+(?i:chapter|section)\s+\d+(?:\.\d+)*\s+"
+    r"(?:(?:[A-Z][A-Za-z0-9:/&+\-]*|of|the|and|for|in|to|a|an)\s+){1,14}"
+    r"(?=(?:A|An|The|This|These|It|They|We|You|In|For|To|When|While|Because)\s+[a-z])"
+)
 QUALIFIER = re.compile(
     r"\b(?:not|only|unless|except|however|although|if|when|must|may|might|cannot|never)\b",
     re.IGNORECASE,
@@ -55,7 +60,7 @@ def compile_lesson(
         element
         for element in elements
         if element["playback_eligible"]
-        and element["status"] != "source_only"
+        and element["status"] == "trusted_for_transform"
         and element["kind"] in {"heading", "paragraph", "figure", "table"}
     ]
     if not any(element["kind"] in {"heading", "paragraph"} for element in eligible):
@@ -71,11 +76,29 @@ def compile_lesson(
     active_visual_id: str | None = None
     section_title: str | None = None
 
-    for element in eligible:
+    element_index = 0
+    while element_index < len(eligible):
+        element = eligible[element_index]
         element_kind = str(element["kind"])
         if element_kind == "heading":
-            section_title = str(element["text"])
+            heading_elements = [element]
+            while (
+                element_index + len(heading_elements) < len(eligible)
+                and eligible[element_index + len(heading_elements)]["kind"] == "heading"
+            ):
+                heading_elements.append(eligible[element_index + len(heading_elements)])
+            section_title = join_heading_text(heading_elements)
             active_visual_id = None
+            previous_frame_id = append_heading_frame(
+                source=source,
+                elements=heading_elements,
+                text=section_title,
+                claims=claims,
+                frames=frames,
+                previous_frame_id=previous_frame_id,
+            )
+            element_index += len(heading_elements)
+            continue
         elif element_kind in {"figure", "table"}:
             active_visual_id = str(element["id"])
             caption = str(element["text"]).strip()
@@ -94,9 +117,15 @@ def compile_lesson(
                     explicit_type="integration",
                     visual_inspection=True,
                 )
+            element_index += 1
             continue
 
         for chunk, start_offset, end_offset in semantic_chunks(str(element["text"])):
+            if start_offset == 0:
+                chunk, start_offset = trim_running_header_prefix(chunk, start_offset)
+                end_offset = start_offset + len(chunk)
+            if not chunk:
+                continue
             previous_frame_id = append_frame(
                 source=source,
                 element=element,
@@ -110,6 +139,7 @@ def compile_lesson(
                 section_title=section_title,
                 explicit_type="section" if element_kind == "heading" else None,
             )
+        element_index += 1
 
     created_at = datetime.now(UTC)
     display_title = title or f"{source.original_name} - pages {page_start}-{page_end}"
@@ -163,6 +193,74 @@ def source_visual(source: SourceSummary, element: dict[str, Any]) -> SourceVisua
         accessible_text=accessible_text,
         extraction_confidence=float(element["confidence"]["structure"]),
     )
+
+
+def join_heading_text(elements: list[dict[str, Any]]) -> str:
+    """Join consecutive source headings into one meaningful, source-verbatim title unit."""
+
+    return " ".join(str(element["text"]).strip() for element in elements if element["text"].strip())
+
+
+def append_heading_frame(
+    *,
+    source: SourceSummary,
+    elements: list[dict[str, Any]],
+    text: str,
+    claims: list[CanonicalClaim],
+    frames: list[SemanticFrame],
+    previous_frame_id: str | None,
+) -> str:
+    spans = [
+        SourceSpan(
+            element_id=str(element["id"]),
+            page_number=int(element["page_number"]),
+            bbox_normalized=element["bbox_normalized"],
+            start_offset=0,
+            end_offset=len(str(element["text"])),
+            extracted_text=str(element["text"]),
+        )
+        for element in elements
+    ]
+    heading_ids = ":".join(str(element["id"]) for element in elements)
+    stable_seed = f"{source.content_hash}:heading:{heading_ids}:{text}"
+    stable_hash = hashlib.sha256(stable_seed.encode("utf-8")).hexdigest()
+    claim_id = f"claim_{stable_hash[:18]}"
+    frame_id = f"frame_{stable_hash[18:36]}"
+    representation_id = f"repr_{stable_hash[36:54]}"
+    qualifiers = sorted({match.group(0).lower() for match in QUALIFIER.finditer(text)})
+    terms = persistent_terms(text)
+    features = pacing_features(text, terms, previous_frame_id is not None)
+    minimum_dwell, initial_dwell = dwell_policy(text, features)
+    claims.append(
+        CanonicalClaim(
+            id=claim_id,
+            proposition=text,
+            source_spans=spans,
+            qualifiers=qualifiers,
+            concepts=terms[:4],
+        )
+    )
+    frames.append(
+        SemanticFrame(
+            id=frame_id,
+            claim_ids=[claim_id],
+            type="section",
+            prerequisite_frame_ids=[previous_frame_id] if previous_frame_id else [],
+            representation=TextRepresentation(
+                id=representation_id,
+                content=text,
+                persistent_terms=terms,
+                accessible_text=text,
+            ),
+            section_title=text,
+            source_spans=spans,
+            pacing_features=features,
+            minimum_dwell_ms=minimum_dwell,
+            initial_dwell_ms=initial_dwell,
+            auto_advance_allowed=True,
+        )
+    )
+    return frame_id
 
 
 def append_frame(
@@ -314,11 +412,7 @@ def validate_lesson_package(
                 package,
                 issues,
             )
-        if (
-            claim.status == "explicit"
-            and len(claim.source_spans) == 1
-            and claim.proposition != claim.source_spans[0].extracted_text
-        ):
+        if claim.status == "explicit" and claim.proposition != joined_span_text(claim.source_spans):
             issues.append(f"{path}.proposition: explicit_claim_not_source_verbatim")
         expected_qualifiers = sorted(
             {match.group(0).lower() for match in QUALIFIER.finditer(claim.proposition)}
@@ -388,10 +482,7 @@ def validate_lesson_package(
                 package,
                 issues,
             )
-        if (
-            len(frame.source_spans) == 1
-            and frame.representation.content != frame.source_spans[0].extracted_text
-        ):
+        if frame.representation.content != joined_span_text(frame.source_spans):
             issues.append(f"{path}.representation.content: source_text_mismatch")
         if len(frame.claim_ids) == 1 and frame.claim_ids[0] in claim_by_id:
             frame_claim = claim_by_id[frame.claim_ids[0]]
@@ -448,6 +539,10 @@ def _unique_models(models: list[Any], path: str, issues: list[str]) -> dict[str,
             issues.append(f"{path}[{index}].id: duplicate_id")
         by_id[model.id] = model
     return by_id
+
+
+def joined_span_text(spans: list[SourceSpan]) -> str:
+    return " ".join(span.extracted_text.strip() for span in spans if span.extracted_text.strip())
 
 
 def _unique_representation_ids(package: LessonPackage, issues: list[str]) -> None:
@@ -519,6 +614,25 @@ def semantic_chunks(text: str) -> list[tuple[str, int, int]]:
             local_cursor = part_end
         cursor = start + len(sentence)
     return chunks or [(text, 0, len(text))]
+
+
+def trim_running_header_prefix(chunk: str, start_offset: int) -> tuple[str, int]:
+    """Remove a repeated page header only when its title ends before a real sentence.
+
+    Some born-digital textbooks merge a running header and first paragraph into one
+    extraction record. The header is still in the immutable source, but it should not
+    become the beginning of a proposition frame. The returned text remains an exact
+    substring of the source element, with its offset adjusted for provenance.
+    """
+
+    match = RUNNING_HEADER_PREFIX.match(chunk)
+    if match is None:
+        return chunk, start_offset
+    remainder = chunk[match.end() :]
+    trimmed = remainder.lstrip()
+    if not trimmed:
+        return chunk, start_offset
+    return trimmed, start_offset + match.end() + len(remainder) - len(trimmed)
 
 
 def split_long_sentence(sentence: str) -> list[str]:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import re
 from dataclasses import dataclass
@@ -13,15 +14,33 @@ import pypdfium2 as pdfium
 
 from prism_api.models import DocumentRegion, ElementKind, PageStatus
 
-PARSER_VERSION = "native-pdfium-v4-structure-visual-regions"
+PARSER_VERSION = "native-pdfium-v9-soft-hyphen-line-joins"
 SECTION_HEADING = re.compile(r"^(?:chapter\s+\d+|\d+(?:\.\d+)+\.?)\s+\S", re.IGNORECASE)
 NUMBERED_HEADING = re.compile(r"^\d+\.\s+[A-Z][^.!?]{0,70}$")
+FRONT_MATTER_HEADING = re.compile(
+    r"(?:\d+\s+)?(?:"
+    r"(?:table of )?contents|list of (?:figures|tables)|preface|foreword|"
+    r"acknowledg(?:e)?ments?|about (?:this book|the authors?)|copyright"
+    r")(?:\s+\d+)?"
+)
+CHAPTER_ORDINAL = (
+    r"(?:\d+|[ivxlcdm]+|one|two|three|four|five|six|seven|eight|nine|ten|"
+    r"eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)"
+)
+CHAPTER_BOUNDARY = re.compile(
+    rf"chapter\s+{CHAPTER_ORDINAL}(?:\s*[:\-\u2013\u2014]\s*[A-Z][^.!?]{{0,90}})?",
+    re.IGNORECASE,
+)
+CHAPTER_ORDINAL_LINE = re.compile(CHAPTER_ORDINAL, re.IGNORECASE)
+SECTION_BOUNDARY = re.compile(r"\d+(?:\.\d+)+\.?\s+[A-Z][^.!?]{0,100}$")
 CAPTION_PATTERN = re.compile(
     r"^(?:figure|fig\.|table)\s+(?>[A-Z]?\d+(?:[.\-]\d+)*)(?:\.:|:|\.)\s*",
     re.IGNORECASE,
 )
 CODE_MARKERS = ("->", " - > ", ":=", "{", "}", " end if", " send (")
-TOC_ROW = re.compile(r"(?:\.{2,}\s*\d+\s*$|^\d+(?:\.\d+)*\s+.{3,}\s+\d+\s*$)")
+TOC_ROW = re.compile(
+    r"(?:\.{2,}\s*\d+\s*$|^\d+(?:\.\d+)*\s+[A-Za-z][A-Za-z0-9 ,:'()&+\-/]{2,}\s+\d+\s*$)"
+)
 INDEX_ROW = re.compile(r"^[A-Z][^,]{1,45},\s*(?:\d+[a-z]?(?:[-,]\s*)?){2,}$")
 REFERENCE_ROW = re.compile(r"^(?:\[?\d+\]?\s+|.*\b(?:19|20)\d{2}[a-z]?\b.*)")
 MAX_VISUALS_PER_PAGE = 8
@@ -54,8 +73,9 @@ class VisualCandidate:
 class PdfParseSession:
     """One bounded document handle reused across sequential page extraction."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, *, parser_version: str) -> None:
         self.document: Any = pdfium.PdfDocument(path)
+        self.parser_version = parser_version
         self._region_cache: dict[int, DocumentRegion] = {}
 
     def __enter__(self) -> Self:
@@ -101,28 +121,29 @@ class PdfParseSession:
         finally:
             page.close()
 
-        records.sort(
-            key=lambda item: (
-                item["bbox_normalized"][1],
-                item["bbox_normalized"][0],
-                0 if item["kind"] == ElementKind.HEADING else 1,
-            )
+        return finalize_page_records(
+            records,
+            source_hash=source_hash,
+            page_index=page_index,
+            parser_version=self.parser_version,
         )
-        for reading_order, record in enumerate(records):
-            identity = (
-                f"{PARSER_VERSION}:{record['kind']}:{record['bbox_normalized']}:{record['text']}"
-            )
-            element_hash = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:12]
-            record["id"] = f"el_{source_hash[:12]}_{page_index + 1:04d}_{element_hash}"
-            record["reading_order"] = reading_order
-            record["parser_version"] = PARSER_VERSION
-        return records
 
     def _resolve_document_region(self, raw_text: list[str], page_index: int) -> DocumentRegion:
+        if has_front_matter_heading(raw_text):
+            self._region_cache[page_index] = DocumentRegion.FRONT_MATTER
+            return DocumentRegion.FRONT_MATTER
+
         local_region = classify_document_region(raw_text, page_index, self.page_count)
-        if local_region != DocumentRegion.BODY or has_body_boundary(raw_text):
+        body_boundary = has_body_boundary(raw_text)
+        if local_region != DocumentRegion.BODY:
+            if body_boundary:
+                self._region_cache[page_index] = DocumentRegion.BODY
+                return DocumentRegion.BODY
             self._region_cache[page_index] = local_region
             return local_region
+        if body_boundary:
+            self._region_cache[page_index] = DocumentRegion.BODY
+            return DocumentRegion.BODY
 
         near_front = self.page_count >= 20 and page_index < max(
             12, math.ceil(self.page_count * 0.08)
@@ -171,7 +192,7 @@ class NativePdfParser:
     version = PARSER_VERSION
 
     def open(self, path: Path) -> PdfParseSession:
-        return PdfParseSession(path)
+        return PdfParseSession(path, parser_version=self.version)
 
     def page_count(self, path: Path) -> int:
         with self.open(path) as session:
@@ -251,7 +272,7 @@ class NativePdfParser:
         for rectangle in rectangles:
             if lines and same_visual_line(lines[-1], rectangle):
                 previous = lines[-1]
-                previous.text = join_text(previous.text, rectangle.text)
+                previous.text = join_text(previous.text, rectangle.text, dehyphenate=True)
                 previous.left = min(previous.left, rectangle.left)
                 previous.bottom = min(previous.bottom, rectangle.bottom)
                 previous.right = max(previous.right, rectangle.right)
@@ -278,6 +299,70 @@ class NativePdfParser:
                 paragraphs.append(line)
             previous_line = line
         return paragraphs
+
+
+def finalize_page_records(
+    records: list[dict[str, Any]],
+    *,
+    source_hash: str,
+    page_index: int,
+    parser_version: str,
+) -> list[dict[str, Any]]:
+    """Return deterministic, unique elements without preserving duplicated PDF artifacts.
+
+    PDF object streams can expose the same visual text rectangle more than once.  The
+    source region is still one region, so keeping an exact duplicate would both repeat
+    the text in a lesson and collide with the durable element identity.  Distinct
+    records that happen to share a text/bounds hash receive a stable occurrence suffix
+    instead of relying on an implicit SQLite constraint failure.
+    """
+
+    unique_by_signature: dict[str, dict[str, Any]] = {}
+    for record in records:
+        signature = record_signature(record)
+        unique_by_signature.setdefault(signature, record)
+
+    ordered = sorted(
+        unique_by_signature.values(),
+        key=lambda item: (
+            item["bbox_normalized"][1],
+            item["bbox_normalized"][0],
+            0 if item["kind"] == ElementKind.HEADING else 1,
+            record_signature(item),
+        ),
+    )
+    occurrences: dict[str, int] = {}
+    for reading_order, record in enumerate(ordered):
+        identity = (
+            f"{parser_version}:{record['kind']}:{record['bbox_normalized']}:{record['text']}"
+        )
+        element_hash = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:12]
+        occurrence = occurrences.get(element_hash, 0)
+        occurrences[element_hash] = occurrence + 1
+        suffix = "" if occurrence == 0 else f"_{occurrence + 1}"
+        record["id"] = f"el_{source_hash[:12]}_{page_index + 1:04d}_{element_hash}{suffix}"
+        record["reading_order"] = reading_order
+        record["parser_version"] = parser_version
+    return ordered
+
+
+def record_signature(record: dict[str, Any]) -> str:
+    """Stable semantic identity used only for exact duplicate detection and ordering."""
+
+    return json.dumps(
+        {
+            "bbox_normalized": record["bbox_normalized"],
+            "confidence": record["confidence"],
+            "document_region": str(record["document_region"]),
+            "kind": str(record["kind"]),
+            "playback_eligible": bool(record["playback_eligible"]),
+            "status": str(record["status"]),
+            "text": str(record["text"]),
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
 
 
 def build_text_records(
@@ -562,22 +647,21 @@ def classify_document_region(
     joined = " ".join(lowered_lines)
     early = page_count >= 20 and page_index < max(12, math.ceil(page_count * 0.08))
     late = page_count >= 20 and page_index >= page_count - max(14, math.ceil(page_count * 0.1))
-    front_heading = any(
-        re.fullmatch(
-            r"(?:table of )?contents|list of (?:figures|tables)|preface|foreword|"
-            r"acknowledg(?:e)?ments?|copyright",
-            line,
-        )
-        for line in lowered_lines
-    )
+    front_heading = has_front_matter_heading(lines)
     toc_rows = sum(bool(TOC_ROW.search(line)) for line in lines)
     copyright_evidence = any(
         marker in joined
         for marker in ("all rights reserved", "library of congress", "isbn ", "copyright ©")
     )
+    title_page_evidence = (
+        ("pearson" in joined or "global edition" in joined)
+        and "edition" in joined
+    )
     if page_count >= 20 and page_index == 0 and len(joined.split()) < 90:
         return DocumentRegion.FRONT_MATTER
-    if (early and (front_heading or toc_rows >= 4 or copyright_evidence)) or (
+    if (
+        early and (front_heading or toc_rows >= 4 or copyright_evidence or title_page_evidence)
+    ) or (
         front_heading and page_index < max(20, page_count // 5)
     ):
         return DocumentRegion.FRONT_MATTER
@@ -593,13 +677,42 @@ def classify_document_region(
     return DocumentRegion.BODY
 
 
-def has_body_boundary(raw_lines: list[str]) -> bool:
+def has_front_matter_heading(raw_lines: list[str]) -> bool:
     return any(
-        line.strip().casefold() in {"chapter", "chapter one"}
-        or re.match(r"^chapter\s+(?:\d+|[a-z]+)\b", line.strip(), re.IGNORECASE)
-        or (SECTION_HEADING.match(line.strip()) and not re.search(r"\s\d{1,4}$", line.strip()))
+        FRONT_MATTER_HEADING.fullmatch(line.strip().casefold())
         for line in raw_lines
+        if line.strip()
     )
+
+
+def has_body_boundary(raw_lines: list[str]) -> bool:
+    """Recognize a chapter/section opening, not a table-of-contents entry.
+
+    A table of contents and a preface can contain the same strings as a chapter
+    opening (for example, ``Chapter 3: ...``).  They are not a safe reason to
+    override a locally detected front-matter page.  Actual boundary headings are
+    short, appear at the start of a page, and do not include a prose sentence or
+    trailing page number.
+    """
+
+    lines = [raw_line.strip() for raw_line in raw_lines if raw_line.strip()]
+    if (
+        len(lines) >= 2
+        and lines[0].casefold() == "chapter"
+        and CHAPTER_ORDINAL_LINE.fullmatch(lines[1])
+    ):
+        return True
+
+    for index, line in enumerate(lines[:4]):
+        if CHAPTER_BOUNDARY.fullmatch(line):
+            return True
+        if (
+            index < 3
+            and SECTION_BOUNDARY.fullmatch(line)
+            and not re.search(r"\s\d{1,4}$", line)
+        ):
+            return True
+    return False
 
 
 def same_visual_line(previous: TextLine, current: TextLine) -> bool:
