@@ -1,6 +1,7 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { installFakeModelContext } from './test/fakeModelContext'
 import type { LessonPackage, SemanticFrame } from './types'
 
 vi.mock('./api', () => ({
@@ -152,5 +153,91 @@ describe('SemanticPlayer', () => {
     await user.type(screen.getByLabelText('Your explanation'), 'TCP grows after acknowledgements.')
     await user.click(screen.getByRole('button', { name: 'Compare with source' }))
     expect(screen.getByText(/compare your explanation with the exact source/i)).toBeInTheDocument()
+  })
+})
+
+describe('SemanticPlayer WebMCP tools', () => {
+  it('lets a browser agent drive the player and read exact evidence', async () => {
+    const fake = installFakeModelContext()
+    try {
+      render(<SemanticPlayer lesson={lesson} onExit={() => undefined} />)
+
+      for (const name of [
+        'get_player_state',
+        'goto_frame',
+        'set_mode',
+        'set_pace',
+        'set_playback',
+        'get_frame_evidence',
+      ]) {
+        expect(fake.tools.has(name), `${name} registered`).toBe(true)
+      }
+
+      let moved: unknown
+      await act(async () => {
+        moved = await fake.execute('goto_frame', { frame_number: 2 })
+      })
+      expect(moved).toMatchObject({ frame_number: 2, of_frames: 2 })
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+        'Acknowledgements permit the congestion window to grow.',
+      )
+
+      let evidence: unknown
+      await act(async () => {
+        evidence = await fake.execute('get_frame_evidence')
+      })
+      expect(evidence).toMatchObject({
+        source_page: 2,
+        source_spans: [
+          expect.objectContaining({
+            extracted_text: 'Acknowledgements permit the congestion window to grow.',
+          }),
+        ],
+      })
+
+      await act(async () => {
+        await fake.execute('set_mode', { mode: 'study' })
+      })
+      expect(screen.getByRole('heading', { name: /explain the governing idea/i })).toBeInTheDocument()
+
+      let refused: unknown
+      await act(async () => {
+        refused = await fake.execute('goto_frame', { frame_number: 99 })
+      })
+      expect(refused).toMatchObject({ error: expect.stringContaining('between 1 and 2') })
+    } finally {
+      fake.uninstall()
+    }
+  })
+
+  it('withholds source content from agents for private sources', async () => {
+    const fake = installFakeModelContext()
+    try {
+      const privateLesson: LessonPackage = {
+        ...lesson,
+        source: { ...lesson.source, rights_status: 'private_authorized' },
+      }
+      render(<SemanticPlayer lesson={privateLesson} onExit={() => undefined} />)
+
+      let evidence: unknown
+      await act(async () => {
+        evidence = await fake.execute('get_frame_evidence')
+      })
+      expect(evidence).toMatchObject({ error: expect.stringContaining('agent_access_not_granted') })
+
+      let state: unknown
+      await act(async () => {
+        state = await fake.execute('get_player_state')
+      })
+      expect(state).toMatchObject({
+        rights_status: 'private_authorized',
+        frame: expect.objectContaining({
+          content_withheld: expect.stringContaining('agent_access_not_granted'),
+        }),
+      })
+      expect(JSON.stringify(state)).not.toContain('congestion window')
+    } finally {
+      fake.uninstall()
+    }
   })
 })

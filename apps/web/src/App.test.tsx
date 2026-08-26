@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { compileLesson, listSources, sourceReadiness } from './api'
+import { installFakeModelContext } from './test/fakeModelContext'
 import type { SectionReadiness, SourceReadiness, SourceSummary } from './types'
 
 vi.mock('./api', () => ({
@@ -117,5 +118,32 @@ describe('App source readiness', () => {
       26,
       'computer-networks.pdf · pages 24–26',
     )
+  })
+
+  it('exposes library tools to browser agents with the rights gate visible', async () => {
+    const fake = installFakeModelContext()
+    try {
+      render(<App />)
+      await screen.findByRole('button', { name: 'Enter semantic stream' })
+
+      expect(fake.tools.has('list_sources')).toBe(true)
+      expect(fake.tools.has('get_source_readiness')).toBe(true)
+      expect(fake.tools.has('prepare_stream')).toBe(true)
+      expect(fake.tools.has('open_source_page')).toBe(true)
+
+      let listed: unknown
+      await act(async () => {
+        listed = await fake.execute('list_sources')
+      })
+      expect(listed).toMatchObject([
+        {
+          source_id: 'src_networks',
+          rights_status: 'private_authorized',
+          agent_content_allowed: false,
+        },
+      ])
+    } finally {
+      fake.uninstall()
+    }
   })
 })

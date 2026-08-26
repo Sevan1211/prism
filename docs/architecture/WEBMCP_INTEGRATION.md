@@ -71,12 +71,15 @@ Tool results flow to the agent vendor's servers. Agent exposure is therefore a p
 - registration happens only on surfaces the learner opened; closing the lesson or reader aborts every registration;
 - the feature detects `document.modelContext ?? navigator.modelContext` and degrades to nothing — no polyfill that fakes agent presence.
 
-## Engineering prerequisite
+## Engineering approach
 
-Player state (current frame, mode, bundle, playing) is currently component-local React state. Tools need to read and drive it from outside the component tree, so the WebMCP work begins by lifting player state into a small store with an imperative controller — the same refactor the research-instrumentation gaps need. Tool handlers call the existing typed API client and the store; no parallel data path.
+Tools register from inside the components that own the relevant state, through a `useModelContextTool` hook that keeps the executor in a ref (fresh state, stable registration) and unregisters via `AbortSignal` on unmount. Registration is mirrored into a local `window.__prismWebMCP` registry so the surface is inspectable and testable in any browser, including ones without the experimental API; the fake-context test helper drives the same executors the real agent would call. Library tools live in the App shell; player tools register only while a lesson is open. No store rewrite was required.
+
+**Implementation status (2026-08-26):** Ring 1 plus `get_frame_evidence` is implemented and verified end to end — `list_sources`, `get_source_readiness`, `prepare_stream`, `open_source_page`, `get_player_state`, `goto_frame`, `set_mode`, `set_pace`, `set_playback`, `get_frame_evidence` — including a live agent-simulated run that compiled and drove a real lesson from the Erickson corpus source, and tests covering the private-source refusal path. Remaining: `search_source` (Ring 2, with the Reader's FTS5 endpoint) and the Ring 3 tutor loop.
 
 ## Hackathon deliverable (2026-09-03)
 
-- Local-first build finished first; the hosted demo is deployed from it near the deadline with open-licensed corpus sources preloaded (CC BY / CC BY-SA only), public uploads disabled or size-capped, and the demo labeled as a hosted showcase of a local-first instrument;
+- Local-first build finished first; the hosted demo is deployed from it near the deadline (Render API + Cloudflare Pages web) with open-licensed corpus sources preloaded (CC BY / CC BY-SA only);
+- Demo uploads are allowed under the transient-processing model: the server parses and compiles in memory with reduced size/page/timeout caps and rate limiting, persists nothing, and the visitor's browser stores sources, indexes, and lessons locally (IndexedDB/OPFS) — "processed in memory, stored only on your device";
 - required artifacts: live URL usable in ChatGPT's built-in browser or Chrome with WebMCP enabled, public repository under Apache-2.0, sub-3-minute video, and a write-up centered on the grounded-evidence thesis and the guarded-tutoring design;
 - submission language obeys the product-writing rules: no learning-efficacy claims, TSR labeled Experimental, draft packages labeled draft.

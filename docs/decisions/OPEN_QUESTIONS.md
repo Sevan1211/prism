@@ -67,13 +67,16 @@ Resolved for this cycle: defer. The current development machine may support smal
 - Adopt the WebMCP tool surface with all three rings, including the guarded tutor loop, per [`../architecture/WEBMCP_INTEGRATION.md`](../architecture/WEBMCP_INTEGRATION.md).
 - Agent exposure is a per-source policy: open licenses default-allow, `private_authorized`/`unknown` default-deny with explicit per-source opt-in.
 
-## Open: design-direction sign-off
+### Design direction approved
 
-[`../product/DESIGN_DIRECTION.md`](../product/DESIGN_DIRECTION.md) proposes one evolved direction (The Reading Instrument) with type, color, and layout tokens. Owner approval, amendment, or rejection is required before the reader/player rebuild consumes it.
+The owner approved [`../product/DESIGN_DIRECTION.md`](../product/DESIGN_DIRECTION.md) (The Reading Instrument) as proposed on 2026-08-26, using the blueprint artifact rendered in the token system as the visual sample. This satisfies the M0 approved-mockup precondition; tokens land first, then library, Reader, and player migrate in order.
 
-## Open: hosted-demo boundary details
+### Hosted-demo boundary
 
-Before the demo deploys: exact host selection (Render/Cloudflare/Vercel families), whether uploads are disabled or size-capped, rate limiting, and the visible "hosted showcase of a local-first instrument" labeling. These are deployment-scope decisions, not product-contract changes.
+- Hosting: Render for the API, Cloudflare Pages for the web build.
+- Demo visitors may upload PDFs. The demo server processes uploads **transiently** — parse, compile, return — and persists nothing server-side; sources, indexes, lessons, and events are stored **on the visitor's device** (IndexedDB/OPFS) and reloadable from there. The privacy label states exactly that: "processed in memory, stored only on your device."
+- Transient processing still requires the minimal resource-limit subset of the M1 envelope before launch: reduced size cap, page cap, per-request timeout, and rate limiting.
+- Fully in-browser parsing (no bytes leaving the device, WASM pipeline) is the roadmap successor to the transient server, not a hackathon deliverable.
 
 ## Next implementation gate
 
