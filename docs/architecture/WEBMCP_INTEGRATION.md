@@ -77,6 +77,7 @@ Player state (current frame, mode, bundle, playing) is currently component-local
 
 ## Hackathon deliverable (2026-09-03)
 
-- Local-first build finished first; the hosted demo is deployed from it near the deadline with open-licensed corpus sources preloaded (CC BY / CC BY-SA only), public uploads disabled or size-capped, and the demo labeled as a hosted showcase of a local-first instrument;
+- Local-first build finished first; the hosted demo is deployed from it near the deadline (Render API + Cloudflare Pages web) with open-licensed corpus sources preloaded (CC BY / CC BY-SA only);
+- Demo uploads are allowed under the transient-processing model: the server parses and compiles in memory with reduced size/page/timeout caps and rate limiting, persists nothing, and the visitor's browser stores sources, indexes, and lessons locally (IndexedDB/OPFS) — "processed in memory, stored only on your device";
 - required artifacts: live URL usable in ChatGPT's built-in browser or Chrome with WebMCP enabled, public repository under Apache-2.0, sub-3-minute video, and a write-up centered on the grounded-evidence thesis and the guarded-tutoring design;
 - submission language obeys the product-writing rules: no learning-efficacy claims, TSR labeled Experimental, draft packages labeled draft.

@@ -28,7 +28,8 @@
 - The approved-mockup precondition for frontend reconstruction is served by [`../product/DESIGN_DIRECTION.md`](../product/DESIGN_DIRECTION.md) plus its visual sample; owner sign-off on that direction unblocks the reader and player rebuilds.
 - Repository hardening landed the same day: CI quality workflow, portable docs gate, installable dependency lock, API logging, upload sweep, duplicate-upload race fix, event index, error boundary, and session/study research-event fixes.
 - Corpus: Erickson's *Algorithms* (CC BY 4.0) added as the parser-generalization fixture after every current OpenStax title was found to be CC BY-NC-SA.
-- The WebMCP sprint precedes the remaining M1 work in calendar order; M1–M7 sequencing below is otherwise unchanged, and the sprint must not weaken any M1 security-envelope requirement — the hosted demo runs only open-licensed corpus content until that envelope exists.
+- The WebMCP sprint precedes the remaining M1 work in calendar order; M1–M7 sequencing below is otherwise unchanged, and the sprint must not weaken any M1 security-envelope requirement. The hosted demo preloads open-licensed corpus content; visitor uploads use transient server processing (nothing persisted server-side, device-local storage in the browser) and require the minimal resource-limit subset of the M1 envelope — reduced size cap, page cap, timeout, and rate limiting — before launch.
+- Decisions recorded 2026-08-26 (later same day): design direction approved as proposed; hosting is Render (API) plus Cloudflare Pages (web); PR #3 merged with CI green.
 
 ## Outcome
 
