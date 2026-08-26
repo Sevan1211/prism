@@ -41,6 +41,24 @@
       }
     },
     {
+      "id": "algorithms-erickson",
+      "topic": "Algorithm design",
+      "title": "Algorithms (1st edition)",
+      "authors": ["Jeff Erickson"],
+      "publisher": "self-published",
+      "landing_url": "http://jeffe.cs.illinois.edu/teaching/algorithms/",
+      "download_url": "http://jeffe.cs.illinois.edu/teaching/algorithms/book/Algorithms-JeffE.pdf",
+      "license": "CC BY 4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "local_filename": "algorithms-jeffe-1e.pdf",
+      "sha256": "00295b82ff725c52a71351a0bb1ee1bdb1584e594a62395d3fb382aefd0f4d42",
+      "acquisition": "downloaded",
+      "selection": {
+        "status": "parser_generalization_fixture",
+        "focus": "full-color LaTeX book layout, margin figures, displayed equations, pseudocode blocks, and full-book front/back matter"
+      }
+    },
+    {
       "id": "distributed-consensus",
       "topic": "Distributed consensus",
       "title": "Distributed Systems - University of Cambridge Computer Science Tripos, Part IB",

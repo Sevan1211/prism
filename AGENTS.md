@@ -30,7 +30,7 @@ The project is documentation-first. Before implementing a product, preserve and 
 10. **Privacy by default.** Interaction traces, gaze, camera, EEG, or other biosignals are optional sensitive data. Do not collect them for the MVP unless explicitly justified and consented to.
 11. **Remain reading-centered and learner-only.** Sparse checks may diagnose and repair understanding, but do not turn PRISM into a quiz, flashcard, classroom, instructor, or course-management product.
 12. **Large sources are progressive.** A full textbook is indexed and compiled section by section; never treat it as one prompt or claim successful transformation when page fidelity is uncertain.
-11. **The frontier goal stays ambitious and testable.** PRISM aims to establish a genuinely new way to absorb and learn information quickly, but must label unvalidated mechanisms as experimental or speculative and earn claims through delayed retention and transfer evidence.
+13. **The frontier goal stays ambitious and testable.** PRISM aims to establish a genuinely new way to absorb and learn information quickly, but must label unvalidated mechanisms as experimental or speculative and earn claims through delayed retention and transfer evidence.
 
 ## Evidence labels
 

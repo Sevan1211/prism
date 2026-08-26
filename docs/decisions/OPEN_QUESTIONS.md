@@ -1,6 +1,6 @@
 # Open technical questions
 
-**Last updated:** 2026-08-23
+**Last updated:** 2026-08-26
 
 The owner discovery interview and initial implementation-policy interview are complete. Confirmed choices are recorded in `V0_DECISIONS.md`; the original question inventory and rationale remain in `OWNER_DISCOVERY_QUESTIONNAIRE.md`. This file now tracks only choices that can be resolved through implementation evidence or a later owner decision.
 
@@ -55,6 +55,26 @@ This set stress-tests precise definitions, dynamic processes, diagrams, and syst
 
 Resolved for this cycle: defer. The current development machine may support smaller or hybrid CPU/GPU models, but no local runtime enters the core path until the manual package, provider boundary, evaluation fixtures, and optional cloud comparison exist. Any later adoption requires measured latency, fidelity, structured-output reliability, resource use, and power/thermal behavior.
 
+## Resolved on 2026-08-26
+
+### License and distribution
+
+- The repository is licensed Apache-2.0 and becomes public before the WebMCP Challenge submission.
+- The hosted demo redistributes only CC BY / CC BY-SA corpus content; CC BY-NC-SA sources (including the entire current OpenStax catalog, verified 2026-08-26) stay local-only fixtures.
+
+### WebMCP direction
+
+- Adopt the WebMCP tool surface with all three rings, including the guarded tutor loop, per [`../architecture/WEBMCP_INTEGRATION.md`](../architecture/WEBMCP_INTEGRATION.md).
+- Agent exposure is a per-source policy: open licenses default-allow, `private_authorized`/`unknown` default-deny with explicit per-source opt-in.
+
+## Open: design-direction sign-off
+
+[`../product/DESIGN_DIRECTION.md`](../product/DESIGN_DIRECTION.md) proposes one evolved direction (The Reading Instrument) with type, color, and layout tokens. Owner approval, amendment, or rejection is required before the reader/player rebuild consumes it.
+
+## Open: hosted-demo boundary details
+
+Before the demo deploys: exact host selection (Render/Cloudflare/Vercel families), whether uploads are disabled or size-capped, rate limiting, and the visible "hosted showcase of a local-first instrument" labeling. These are deployment-scope decisions, not product-contract changes.
+
 ## Next implementation gate
 
 The scope freeze and dossier integration decisions are complete. The full sequence is in [`../engineering/IMPLEMENTATION_PLAN.md`](../engineering/IMPLEMENTATION_PLAN.md). Before efficacy comparisons begin:
@@ -104,3 +124,10 @@ The native route now preserves source-faithful regions for detectable embedded i
 - measure false-positive and missed-visual rates on the frozen corpus before widening PDF compatibility claims.
 
 Docling or another layout adapter should be introduced only if it beats the native route on those reviewed expectations at an acceptable memory/runtime cost.
+
+**Current evidence note (2026-08-23):** Docling’s official documentation confirms configurable
+local PDF, OCR, table, page-image, and page-range capabilities, but those capabilities do not
+establish fidelity for PRISM’s textbook corpus. The native route now fails closed on untrusted
+body text and exposes source-only fallback/recovery. Do not add Docling or OCR merely to make a
+particular upload appear supported; first run the adapter against the reviewed corpus and preserve
+the same page/region/provenance and recovery contracts.

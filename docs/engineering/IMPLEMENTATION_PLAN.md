@@ -20,6 +20,16 @@
 - Keep generative AI behind the manual lesson/player gates and defer local-model benchmarking.
 - Use the in-app review queue for the first 24-hour and seven-day workflow.
 
+## Owner reprioritization recorded 2026-08-26
+
+- Enter the OpenAI WebMCP Challenge (deadline 2026-09-03 13:00 PDT) with a full push; finish locally first, then deploy the hosted demo from the finished build. Scope, tool rings, rights gating, and submission rules: [`../architecture/WEBMCP_INTEGRATION.md`](../architecture/WEBMCP_INTEGRATION.md).
+- License the repository Apache-2.0 (LICENSE added 2026-08-26); the repository becomes public before submission.
+- Expand M1's Source Reader into the full reading experience specified in [`../product/READER_SPEC.md`](../product/READER_SPEC.md): section structure, reading progress, continue-reading, search, and PDF.js adoption.
+- The approved-mockup precondition for frontend reconstruction is served by [`../product/DESIGN_DIRECTION.md`](../product/DESIGN_DIRECTION.md) plus its visual sample; owner sign-off on that direction unblocks the reader and player rebuilds.
+- Repository hardening landed the same day: CI quality workflow, portable docs gate, installable dependency lock, API logging, upload sweep, duplicate-upload race fix, event index, error boundary, and session/study research-event fixes.
+- Corpus: Erickson's *Algorithms* (CC BY 4.0) added as the parser-generalization fixture after every current OpenStax title was found to be CC BY-NC-SA.
+- The WebMCP sprint precedes the remaining M1 work in calendar order; M1–M7 sequencing below is otherwise unchanged, and the sprint must not weaken any M1 security-envelope requirement — the hosted demo runs only open-licensed corpus content until that envelope exists.
+
 ## Outcome
 
 The next implementation cycle should produce:
@@ -49,8 +59,9 @@ The plan begins from implemented code, not the dossier’s greenfield scaffold.
 |---|---|---|
 | Stack | React/TypeScript/Vite plus FastAPI/Pydantic, SQLite WAL, `pypdfium2`, generated OpenAPI types | **Adopted** |
 | Source bytes | Streamed import and content-addressed storage | **Preserve and harden** |
-| Clean-PDF indexing | Page-grounded embedded text, regions, front/back classification, lazy figure/table crops | **Implemented slice; widen only through fixtures** |
-| Resumption | Page-by-page progress and no-duplicate recovery tests | **Implemented slice; add process/artifact fault cases** |
+| Clean-PDF indexing | Page-grounded embedded text, regions, conservative front/back classification with explicit semantic entry boundaries, lazy figure/table crops, exact-artifact deduplication, and deterministic collision identities | **Implemented slice; widen only through fixtures** |
+| Import readiness | Per-source current job, parser currency, page-range evidence, trusted-body recommendation, and original-PDF fallback | **Implemented local recovery slice; add structure/search reader evidence** |
+| Resumption | Page-by-page progress, source `needs_review` state, parser-version full reindex, and no-duplicate recovery tests | **Implemented slice; add process/artifact fault cases** |
 | Compiler | Deterministic source-verbatim chunks; full-payload hash; pre-storage span, graph, visual, accessibility, and identity validation; frozen synthetic golden manifest | **Validated draft baseline; contract-v2 claims, relations, review states, and publication remain** |
 | Player | Responsive Preview, Understand, Study, and Reader flow; reversible frames, exact source evidence, source visuals, Faster/Auto/Deeper receipts, focus return, reduced motion, and events | **First TSR slice implemented; persistence, transcript, remapping, and full accessibility/recovery gates remain** |
 | Source surface | PDF-backed Reader for the active frame with exact page and extracted span | **First return path implemented; structure navigation, search, overlays, inspection, and deletion remain** |
