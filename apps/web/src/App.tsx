@@ -1,45 +1,59 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   compileLesson,
-  importStatus,
   listSources,
   resumeImport,
+  sourceFileUrl,
+  sourceReadiness,
   uploadSource,
 } from './api'
 import { SemanticPlayer } from './SemanticPlayer'
-import type { ImportJob, LessonPackage, RightsStatus, SourceSummary } from './types'
+import type {
+  ImportJob,
+  LessonPackage,
+  RightsStatus,
+  SectionReadiness,
+  SourceReadiness,
+  SourceSummary,
+} from './types'
 
 const statusLabels: Record<SourceSummary['status'], string> = {
-  source_ready: 'Source ready',
+  source_ready: 'Queued for indexing',
   indexing: 'Building local index',
-  structure_ready: 'Ready to stream',
-  needs_review: 'Needs review',
+  structure_ready: 'Local index ready',
+  needs_review: 'Needs attention',
   failed: 'Import failed',
 }
+
+const activeImportStates = new Set<ImportJob['state']>(['queued', 'running'])
 
 export function App() {
   const [sources, setSources] = useState<SourceSummary[]>([])
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null)
-  const [job, setJob] = useState<ImportJob | null>(null)
+  const [readiness, setReadiness] = useState<SourceReadiness | null>(null)
   const [lesson, setLesson] = useState<LessonPackage | null>(null)
   const [pageStart, setPageStart] = useState(1)
   const [pageEnd, setPageEnd] = useState(3)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const compileInFlight = useRef(false)
 
   const selectedSource = useMemo(
     () => sources.find((source) => source.id === selectedSourceId) ?? null,
     [selectedSourceId, sources],
   )
-  const activeJobId = job?.id
-  const activeJobState = job?.state
+  const visibleReadiness = readiness?.source_id === selectedSourceId ? readiness : null
+  const selectedRange = currentRange(visibleReadiness, pageStart, pageEnd)
+  const activeJob = visibleReadiness?.latest_job ?? null
 
   const refreshSources = useCallback(async (preferredId?: string) => {
     const nextSources = await listSources()
     setSources(nextSources)
-    setSelectedSourceId((current) =>
-      preferredId ?? current ?? (nextSources.length > 0 ? nextSources[0].id : null),
-    )
+    setSelectedSourceId((current) => {
+      if (preferredId) return preferredId
+      if (current && nextSources.some((source) => source.id === current)) return current
+      return nextSources.length > 0 ? nextSources[0].id : null
+    })
   }, [])
 
   useEffect(() => {
@@ -63,23 +77,61 @@ export function App() {
   }, [])
 
   useEffect(() => {
-    if (!activeJobId || !activeJobState || !['queued', 'running'].includes(activeJobState)) {
+    if (!selectedSourceId) {
       return
     }
+    let cancelled = false
+    void sourceReadiness(selectedSourceId)
+      .then((nextReadiness) => {
+        if (cancelled) return
+        setReadiness(nextReadiness)
+        const recommended = nextReadiness.recommended_range
+        if (recommended) {
+          setPageStart(recommended.page_start)
+          setPageEnd(recommended.page_end)
+        } else {
+          setPageStart(1)
+          setPageEnd(Math.min(3, selectedSource?.page_count ?? 3))
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) {
+          setError(cause instanceof Error ? cause.message : 'Source readiness could not be read.')
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedSource?.page_count, selectedSourceId])
+
+  useEffect(() => {
+    if (!selectedSourceId || readiness?.source_id !== selectedSourceId) return
+    const timer = window.setTimeout(() => {
+      void sourceReadiness(selectedSourceId, pageStart, pageEnd)
+        .then((nextReadiness) => setReadiness(nextReadiness))
+        .catch((cause: unknown) => {
+          setError(cause instanceof Error ? cause.message : 'Section readiness could not be read.')
+        })
+    }, 180)
+    return () => window.clearTimeout(timer)
+  }, [pageEnd, pageStart, readiness?.source_id, selectedSourceId])
+
+  useEffect(() => {
+    if (!selectedSourceId || !activeJob || !activeImportStates.has(activeJob.state)) return
     const timer = window.setInterval(() => {
-      void importStatus(activeJobId)
-        .then((nextJob) => {
-          setJob(nextJob)
-          if (nextJob.state === 'succeeded') {
-            void refreshSources(nextJob.source_id)
+      void sourceReadiness(selectedSourceId, pageStart, pageEnd)
+        .then((nextReadiness) => {
+          setReadiness(nextReadiness)
+          if (nextReadiness.latest_job?.state === 'succeeded') {
+            void refreshSources(selectedSourceId)
           }
         })
         .catch((cause: unknown) => {
           setError(cause instanceof Error ? cause.message : 'Import status could not be read.')
         })
-    }, 600)
+    }, 650)
     return () => window.clearInterval(timer)
-  }, [activeJobId, activeJobState, refreshSources])
+  }, [activeJob, pageEnd, pageStart, refreshSources, selectedSourceId])
 
   if (lesson) {
     return (
@@ -93,15 +145,11 @@ export function App() {
     )
   }
 
-  async function handleUpload(
-    file: File,
-    rightsStatus: RightsStatus,
-  ) {
+  async function handleUpload(file: File, rightsStatus: RightsStatus) {
     setBusy(true)
     setError(null)
     try {
       const response = await uploadSource(file, rightsStatus)
-      setJob(response.job)
       await refreshSources(response.source.id)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'The PDF could not be imported.')
@@ -112,7 +160,12 @@ export function App() {
 
   async function handleCompile(event: FormEvent) {
     event.preventDefault()
-    if (!selectedSource) return
+    if (!selectedSource || compileInFlight.current) return
+    if (!selectedRange?.can_compile) {
+      setError(selectedRange?.message ?? 'Checking this page range before preparing a stream.')
+      return
+    }
+    compileInFlight.current = true
     setBusy(true)
     setError(null)
     try {
@@ -127,17 +180,23 @@ export function App() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'This section could not be compiled.')
     } finally {
+      compileInFlight.current = false
       setBusy(false)
     }
   }
 
   async function handleResume() {
-    if (!job) return
+    if (!activeJob || !selectedSourceId) return
     setError(null)
     try {
-      setJob(await resumeImport(job.id))
+      const nextJob = await resumeImport(activeJob.id)
+      setReadiness((current) => current
+        ? { ...current, latest_job: nextJob, phase: 'indexing' }
+        : current)
+      const nextReadiness = await sourceReadiness(selectedSourceId, pageStart, pageEnd)
+      setReadiness(nextReadiness)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'The import could not be resumed.')
+      setError(cause instanceof Error ? cause.message : 'The local index could not be restarted.')
     }
   }
 
@@ -155,8 +214,9 @@ export function App() {
         <p className="eyebrow">Local research instrument · v0.1</p>
         <h1 id="hero-title">Build the mental model.<br />Keep the source in sight.</h1>
         <p className="hero-copy">
-          Import a clean technical PDF, choose a bounded section, and move through it as a calm
-          sequence of meaning-bearing frames. Speed is adjustable; comprehension stays in charge.
+          Import a technical PDF, choose a verified body section, and move through it as a calm
+          sequence of meaning-bearing frames. When a page cannot be trusted for transformation,
+          PRISM keeps the original source available instead of guessing.
         </p>
       </section>
 
@@ -176,8 +236,7 @@ export function App() {
                   key={source.id}
                   onClick={() => {
                     setSelectedSourceId(source.id)
-                    setPageStart(1)
-                    setPageEnd(Math.min(3, source.page_count ?? 3))
+                    setLesson(null)
                   }}
                   type="button"
                   role="listitem"
@@ -202,7 +261,17 @@ export function App() {
           </div>
           {selectedSource ? (
             <form onSubmit={handleCompile}>
-              <p className="selection-name">{selectedSource.original_name}</p>
+              <div className="selection-heading">
+                <p className="selection-name">{selectedSource.original_name}</p>
+                <a
+                  className="source-link"
+                  href={sourceFileUrl(selectedSource.id, pageStart)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open original PDF ↗
+                </a>
+              </div>
               <p className="privacy-line">
                 <span className="privacy-dot" />
                 Local-only transformation
@@ -215,7 +284,7 @@ export function App() {
                     min={1}
                     max={selectedSource.page_count ?? undefined}
                     value={pageStart}
-                    onChange={(event) => setPageStart(Number(event.target.value))}
+                    onChange={(event) => setPageStart(numberFromInput(event.currentTarget.value, pageStart))}
                   />
                 </label>
                 <span aria-hidden="true">→</span>
@@ -226,27 +295,34 @@ export function App() {
                     min={pageStart}
                     max={selectedSource.page_count ?? undefined}
                     value={pageEnd}
-                    onChange={(event) => setPageEnd(Number(event.target.value))}
+                    onChange={(event) => setPageEnd(numberFromInput(event.currentTarget.value, pageEnd))}
                   />
                 </label>
               </div>
+              <ReadinessPanel
+                readiness={visibleReadiness}
+                range={selectedRange}
+                onResume={handleResume}
+              />
               <div className="draft-note" role="note">
                 <span>Draft compiler</span>
-                <p>Body text plus source figures and tables. Front and back matter stay searchable but are skipped in playback.</p>
+                <p>
+                  PRISM creates source-verbatim draft frames only from trusted body text. Front and
+                  back matter, uncertain extraction, and unsupported page structures remain in Source.
+                </p>
               </div>
               <button
                 className="primary-action"
                 type="submit"
-                disabled={busy || selectedSource.status !== 'structure_ready'}
+                disabled={busy || !selectedRange?.can_compile}
               >
-                {selectedSource.status === 'structure_ready' ? 'Enter semantic stream' : 'Indexing source…'}
+                {compileLabel(busy, visibleReadiness, selectedRange)}
               </button>
             </form>
           ) : (
             <p className="empty-copy">Choose or import a source to define the first learning unit.</p>
           )}
 
-          {job ? <ImportProgress job={job} onResume={handleResume} /> : null}
           {error ? <p className="error-message" role="alert">{error}</p> : null}
         </aside>
       </div>
@@ -257,6 +333,109 @@ export function App() {
       </footer>
     </main>
   )
+}
+
+function currentRange(
+  readiness: SourceReadiness | null,
+  pageStart: number,
+  pageEnd: number,
+): SectionReadiness | null {
+  if (!readiness) return null
+  if (
+    readiness.selected_range
+    && readiness.selected_range.page_start === pageStart
+    && readiness.selected_range.page_end === pageEnd
+  ) {
+    return readiness.selected_range
+  }
+  if (
+    readiness.recommended_range
+    && readiness.recommended_range.page_start === pageStart
+    && readiness.recommended_range.page_end === pageEnd
+  ) {
+    return readiness.recommended_range
+  }
+  return null
+}
+
+function numberFromInput(value: string, fallback: number): number {
+  const number = Number(value)
+  return Number.isInteger(number) && number > 0 ? number : fallback
+}
+
+function compileLabel(
+  busy: boolean,
+  readiness: SourceReadiness | null,
+  range: SectionReadiness | null,
+): string {
+  if (busy) return 'Preparing stream…'
+  if (!range) return 'Checking selected pages…'
+  if (range.can_compile) return 'Enter semantic stream'
+  if (readiness?.phase === 'indexing') return 'Indexing local source…'
+  if (readiness?.phase === 'needs_attention') return 'Repair local index to continue'
+  return 'Choose a trusted body section'
+}
+
+function ReadinessPanel({
+  readiness,
+  range,
+  onResume,
+}: {
+  readiness: SourceReadiness | null
+  range: SectionReadiness | null
+  onResume: () => Promise<void>
+}) {
+  const job = readiness?.latest_job
+  const isIndexing = readiness?.phase === 'indexing'
+  const rangeMessage = range?.message
+    ?? (isIndexing ? 'Checking local index progress…' : 'Checking selected pages…')
+  const status = range?.status ?? (isIndexing ? 'indexing' : readiness?.phase ?? 'indexing')
+
+  return (
+    <section className={`readiness-panel status-${status}`} aria-live="polite" aria-label="Source readiness">
+      <div className="readiness-header">
+        <span>{readinessLabel(status)}</span>
+        {range ? <strong>{range.page_start}–{range.page_end}</strong> : null}
+      </div>
+      <p>{rangeMessage}</p>
+      {range ? (
+        <dl className="range-evidence">
+          <div>
+            <dt>Trusted text</dt>
+            <dd>{range.trusted_text_characters.toLocaleString()} chars</dd>
+          </div>
+          <div>
+            <dt>Body pages</dt>
+            <dd>{range.body_pages}</dd>
+          </div>
+          <div>
+            <dt>Excluded</dt>
+            <dd>{range.excluded_non_body_elements} items</dd>
+          </div>
+        </dl>
+      ) : null}
+      {job ? <ImportProgress job={job} onResume={onResume} /> : null}
+      {(readiness?.capability_notes ?? []).length > 0 ? (
+        <ul className="capability-notes">
+          {(readiness?.capability_notes ?? []).map((note) => <li key={note}>{note}</li>)}
+        </ul>
+      ) : null}
+      {readiness?.phase === 'source_only' ? (
+        <p className="source-only-note">This source is still usable through the original PDF above.</p>
+      ) : null}
+    </section>
+  )
+}
+
+function readinessLabel(status: string): string {
+  const labels: Record<string, string> = {
+    ready: 'Selected range verified',
+    indexing: 'Building local index',
+    needs_attention: 'Recovery required',
+    source_only: 'Source-only range',
+    invalid_range: 'Choose a valid range',
+  }
+  return labels[status] ?? 'Checking source'
 }
 
 function UploadPanel({
@@ -284,7 +463,7 @@ function UploadPanel({
           onChange={(event) => setFile(event.target.files?.[0] ?? null)}
         />
         <span className="file-plus" aria-hidden="true">+</span>
-        <span>{file ? file.name : 'Choose a clean text-based PDF'}</span>
+        <span>{file ? file.name : 'Choose a PDF to inspect locally'}</span>
         <small>Up to 512 MB in this prototype</small>
       </label>
       <div className="upload-policy">
@@ -301,8 +480,8 @@ function UploadPanel({
           </select>
         </label>
         <p className="local-policy-note" role="note">
-          Local-only by default. Cloud use will require a separate preview and approval for this
-          source when that capability is introduced.
+          Local-only by default. PRISM tells you whether a section is safe to transform instead of
+          treating every PDF page as clean text.
         </p>
       </div>
       <button className="secondary-action" type="submit" disabled={!file || busy}>
@@ -318,15 +497,16 @@ function ImportProgress({ job, onResume }: { job: ImportJob; onResume: () => Pro
     : 0
   const canResume = job.state === 'retryable_failure' || job.state === 'needs_review'
   return (
-    <div className="import-progress" aria-live="polite">
+    <div className="import-progress">
       <div>
         <span>{job.state.replaceAll('_', ' ')}</span>
         <strong>{job.progress_total ? `${job.progress_current} / ${job.progress_total} pages` : 'Queued'}</strong>
       </div>
       <progress max={100} value={progress}>{progress}%</progress>
+      {job.error_message ? <p>{job.error_message}</p> : null}
       {canResume ? (
         <button type="button" className="text-action" onClick={() => void onResume()}>
-          Resume from page {job.progress_current + 1}
+          {job.parser_version ? `Resume from page ${job.progress_current + 1}` : 'Rebuild with current parser'}
         </button>
       ) : null}
     </div>

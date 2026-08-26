@@ -119,10 +119,28 @@ export function SemanticPlayer({ lesson, onExit }: SemanticPlayerProps) {
     setPlaying(false)
   }, [emit])
 
+  const sessionStartedRef = useRef(false)
+  const sessionEndedRef = useRef(false)
+  const endSession = useCallback(() => {
+    if (sessionEndedRef.current) return
+    sessionEndedRef.current = true
+    emit('session_ended')
+  }, [emit])
+
   useEffect(() => {
-    emit('session_started', { frame_count: lesson.frames.length })
-    return () => emit('session_ended')
+    if (!sessionStartedRef.current) {
+      sessionStartedRef.current = true
+      emit('session_started', { frame_count: lesson.frames.length })
+    }
   }, [emit, lesson.frames.length])
+
+  useEffect(() => {
+    // pagehide is the last reliable moment on tab close; recordEvent uses
+    // keepalive so the final event survives the navigation.
+    const handlePageHide = () => endSession()
+    window.addEventListener('pagehide', handlePageHide)
+    return () => window.removeEventListener('pagehide', handlePageHide)
+  }, [endSession])
 
   useEffect(() => {
     emit('frame_shown', {
@@ -190,7 +208,15 @@ export function SemanticPlayer({ lesson, onExit }: SemanticPlayerProps) {
   return (
     <main className={`flow-player ${reducedMotion ? 'reduce-motion' : ''}`}>
       <header className="flow-player-header">
-        <button className="wordmark compact flow-wordmark" type="button" onClick={onExit} aria-label="Return to library">
+        <button
+          className="wordmark compact flow-wordmark"
+          type="button"
+          onClick={() => {
+            endSession()
+            onExit()
+          }}
+          aria-label="Return to library"
+        >
           <span className="prism-mark" aria-hidden="true" />
           <span>PRISM</span>
         </button>
@@ -265,7 +291,17 @@ export function SemanticPlayer({ lesson, onExit }: SemanticPlayerProps) {
         />
       ) : null}
       {mode === 'study' ? (
-        <StudyView key={frame.id} frame={frame} onShowSource={() => changeMode('reader')} />
+        <StudyView
+          key={frame.id}
+          frame={frame}
+          onShowSource={() => changeMode('reader')}
+          onSubmit={(answer) =>
+            emit('study_submitted', {
+              answer: answer.slice(0, 2000),
+              answer_characters: answer.length,
+            })
+          }
+        />
       ) : null}
     </main>
   )
@@ -552,7 +588,8 @@ function SourceReader({
 }
 
 function LessonPreview({ lesson, currentIndex }: { lesson: LessonPackage; currentIndex: number }) {
-  const previewFrames = lesson.frames.slice(0, 7)
+  const windowStart = Math.max(0, Math.min(currentIndex - 3, lesson.frames.length - 7))
+  const previewFrames = lesson.frames.slice(windowStart, windowStart + 7)
   const terms = Array.from(
     new Set(lesson.frames.flatMap((frame) => frame.representation.persistent_terms)),
   ).slice(0, 7)
@@ -562,8 +599,8 @@ function LessonPreview({ lesson, currentIndex }: { lesson: LessonPackage; curren
       <h1 id="preview-title">See the structure before the details arrive.</h1>
       <ol className="flow-concept-path">
         {previewFrames.map((frame, frameIndex) => (
-          <li key={frame.id} className={frameIndex === currentIndex ? 'is-current' : ''}>
-            <span>{String(frameIndex + 1).padStart(2, '0')}</span>
+          <li key={frame.id} className={windowStart + frameIndex === currentIndex ? 'is-current' : ''}>
+            <span>{String(windowStart + frameIndex + 1).padStart(2, '0')}</span>
             <strong>{frame.section_title ?? frame.type}</strong>
             <p>{frame.representation.content}</p>
           </li>
@@ -577,7 +614,15 @@ function LessonPreview({ lesson, currentIndex }: { lesson: LessonPackage; curren
   )
 }
 
-function StudyView({ frame, onShowSource }: { frame: SemanticFrame; onShowSource: () => void }) {
+function StudyView({
+  frame,
+  onShowSource,
+  onSubmit,
+}: {
+  frame: SemanticFrame
+  onShowSource: () => void
+  onSubmit: (answer: string) => void
+}) {
   const [answer, setAnswer] = useState('')
   const [feedback, setFeedback] = useState<string | null>(null)
   return (
@@ -602,8 +647,10 @@ function StudyView({ frame, onShowSource }: { frame: SemanticFrame; onShowSource
             type="button"
             className="primary"
             onClick={() => {
+              const trimmed = answer.trim()
+              if (trimmed) onSubmit(trimmed)
               setFeedback(
-                answer.trim()
+                trimmed
                   ? `Compare your explanation with the exact source: “${frame.source_spans[0].extracted_text}”`
                   : 'Write one sentence first, or open the source without recording an incorrect response.',
               )
