@@ -8,9 +8,25 @@ import type { SectionReadiness, SourceReadiness, SourceSummary } from './types'
 vi.mock('./api', () => ({
   compileLesson: vi.fn(),
   listSources: vi.fn(),
+  readingState: vi.fn(async (sourceId: string) => ({
+    source_id: sourceId,
+    last_page: 1,
+    furthest_page: 1,
+    last_scroll_ratio: 0,
+    updated_at: null,
+  })),
   resumeImport: vi.fn(),
+  searchSource: vi.fn(),
+  sourceCoverUrl: vi.fn((sourceId: string) => `/covers/${sourceId}.webp`),
   sourceFileUrl: vi.fn((sourceId: string, pageNumber: number) => `/source/${sourceId}#${pageNumber}`),
+  sourcePdfUrl: vi.fn((sourceId: string) => `/source/${sourceId}`),
   sourceReadiness: vi.fn(),
+  sourceStructure: vi.fn(async (sourceId: string) => ({
+    source_id: sourceId,
+    origin: 'none',
+    sections: [],
+  })),
+  updateReadingState: vi.fn(),
   uploadSource: vi.fn(),
 }))
 

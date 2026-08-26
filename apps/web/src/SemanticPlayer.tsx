@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { recordEvent, sourceFileUrl, sourceVisualUrl } from './api'
+import { ThemeToggle } from './ThemeToggle'
 import { agentContentAllowed, AGENT_ACCESS_REFUSAL, refusalResult, textResult } from './webmcp/context'
 import { useModelContextTool } from './webmcp/useModelContextTool'
 import type { LessonPackage, ResearchEvent, SemanticFrame, SourceVisual } from './types'
@@ -408,7 +409,10 @@ export function SemanticPlayer({ lesson, onExit }: SemanticPlayerProps) {
           <strong>{lesson.title}</strong>
           <span>{lesson.source.original_name} · {frame.section_title ?? `pages ${lesson.page_start}–${lesson.page_end}`}</span>
         </div>
-        <div className="flow-local-state"><span aria-hidden="true" />Local source</div>
+        <div className="flow-header-tools">
+          <div className="flow-local-state"><span aria-hidden="true" />Local source</div>
+          <ThemeToggle />
+        </div>
       </header>
 
       <nav className="flow-mode-nav" aria-label="Learning mode">

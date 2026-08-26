@@ -1,0 +1,110 @@
+/* PRISM design tokens — "The Reading Instrument"
+   One system for every surface. Paper (light) and Slate (dark) are both
+   first-class; components consume tokens only and never hardcode colors.
+   Contract: docs/product/DESIGN_DIRECTION.md */
+
+@font-face {
+  font-family: "Literata";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/literata-var.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Literata";
+  font-style: italic;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/literata-var-italic.woff2") format("woff2");
+}
+
+:root {
+  color-scheme: light;
+
+  /* Type roles — if it is not evidence, it is not mono. */
+  --font-reading: "Literata", "Charter", "Iowan Old Style", Georgia, serif;
+  --font-ui: "Aptos", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Code", "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --font-display: "Baskerville", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+
+  /* Paper */
+  --ground: #f4efe5;
+  --surface: #fbf8f1;
+  --surface-2: #e9e2d3;
+  --ink: #191916;
+  --ink-soft: #44423a;
+  --muted: #6d6a60;
+  --line: #cbc1b1;
+  --line-strong: #9e9486;
+  --accent: #155c73;
+  --accent-strong: #0b4054;
+  --accent-contrast: #f7f3ea;
+  --accent-soft: #dbe7ea;
+  --trusted: #3d6b4f;
+  --trusted-soft: #dde8e0;
+  --warning: #8a5f16;
+  --warning-soft: #eee3c8;
+  --alert: #a62f24;
+  --alert-soft: #f3ddd6;
+  --focus: #c74730;
+  --page-ground: #ffffff;
+  --shadow: 0 16px 40px rgb(67 55 37 / 12%);
+  --shadow-page: 0 4px 18px rgb(67 55 37 / 16%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    /* Slate */
+    --ground: #161511;
+    --surface: #1e1c16;
+    --surface-2: #26231b;
+    --ink: #e9e2d1;
+    --ink-soft: #c4bcaa;
+    --muted: #9a927f;
+    --line: #3c392e;
+    --line-strong: #5a5544;
+    --accent: #6fb2c9;
+    --accent-strong: #8fc6d9;
+    --accent-contrast: #10181b;
+    --accent-soft: #1c2f36;
+    --trusted: #86b598;
+    --trusted-soft: #20302a;
+    --warning: #d3a04d;
+    --warning-soft: #362b16;
+    --alert: #e07a5f;
+    --alert-soft: #3a231c;
+    --focus: #e07a5f;
+    --page-ground: #efeae0;
+    --shadow: 0 16px 40px rgb(0 0 0 / 42%);
+    --shadow-page: 0 4px 18px rgb(0 0 0 / 45%);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #161511;
+  --surface: #1e1c16;
+  --surface-2: #26231b;
+  --ink: #e9e2d1;
+  --ink-soft: #c4bcaa;
+  --muted: #9a927f;
+  --line: #3c392e;
+  --line-strong: #5a5544;
+  --accent: #6fb2c9;
+  --accent-strong: #8fc6d9;
+  --accent-contrast: #10181b;
+  --accent-soft: #1c2f36;
+  --trusted: #86b598;
+  --trusted-soft: #20302a;
+  --warning: #d3a04d;
+  --warning-soft: #362b16;
+  --alert: #e07a5f;
+  --alert-soft: #3a231c;
+  --focus: #e07a5f;
+  --page-ground: #efeae0;
+  --shadow: 0 16px 40px rgb(0 0 0 / 42%);
+  --shadow-page: 0 4px 18px rgb(0 0 0 / 45%);
+}

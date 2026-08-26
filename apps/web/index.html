@@ -12,6 +12,16 @@
     <title>PRISM — Semantic learning canvas</title>
   </head>
   <body>
+    <script>
+      try {
+        var prismTheme = localStorage.getItem('prism-theme');
+        if (prismTheme === 'light' || prismTheme === 'dark') {
+          document.documentElement.dataset.theme = prismTheme;
+        }
+      } catch (error) {
+        /* system preference applies */
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

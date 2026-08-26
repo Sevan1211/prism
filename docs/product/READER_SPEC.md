@@ -1,6 +1,6 @@
 # Enhanced Source Reader specification
 
-**Status:** proposed expansion of milestone M1; requested by the owner 2026-08-26  
+**Status:** v1 implemented 2026-08-26 (PDF.js canvas, outline/computed sections, reading progress with continue-reading, FTS5 search with region highlight, page-group fallback, dual themes); text-selection-to-element mapping and per-section active-time remain open  
 **Reviewed:** 2026-08-26  
 **Baseline role:** the Source Reader is a first-class product surface and the principal learning comparison condition ([`PRODUCT_SPEC.md`](PRODUCT_SPEC.md)); this document specifies the reading experience it must provide  
 **Related:** [`../engineering/IMPLEMENTATION_PLAN.md`](../engineering/IMPLEMENTATION_PLAN.md) (M1), [`../architecture/PDF_PIPELINE.md`](../architecture/PDF_PIPELINE.md), [`../architecture/WEBMCP_INTEGRATION.md`](../architecture/WEBMCP_INTEGRATION.md)

@@ -1,6 +1,6 @@
 # Design direction
 
-**Status:** proposal for owner approval; satisfies the M0 requirement of an approved visual direction before frontend reconstruction  
+**Status:** approved by the owner 2026-08-26 and implemented the same day — `tokens.css` carries the full Paper/Slate set, Literata is self-hosted, and the library, shelf, Reader, and player all consume the shared tokens with a three-state theme toggle  
 **Reviewed:** 2026-08-26  
 **Related:** [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) (canvas contract, accessibility gates), [`READER_SPEC.md`](READER_SPEC.md)
 
