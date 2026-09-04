@@ -441,6 +441,18 @@ class SourceService:
         if source is None:
             raise LookupError("Source not found.")
         sections = self.store.sections_for_source(source_id)
+        # Sources indexed before the structure contract was introduced may not
+        # have persisted sections. Recover their detected heading hierarchy on
+        # first access instead of permanently reducing navigation to page bins.
+        if not sections and source.page_count:
+            headings = [
+                element
+                for element in self.store.elements_for_range(source_id, 1, source.page_count)
+                if element["kind"] == "heading" and element["document_region"] == "body"
+            ]
+            sections = computed_sections(headings, source.page_count)
+            if sections:
+                self.store.replace_sections(source_id, sections)
         origin: Literal["outline", "computed", "none"] = "none"
         if sections:
             origin = "outline" if sections[0]["origin"] == "outline" else "computed"
