@@ -44,6 +44,23 @@ pending write chain, retained progress, ciphertext-cache invalidation, and refus
 to auto-merge deletions or lesson content. This is a correction to the final pass,
 not evidence that arbitrary concurrent edits can be merged safely.
 
+**Hosted verification:** Sites v10 deployed successfully at
+`2026-09-04T04:36:36Z` to [public PRISM](https://prism-reading.sevan4355.chatgpt.site).
+The native browser remembered the existing encrypted library, automatically
+cleared the reading-progress conflict, returned to Synced, and rendered the
+489-page textbook after exit and immediate reopen. Its numbered, nested contents
+contained 181 headings/bookmarks. The corrected storage dialog was visually
+inspected in the native Reader. A clean Chrome profile opened `/sources` with
+HTTP 200 and no sign-in, showed the mobile connection UI without folder controls,
+and received the available sync-service response. Local mobile acceptance also
+used a separate real non-CS PDF; no lesson or source was preinstalled.
+
+Runtime changes are pushed to canonical `sevan-dev` through `fe0a3f6` in seven
+focused commits. Sites source: `e189a11a4542af96dbb97dde5f796ec271648e2a`.
+Deployment: `appgdep_6a9a4aca12988191b4737f6e6c93d41f`. Build archives contain no
+PDFs, keys or local state. Git contains one explicitly licensed public textbook
+fixture solely for repeatable parser tests, not a learner-library seed.
+
 **Date:** 2026-09-03  
 **Status:** implementation and acceptance in progress; not yet submission-ready
 
