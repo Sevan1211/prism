@@ -7,6 +7,8 @@
   ],
   "license": "Apache-2.0",
   "scripts": {
+    "build": "npm run build:web && vite build --config vite.sync.config.mts && node scripts/prepare_synced_site.mjs",
+    "audit:pdf": "vitest run --config benchmarks/vitest.config.mts",
     "dev:web": "npm --workspace @prism/web run dev",
     "dev:api": ".venv\\Scripts\\python.exe -m uvicorn prism_api.main:app --host 127.0.0.1 --port 8000",
     "build:web": "npm --workspace @prism/web run build",
@@ -17,14 +19,24 @@
     "format:api": ".venv\\Scripts\\python.exe -m ruff format apps\\api scripts",
     "lint:api": ".venv\\Scripts\\python.exe -m ruff check apps\\api scripts",
     "typecheck:api": ".venv\\Scripts\\python.exe -m mypy --config-file apps\\api\\pyproject.toml apps\\api\\src scripts",
-    "test:api": ".venv\\Scripts\\python.exe -m pytest apps\\api --basetemp=.pytest-tmp",
+    "test:api": ".venv\\Scripts\\python.exe -m pytest apps\\api -p no:cacheprovider --basetemp=%TEMP%\\prism-pytest-%RANDOM%",
     "quality:api": "npm run lint:api && npm run typecheck:api && npm run test:api",
     "schema:api": ".venv\\Scripts\\python.exe scripts\\export_openapi.py && openapi-typescript schemas\\openapi.json -o apps\\web\\src\\generated\\openapi.ts",
     "check:docs": ".venv\\Scripts\\python.exe scripts\\check_docs.py",
     "lock:api": ".venv\\Scripts\\python.exe scripts\\lock_api.py",
-    "quality": "npm run schema:api && npm run quality:api && npm run quality:web && npm run check:docs"
+    "quality": "npm run schema:api && npm run quality:api && npm run quality:web && npm run check:docs",
+    "dev:sync": "wrangler dev --port 8787",
+    "typecheck:sync": "tsc -p apps/sync/tsconfig.json",
+    "migrate:sync": "drizzle-kit generate"
   },
   "engines": {
     "node": ">=24 <25"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260904.1",
+    "@openai/sites-vite-plugin": "^0.2.0",
+    "drizzle-kit": "^0.31.10",
+    "drizzle-orm": "^0.45.2",
+    "wrangler": "4.129.0"
   }
 }

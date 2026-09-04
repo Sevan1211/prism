@@ -1,0 +1,8 @@
+{
+  "name": "prism-sync",
+  "main": "apps/sync/worker.ts",
+  "compatibility_date": "2026-09-03",
+  "assets": { "directory": "apps/web/dist", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"] },
+  "d1_databases": [{ "binding": "DB", "database_name": "prism-sync", "database_id": "local-prism-sync", "migrations_dir": "drizzle" }],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "prism-sync-files" }]
+}
