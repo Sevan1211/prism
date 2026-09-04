@@ -2,6 +2,7 @@ import { openVaultDatabase, accessBrowserVault, type DirectoryHandleLike } from 
 import { snapshotVaultRecords, writeVaultFile } from './vaultTransfer'
 import { allRecords, getRecord, isPortable, putRecord, recordKey, trackSyncWrites, transactionDone, type PendingCommit, type SyncChange } from './syncDatabase'
 import { hex, randomHex, recoveryKeys, seal, SYNC_CHUNK_BYTES, unseal } from './syncCrypto'
+import { mergeReadingProgress } from './syncReadingProgress'
 
 export const SYNC_CHANGED = 'prism:sync-changed'
 interface Connection { library: string; encryption: CryptoKey; token: string; device: string }
@@ -204,7 +205,7 @@ async function pull(db: IDBDatabase) {
 function ordered(entries: PendingCommit[]) { return entries.sort((a, b) => a.created - b.created) }
 async function flush(db: IDBDatabase) {
   let attempts = 0
-  while (true) {
+  flushLoop: while (true) {
     const head = await pull(db)
     const pending = ordered(await allRecords<PendingCommit>(db, 'sync_outbox'))
     announce({ pending: pending.length })
@@ -217,7 +218,10 @@ async function flush(db: IDBDatabase) {
       const identity = recordKey(change.store, change.key)
       if (!revisions.has(identity)) revisions.set(identity, (await getRecord<{ revision: string }>(db, 'sync_committed', identity))?.revision ?? null)
       if (change.base !== revisions.get(identity)) {
-        announce({ state: 'conflict', conflict: identity, detail: 'Both browsers changed the same item. Your version and the synced version are preserved. Choose which to continue with.' })
+        const committed = await getRecord<{ revision: string; change: SyncChange }>(db, 'sync_committed', identity)
+        if (await mergeReadingProgress(db, pending, identity, committed)) { changed(); continue flushLoop }
+        const item = change.store === 'reading_state' ? 'reading history' : change.store.replaceAll('_', ' ')
+        announce({ state: 'conflict', conflict: identity, detail: `Both browsers changed ${item}. Your version and the synced version are preserved. Choose which to continue with.` })
         return
       }
       revisions.set(identity, entry.id)

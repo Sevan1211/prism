@@ -28,13 +28,21 @@ disposable key downloaded with the expected `.txt` filename. Screenshots were
 visually inspected. The sync availability response was stubbed in this isolated
 UI check; it is not new evidence of production transport or full offline support.
 
-Current automated gates: 118 web tests across 33 files, 23 API tests, web/Worker
+Current automated gates: 119 web tests across 34 files, 23 API tests, web/Worker
 type checks, lint and build pass. The older counts below include retired folder
 tests. Hosted final verification and release references are appended after deploy.
 
 The video and submission are deliberately pending. Earlier limits on independent
 security review, offline/PWA support, browsers not exercised, and full live
 lesson/revision conflict acceptance remain candidly recorded below.
+
+The hosted native-browser check then exposed a concurrent Reader-position
+conflict. Reading progress now merges automatically: the latest dated position
+wins, while the furthest page from either browser is preserved. Authored content
+and deletion conflicts still require a decision. A regression test exercises a
+pending write chain, retained progress, ciphertext-cache invalidation, and refusal
+to auto-merge deletions or lesson content. This is a correction to the final pass,
+not evidence that arbitrary concurrent edits can be merged safely.
 
 **Date:** 2026-09-03  
 **Status:** implementation and acceptance in progress; not yet submission-ready
