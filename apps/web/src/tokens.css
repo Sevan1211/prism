@@ -1,12 +1,7 @@
-/* PRISM design tokens — "The Reading Instrument"
-   One system for every surface. Paper (light) and Slate (dark) are both
-   first-class; components consume tokens only and never hardcode colors.
-   Contract: docs/product/DESIGN_DIRECTION.md */
-
 @font-face {
   font-family: "Literata";
   font-style: normal;
-  font-weight: 400 700;
+  font-weight: 400 800;
   font-display: swap;
   src: url("/fonts/literata-var.woff2") format("woff2");
 }
@@ -21,90 +16,94 @@
 
 :root {
   color-scheme: light;
-
-  /* Type roles — if it is not evidence, it is not mono. */
-  --font-reading: "Literata", "Charter", "Iowan Old Style", Georgia, serif;
+  --font-reading: "Literata", Charter, Georgia, serif;
+  --font-display: "Aptos Display", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
   --font-ui: "Aptos", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   --font-mono: "Cascadia Code", "Cascadia Mono", Consolas, ui-monospace, monospace;
-  --font-display: "Baskerville", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
 
-  /* Paper */
-  --ground: #f4efe5;
-  --surface: #fbf8f1;
-  --surface-2: #e9e2d3;
-  --ink: #191916;
-  --ink-soft: #44423a;
-  --muted: #6d6a60;
-  --line: #cbc1b1;
-  --line-strong: #9e9486;
-  --accent: #155c73;
-  --accent-strong: #0b4054;
-  --accent-contrast: #f7f3ea;
-  --accent-soft: #dbe7ea;
-  --trusted: #3d6b4f;
-  --trusted-soft: #dde8e0;
-  --warning: #8a5f16;
-  --warning-soft: #eee3c8;
-  --alert: #a62f24;
-  --alert-soft: #f3ddd6;
-  --focus: #c74730;
+  --ground: #f4f5f5;
+  --surface: #ffffff;
+  --surface-2: #f0f1f1;
+  --surface-3: #e7e9e9;
+  --ink: #181a1a;
+  --ink-soft: #434747;
+  --muted: #717676;
+  --line: #dfe1e1;
+  --line-strong: #c6caca;
+  --accent: #b64a31;
+  --accent-strong: #943b27;
+  --accent-contrast: #fffaf8;
+  --accent-soft: #f7e7e2;
+  --trusted: #39715a;
+  --trusted-soft: #e5f0eb;
+  --warning: #93681d;
+  --warning-soft: #f7edd6;
+  --alert: #a83d33;
+  --alert-soft: #f8e5e2;
+  --focus: #b64a31;
   --page-ground: #ffffff;
-  --shadow: 0 16px 40px rgb(67 55 37 / 12%);
-  --shadow-page: 0 4px 18px rgb(67 55 37 / 16%);
+  --reader-ground: #dfe1e1;
+  --shadow: 0 18px 48px rgb(20 24 24 / 12%);
+  --shadow-soft: 0 7px 20px rgb(20 24 24 / 8%);
+  --shadow-page: 0 8px 28px rgb(25 30 30 / 16%), 0 1px 2px rgb(25 30 30 / 12%);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-
-    /* Slate */
-    --ground: #161511;
-    --surface: #1e1c16;
-    --surface-2: #26231b;
-    --ink: #e9e2d1;
-    --ink-soft: #c4bcaa;
-    --muted: #9a927f;
-    --line: #3c392e;
-    --line-strong: #5a5544;
-    --accent: #6fb2c9;
-    --accent-strong: #8fc6d9;
-    --accent-contrast: #10181b;
-    --accent-soft: #1c2f36;
-    --trusted: #86b598;
-    --trusted-soft: #20302a;
-    --warning: #d3a04d;
-    --warning-soft: #362b16;
-    --alert: #e07a5f;
-    --alert-soft: #3a231c;
-    --focus: #e07a5f;
-    --page-ground: #efeae0;
-    --shadow: 0 16px 40px rgb(0 0 0 / 42%);
-    --shadow-page: 0 4px 18px rgb(0 0 0 / 45%);
+    --ground: #141616;
+    --surface: #1b1d1d;
+    --surface-2: #222525;
+    --surface-3: #2b2e2e;
+    --ink: #f1f3f2;
+    --ink-soft: #c5c9c8;
+    --muted: #929897;
+    --line: #303434;
+    --line-strong: #464b4a;
+    --accent: #df795f;
+    --accent-strong: #f09881;
+    --accent-contrast: #211411;
+    --accent-soft: #3a2824;
+    --trusted: #83b59d;
+    --trusted-soft: #20352c;
+    --warning: #d5ae63;
+    --warning-soft: #3b321e;
+    --alert: #ed8578;
+    --alert-soft: #3c2422;
+    --focus: #df795f;
+    --page-ground: #ffffff;
+    --reader-ground: #0f1111;
+    --shadow: 0 18px 50px rgb(0 0 0 / 45%);
+    --shadow-soft: 0 7px 24px rgb(0 0 0 / 30%);
+    --shadow-page: 0 10px 34px rgb(0 0 0 / 55%), 0 1px 2px rgb(0 0 0 / 50%);
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --ground: #161511;
-  --surface: #1e1c16;
-  --surface-2: #26231b;
-  --ink: #e9e2d1;
-  --ink-soft: #c4bcaa;
-  --muted: #9a927f;
-  --line: #3c392e;
-  --line-strong: #5a5544;
-  --accent: #6fb2c9;
-  --accent-strong: #8fc6d9;
-  --accent-contrast: #10181b;
-  --accent-soft: #1c2f36;
-  --trusted: #86b598;
-  --trusted-soft: #20302a;
-  --warning: #d3a04d;
-  --warning-soft: #362b16;
-  --alert: #e07a5f;
-  --alert-soft: #3a231c;
-  --focus: #e07a5f;
-  --page-ground: #efeae0;
-  --shadow: 0 16px 40px rgb(0 0 0 / 42%);
-  --shadow-page: 0 4px 18px rgb(0 0 0 / 45%);
+  --ground: #141616;
+  --surface: #1b1d1d;
+  --surface-2: #222525;
+  --surface-3: #2b2e2e;
+  --ink: #f1f3f2;
+  --ink-soft: #c5c9c8;
+  --muted: #929897;
+  --line: #303434;
+  --line-strong: #464b4a;
+  --accent: #df795f;
+  --accent-strong: #f09881;
+  --accent-contrast: #211411;
+  --accent-soft: #3a2824;
+  --trusted: #83b59d;
+  --trusted-soft: #20352c;
+  --warning: #d5ae63;
+  --warning-soft: #3b321e;
+  --alert: #ed8578;
+  --alert-soft: #3c2422;
+  --focus: #df795f;
+  --page-ground: #ffffff;
+  --reader-ground: #0f1111;
+  --shadow: 0 18px 50px rgb(0 0 0 / 45%);
+  --shadow-soft: 0 7px 24px rgb(0 0 0 / 30%);
+  --shadow-page: 0 10px 34px rgb(0 0 0 / 55%), 0 1px 2px rgb(0 0 0 / 50%);
 }

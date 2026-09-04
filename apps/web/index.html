@@ -3,13 +3,49 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#07110f" />
+    <meta name="theme-color" content="#f4f5f5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141616" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta
       name="description"
-      content="PRISM builds source-grounded mental models one meaningful frame at a time."
+      content="PRISM turns structured sources into inspectable, source-grounded interactive lessons."
     />
-    <title>PRISM — Semantic learning canvas</title>
+    <title>PRISM | Source-grounded learning workspace</title>
+    <style>
+      .prism-boot {
+        box-sizing: border-box;
+        display: grid;
+        min-height: 100dvh;
+        place-items: center;
+        padding: 32px;
+        color: #272a2a;
+        font: 500 15px/1.5 Aptos, "Segoe UI", sans-serif;
+        background: #f4f5f5;
+      }
+      .prism-boot > div { width: min(100%, 420px); }
+      .prism-boot strong {
+        display: block;
+        margin-bottom: 12px;
+        color: #181a1a;
+        font-size: 18px;
+        letter-spacing: -0.02em;
+      }
+      .prism-boot p { margin: 0; color: #666b6a; }
+      .prism-boot a {
+        display: none;
+        width: max-content;
+        margin-top: 18px;
+        color: #8e351f;
+        font-weight: 700;
+      }
+      .prism-boot[data-stalled="true"] a { display: inline-block; }
+      @media (prefers-color-scheme: dark) {
+        .prism-boot { color: #c5c8c7; background: #141616; }
+        .prism-boot strong { color: #f0f1f0; }
+        .prism-boot p { color: #9b9f9e; }
+        .prism-boot a { color: #df795f; }
+      }
+    </style>
   </head>
   <body>
     <script>
@@ -22,7 +58,28 @@
         /* system preference applies */
       }
     </script>
-    <div id="root"></div>
+    <div id="root">
+      <main class="prism-boot" data-prism-boot>
+        <div>
+          <strong>Opening your local workspace</strong>
+          <p data-prism-boot-message>PRISM is reconnecting to this browser's source vault.</p>
+          <a href="">Reload PRISM</a>
+        </div>
+      </main>
+    </div>
+    <noscript>
+      <p>PRISM needs JavaScript to read browser-local sources and register WebMCP tools.</p>
+    </noscript>
+    <script>
+      window.setTimeout(function () {
+        var boot = document.querySelector('[data-prism-boot]');
+        var message = document.querySelector('[data-prism-boot-message]');
+        if (boot && message) {
+          boot.dataset.stalled = 'true';
+          message.textContent = 'PRISM did not finish opening. Reload to reconnect without deleting local sources.';
+        }
+      }, 7000);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

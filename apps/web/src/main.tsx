@@ -2,9 +2,9 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { ErrorBoundary } from './ErrorBoundary'
+import { SourceInspectionHost } from './reader/SourceInspection'
 import './tokens.css'
 import './styles.css'
-import './player.css'
 
 const root = document.getElementById('root')
 
@@ -16,6 +16,7 @@ createRoot(root).render(
   <StrictMode>
     <ErrorBoundary>
       <App />
+      <SourceInspectionHost />
     </ErrorBoundary>
   </StrictMode>,
 )

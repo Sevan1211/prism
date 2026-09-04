@@ -1,12 +1,13 @@
 import { useCallback, useState } from 'react'
+import { Desktop, Moon, Sun } from '@phosphor-icons/react'
 
 type ThemeChoice = 'system' | 'light' | 'dark'
 
 const ORDER: ThemeChoice[] = ['system', 'light', 'dark']
 const LABELS: Record<ThemeChoice, string> = {
-  system: 'System',
-  light: 'Paper',
-  dark: 'Slate',
+  system: 'Auto',
+  light: 'Light',
+  dark: 'Night',
 }
 
 function storedChoice(): ThemeChoice {
@@ -44,6 +45,7 @@ export function ThemeToggle() {
       return next
     })
   }, [])
+  const Icon = choice === 'light' ? Sun : choice === 'dark' ? Moon : Desktop
   return (
     <button
       className="theme-toggle"
@@ -51,8 +53,8 @@ export function ThemeToggle() {
       onClick={advance}
       aria-label={`Theme: ${LABELS[choice]}. Activate to change.`}
     >
-      <span className="swatch" aria-hidden="true" />
-      {LABELS[choice]}
+      <Icon aria-hidden="true" weight="duotone" />
+      <span>{LABELS[choice]}</span>
     </button>
   )
 }
