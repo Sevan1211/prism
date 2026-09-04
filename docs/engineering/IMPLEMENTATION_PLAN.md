@@ -1,11 +1,13 @@
-# PRISM implementation plan
+# PRISM post-challenge research implementation plan
+
+> **Superseded for immediate delivery on 2026-08-29.** This document retains the rigorous research, recovery, fidelity, and experimental sequence after the WebMCP Challenge. The authoritative short-horizon plan is [`WEBMCP_CHALLENGE_PLAN.md`](WEBMCP_CHALLENGE_PLAN.md), and the primary product contract is now a saved, multi-section interactive lesson rather than TSR playback.
 
 **Created:** 2026-08-23  
 **Planning horizon:** next 12 focused weeks at approximately 5–10 hours per week  
 **Status:** implementation-ready sequence; milestone gates outrank calendar dates  
 **Starting point:** existing clean-PDF TCP vertical slice on `sevan-dev`  
 **Primary owner-pilot fixture:** manually reviewed transaction-isolation lesson  
-**Experimental mechanism:** Traceable Semantic Relay (TSR)
+**Experimental post-challenge mechanism:** Traceable Semantic Relay (TSR), retained only as an alternate renderer/research condition
 
 ## Owner authorization recorded 2026-08-23
 
@@ -28,7 +30,7 @@
 - The approved-mockup precondition for frontend reconstruction is served by [`../product/DESIGN_DIRECTION.md`](../product/DESIGN_DIRECTION.md) plus its visual sample; owner sign-off on that direction unblocks the reader and player rebuilds.
 - Repository hardening landed the same day: CI quality workflow, portable docs gate, installable dependency lock, API logging, upload sweep, duplicate-upload race fix, event index, error boundary, and session/study research-event fixes.
 - Corpus: Erickson's *Algorithms* (CC BY 4.0) added as the parser-generalization fixture after every current OpenStax title was found to be CC BY-NC-SA.
-- The WebMCP sprint precedes the remaining M1 work in calendar order; M1–M7 sequencing below is otherwise unchanged, and the sprint must not weaken any M1 security-envelope requirement. The hosted demo preloads open-licensed corpus content; visitor uploads use transient server processing (nothing persisted server-side, device-local storage in the browser) and require the minimal resource-limit subset of the M1 envelope — reduced size cap, page cap, timeout, and rate limiting — before launch.
+- The WebMCP sprint precedes the remaining M1 work in calendar order; M1–M7 sequencing below is otherwise unchanged, and the sprint must not weaken any M1 security-envelope requirement. The hosted demo preloads open-licensed corpus content. **Superseded 2026-08-29:** visitor PDF bytes no longer use transient server processing; personal imports stay in the browser vault described in [`../architecture/DEVICE_LOCAL_WEB_ARCHITECTURE.md`](../architecture/DEVICE_LOCAL_WEB_ARCHITECTURE.md). Browser-local import, reopen, Reader access, progress, and source deletion are now wired; the FastAPI upload endpoint remains only a loopback engineering baseline and is no longer called by the web interface. Local indexing and lesson persistence are the remaining end-to-end migration boundary.
 - Decisions recorded 2026-08-26 (later same day): design direction approved as proposed; hosting is Render (API) plus Cloudflare Pages (web); PR #3 merged with CI green.
 
 ## Outcome
@@ -59,19 +61,19 @@ The plan begins from implemented code, not the dossier’s greenfield scaffold.
 | Capability | Current evidence | Status for next cycle |
 |---|---|---|
 | Stack | React/TypeScript/Vite plus FastAPI/Pydantic, SQLite WAL, `pypdfium2`, generated OpenAPI types | **Adopted** |
-| Source bytes | Streamed import and content-addressed storage | **Preserve and harden** |
-| Clean-PDF indexing | Page-grounded embedded text, regions, conservative front/back classification with explicit semantic entry boundaries, lazy figure/table crops, exact-artifact deduplication, and deterministic collision identities | **Implemented slice; widen only through fixtures** |
-| Import readiness | Per-source current job, parser currency, page-range evidence, trusted-body recommendation, and original-PDF fallback | **Implemented local recovery slice; add structure/search reader evidence** |
-| Resumption | Page-by-page progress, source `needs_review` state, parser-version full reindex, and no-duplicate recovery tests | **Implemented slice; add process/artifact fault cases** |
+| Source bytes | Content-addressed server fixtures plus immutable browser-local OPFS imports; personal browser imports do not call the API | **Implemented challenge boundary; add deployed network proof** |
+| Clean-PDF indexing | Page-grounded embedded text, normalized regions, progressive PDF.js checkpoints, conservative `source_only` fallback, and exact-fingerprint deduplication | **Implemented born-digital slice; widen only through reviewed fixtures** |
+| Import readiness | Browser-local extraction progress, parser currency, page-quality warnings, bounded manifests, local search, and original-PDF fallback | **Implemented slice; add richer trusted visual structure** |
+| Resumption | Versioned page batches, next-page continuation, parser-version reindex, and no-duplicate recovery tests | **Implemented slice; add browser-restart and failure-path evidence** |
 | Compiler | Deterministic source-verbatim chunks; full-payload hash; pre-storage span, graph, visual, accessibility, and identity validation; frozen synthetic golden manifest | **Validated draft baseline; contract-v2 claims, relations, review states, and publication remain** |
-| Player | Responsive Preview, Understand, Study, and Reader flow; reversible frames, exact source evidence, source visuals, Faster/Auto/Deeper receipts, focus return, reduced motion, and events | **First TSR slice implemented; persistence, transcript, remapping, and full accessibility/recovery gates remain** |
-| Source surface | PDF-backed Reader for the active frame with exact page and extracted span | **First return path implemented; structure navigation, search, overlays, inspection, and deletion remain** |
+| Lesson surface | Versioned, multi-section typed manuscript with provenance links, semantic math, tables, worked examples, generated diagrams, step sequences, end questions, and static accessibility equivalents | **Implemented showcase slice; source-authored visual composition and material-revision approval remain** |
+| Source surface | Responsive PDF.js Reader with selectable viewport-adjacent text, bookmarks, local search, exact regions, zoom/fit controls, routed pages, and citation focus return | **Implemented core; annotations, visual capture, thumbnails, and final accessibility/performance evidence remain** |
 | Provenance | Page, region, source span, parser and package identities | **Partial; add clause, pass, quality, and permission provenance** |
-| Events | Append-only local events and JSON export | **Partial; version schema and derive active time** |
-| Learning loop | No rubric-scored prompt, repair, delayed evidence, or review queue | **Missing** |
+| Events | Capped metadata-only browser activity plus older append-only research events | **Partial; export and active-time derivation remain** |
+| Learning loop | Source-grounded criteria, append-only version-bound analyses, learner-resolved outcome proposals, and named child repair briefs | **Implemented sparse loop; delayed evidence and live agent rehearsal remain** |
 | AI compiler | No provider adapter or model passes | **Correctly deferred** |
-| Accessibility | Keyboard basics and reduced-motion setting | **Partial; manual and automated release gate missing** |
-| Security/privacy | Loopback API, local-only source default, per-source policy field | **Partial; origin token, CSP, limits, deletion, and threat tests missing** |
+| Accessibility | Keyboard routes and modal trap, reduced-motion/static alternatives, focus-return anchors, page-scoped Reader semantics, and labeled typed representations | **Substantial slice; full manual and automated release gate remains** |
+| Security/privacy | Browser-local personal bytes, default-deny private agent access, fingerprint-bound revocation, bounded evidence tools, typed data-only patches, and source-scoped deletion | **Implemented challenge boundary; deployed network audit, CSP, and threat tests remain** |
 | Research validation | Documents and benchmark manifest exist | **No locked lesson, instrument, preregistration, or owner result** |
 
 ## Target dependency flow

@@ -1,67 +1,96 @@
 # Design direction
 
-**Status:** approved by the owner 2026-08-26 and implemented the same day — `tokens.css` carries the full Paper/Slate set, Literata is self-hosted, and the library, shelf, Reader, and player all consume the shared tokens with a three-state theme toggle  
-**Reviewed:** 2026-08-26  
-**Related:** [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) (canvas contract, accessibility gates), [`READER_SPEC.md`](READER_SPEC.md)
+**Status:** modern research-tool shell and Reader direction implemented 2026-08-31  
+**Reviewed:** 2026-08-31  
+**Related:** [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md), [`READER_SPEC.md`](READER_SPEC.md), [`INTERACTIVE_LESSON_SPEC.md`](INTERACTIVE_LESSON_SPEC.md)
 
-## Honest critique of the current interface
+## Direction: the modern research instrument
 
-The current UI established a real identity — warm paper, ink, Baskerville display, mono provenance labels — and its accessibility behavior is ahead of its visual polish. The execution problems, recorded so the redesign has explicit targets:
+PRISM is a serious learning instrument, not a preserved skin from the semantic-stream prototype or a generic AI dashboard. No visual element from either direction is protected merely because it already exists.
 
-1. **The library is a landing page, not a workspace.** A hero block and slogans push the actual instrument (sources, readiness, range selection) below the fold; returning users see marketing copy before their book.
-2. **Monospace is doing too many jobs.** Eyebrows, labels, evidence, controls, and body-adjacent text all reach for mono, which flattens hierarchy and reads noisy.
-3. **The player canvas fights the product spec.** The spec's stable-zone sketch (persistent anchor left, current frame center, carry-forward context, control strip) is only loosely implemented; zones shift with content length, and the decorative SVG "meaning path" spends attention without carrying information.
-4. **No dark theme.** A reading instrument used at night renders cream at full brightness; the rendered visual crops also hard-code a cream background.
-5. **Number theater.** Zero-padded index numbers (01, 02) decorate lists that are not sequences.
-6. **The reading surface has no reading typography.** Frame text is display-set; long claims wrap badly, and there is no long-form face, measure, or leading system for the Reader that M1 requires.
+The adopted direction combines the precision of a modern research tool with the compositional quality of an excellent technical publication:
 
-## Direction: The Reading Instrument
+- a quiet neutral application shell makes the source, not navigation chrome, the dominant object;
+- compact controls, exact alignment, restrained borders, and stable density replace decorative cards and presentation panels;
+- one restrained vermilion accent identifies action and focus, while semantic status colors remain separate and labeled;
+- the source is the stable organizing object;
+- every lesson, plan, annotation, and evidence receipt belongs to a source;
+- long-form reading uses editorial typography, while controls remain compact and direct.
 
-One direction, evolved from the existing identity rather than replacing it — the paper-and-ink character is distinctive and worth keeping; the redesign gives it discipline. Two alternates (a cool "laboratory" neutral scheme and a high-contrast editorial scheme) were considered and rejected: both would discard the established identity for generic looks.
+It should feel purpose-built for turning a textbook or paper into an inspectable learning experience. It must not resemble a generic AI dashboard, chat wrapper, marketing page, slide deck, or quiz platform.
 
-### Principles
+## Information architecture and navigation
 
-- **The book is the interface.** Chrome recedes: hairlines, not cards; one accent in view at a time; the page canvas and frame text get the contrast budget.
-- **Three type roles, strictly cast.** A reading serif for source text and frame content; the system UI face for controls and labels; mono *only* for provenance data (hashes, offsets, page regions, extraction status). If it is not evidence, it is not mono.
-- **Structure is information.** Numbering, ticks, and rails appear only where order or position is real (frame sequence, section progress) and never as decoration.
-- **Both themes are first-class.** Paper (light) and Slate (dark) ship together; every token is defined in both; rendered visual crops respect the theme by rendering on a neutral ground.
+PRISM uses real browser routes. Navigation destinations are links, refresh preserves the current destination, and browser back and forward restore prior destinations:
 
-### Type system
+| Destination | Route |
+|---|---|
+| Source library | `/sources` |
+| Source overview | `/sources/:sourceId` |
+| Source lessons | `/sources/:sourceId/lessons?plan=:planId` (plan query optional) |
+| Original Reader | `/sources/:sourceId/reader?page=:pdfPage` |
 
-| Role | Face | Fallbacks | Use |
-|---|---|---|---|
-| Reading | Literata (variable) | Charter, Georgia, serif | Frame content, Reader text layer companion, study prompts — 60–75ch measure, 1.6 leading |
-| UI | Aptos / Segoe UI Variable | system-ui, sans-serif | Controls, navigation, labels, receipts |
-| Evidence | Cascadia Code | Consolas, ui-monospace | Hashes, offsets, page/region readouts, parser identifiers |
-| Display | Libre Baskerville or Baskerville stack | Georgia, serif | Wordmark and one heading level per surface, sparingly |
+The desktop application uses three functional zones:
 
-Literata is chosen because it was engineered for long-form screen reading with optical sizing; it keeps the bookish character Baskerville established while actually being a text face. Type scale: 13 / 15 / 17 (reading base) / 21 / 27 / 34, with UI text at 13–15.
+1. **Application header:** product identity, top-level Sources destination, local/WebMCP state, and theme.
+2. **Source sidebar:** filterable local library and import action.
+3. **Working canvas:** a route-specific library, source overview, or source-owned lesson surface.
 
-### Color tokens
+The obsolete one-item command rail, fake abstract covers, decorative workflow stepper, oversized agent handoff panel, and nested card wall are excluded. On smaller screens the source sidebar leaves the primary reading order; library and source destinations remain reachable through the header and browser history. Incomplete future destinations are not shown as disabled navigation.
 
-| Token | Paper (light) | Slate (dark) | Role |
-|---|---|---|---|
-| ground | `#f4efe5` | `#161511` | page background |
-| surface | `#fbf8f1` | `#1e1c16` | panels, rails |
-| ink | `#191916` | `#e9e2d1` | primary text |
-| ink-soft | `#44423a` | `#c4bcaa` | secondary text |
-| line | `#cbc1b1` | `#3c392e` | hairlines |
-| accent | `#155c73` | `#6fb2c9` | actions, links, focus |
-| trusted | `#3d6b4f` | `#86b598` | trusted-extraction status |
-| warning | `#9a6b1c` | `#d3a04d` | warning-level status |
-| alert | `#a62f24` | `#e07a5f` | failures, source-only blocks |
+## Lesson canvas direction
 
-Rules: status colors never appear without a text label; accent appears once per view at rest; contrast meets WCAG 2.2 AA for all text tokens on their grounds (spot-check at build time, verify in the accessibility gate).
+The generated lesson is a visually composed, scrollable interactive textbook chapter. It may contain multiple sections, detailed prose, definitions, source figures, reconstructed diagrams, equations, code, worked examples, structured comparisons, bounded interactions, end questions, and a coverage receipt.
 
-### Layout and motion
+The first renderer now composes approved sections into a continuous paper-like manuscript
+with restrained evidence labels, technical block treatments, validation disclosures, and
+manual step controls. It intentionally renders text and structured data through React;
+no agent HTML, CSS, SVG, or JavaScript enters the page. Equations are rendered as semantic
+HTML and MathML with a readable LaTeX fallback, and every cited block exposes exact source
+evidence that returns through the Reader. Source-image regions, syntax highlighting,
+lesson outline navigation, and final reading polish remain open.
 
-- spacing on a 4px base with an 8/12/20/32 rhythm; sibling groups use gap, not stacked margins;
-- the Reader's three-zone grid and the player's stable zones come straight from their specs; zone dimensions are fixed per breakpoint so content length never moves controls;
-- motion is opacity and small translate only, 150–250ms, with the existing reduced-motion parity rule; no parallax, no full-field transitions — consistent with the no-unsafe-flashing gate.
+Semantic frames remain internal units for provenance and revision. They do not force isolated full-screen cards. A lesson section should read as one coherent instructional narrative, with an outline and source inspection always available. Traceable Semantic Relay is an Experimental alternate renderer for compatible explanations, not the default interface.
 
-## Adoption sequence
+## Type roles
 
-1. Owner approves this direction (or edits it) — the blueprint artifact carries a visual sample of the reader and player in both themes.
-2. `tokens.css` lands with the full light/dark token set; existing screens consume tokens with minimal re-layout.
-3. Library becomes shelf-first (hero collapses to a one-line identity), then the Reader ships on the new system, then the player canvas is rebuilt to the spec's zones during M3.
-4. Every migrated surface passes the accessibility gate before the next begins.
+| Role | Face | Use |
+|---|---|---|
+| Reading | Literata, then Charter/Georgia | Lesson prose and long-form explanations |
+| Interface and display | Aptos/Segoe UI Variable, then system UI | Navigation, headings, controls, labels, status, receipts |
+| Evidence | Cascadia Code/Consolas | Hashes, anchors, offsets, parser identity, immutable version data |
+
+Monospace is evidence typography, not a general visual motif. Reading text targets a comfortable line length and at least 1.55 line height.
+
+## Core color system
+
+| Role | Light | Dark |
+|---|---|---|
+| Ground | `#f4f5f5` | `#141616` |
+| Surface | `#ffffff` | `#1b1d1d` |
+| Ink | `#181a1a` | `#f1f3f2` |
+| Primary action and focus | `#b64a31` | `#df795f` |
+
+Decorative spectral gradients, blue glow, fake technical ornament, and unrelated multicolor state treatments are excluded. Status never relies on color alone. Both themes are first-class and must pass contrast checks.
+
+## Interaction and motion rules
+
+- The original source is reachable in one action from every source and lesson surface.
+- Every durable destination and current Reader page is represented in the URL.
+- The learner sees what the agent can access and approves consequential composition or revision.
+- Controls use visible verbs; essential actions do not depend on unexplained icons.
+- Utility icons come from one consistent audited icon family; hand-authored SVG is reserved for the PRISM brand mark or content visuals.
+- Motion is short opacity, color, and small-position feedback. Reduced motion removes nonessential transitions.
+- No unsafe flashing, parallax, ambient particle field, or decorative animation competes with learning.
+- Agent-generated material is rendered from typed PRISM blocks. Arbitrary HTML, CSS, JavaScript, or SVG is never accepted.
+
+## Acceptance
+
+- A returning learner reaches a source or saved lesson without passing through marketing copy.
+- Browser back, forward, refresh, and direct deep links preserve source, lesson, Reader, and Reader-page context.
+- The Reader remains usable without an agent.
+- Source, plan, lesson, and evidence relationships are legible at a glance.
+- Desktop and mobile preserve the same task order and privacy meaning.
+- Light, dark, keyboard, reduced-motion, and forced-color behavior are release gates.
+- A delayed JavaScript boot or runtime failure shows a branded recovery state, never an unexplained blank canvas.
+- The finished lesson looks like a carefully authored interactive technical chapter, not a set of AI cards.

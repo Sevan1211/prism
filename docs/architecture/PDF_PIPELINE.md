@@ -1,10 +1,42 @@
 # Large-PDF and textbook pipeline
 
-**Status:** clean-PDF structure and lazy visual route implemented; complex-document escalation proposed  
-**Reviewed:** 2026-08-23  
-**Primary target:** born-digital computing and AI textbooks on Windows  
+**Status:** browser-local extraction, original-page inspection, and source crops implemented; complex layouts remain conservative  
+**Reviewed:** 2026-09-03  
+**Primary target:** born-digital textbooks and technical documents in the hosted, device-local web application  
 **Mission:** progressively support the full range of PDFs without hiding extraction uncertainty.
 **Research integration:** [`../research/DOSSIER_INTEGRATION_REVIEW.md`](../research/DOSSIER_INTEGRATION_REVIEW.md)
+
+## 2026-08-29 architecture amendment
+
+This pipeline still defines the fidelity, provenance, recovery, and progressive-processing contract. Its original Python/FastAPI implementation is an engineering baseline and possible optional local companion. It is **not** the default personal-upload path for the hosted product.
+
+For the hosted challenge release:
+
+- original personal source bytes are imported into browser-owned OPFS and do not pass through or persist on PRISM's server;
+- metadata, indexes, annotations, lesson packages, versions, answer analyses, and reading position live in IndexedDB/OPFS on that browser profile;
+- PDF.js supplies the canonical page renderer and selectable text layer;
+- browser workers perform bounded parsing and indexing without blocking the interface;
+- an active agent receives only the approved evidence returned through narrow WebMCP tools, never an implied path to the entire local vault;
+- the released library is empty; open-license reference documents are imported during the demo, not installed in production.
+
+The authoritative runtime boundary is [`DEVICE_LOCAL_WEB_ARCHITECTURE.md`](DEVICE_LOCAL_WEB_ARCHITECTURE.md). The richer extraction, retrieval, and support-tier contract is [`DOCUMENT_INTELLIGENCE.md`](DOCUMENT_INTELLIGENCE.md).
+
+The hosted browser evidence slice is implemented for born-digital text retrieval.
+IndexedDB stores versioned page records (current parser `pdfjs-evidence-v7`); a dedicated PDF.js worker
+commits bounded batches, invalidates stale parser output, resumes compatible work, and
+keeps partial runs non-searchable. Page profiles identify missing embedded text and
+possible column/table geometry, while stable candidate elements retain page regions,
+classification reasons, confidence, and warning/source-only status. Exact search,
+cursor-paged manifests, bounded verbatim bundles, and visible region navigation now use
+those records. The PDF canvas and page-scoped PDF.js text layer remain authoritative for
+appearance and selection. Page-image anchors allow original-page inspection even when
+embedded text is absent. The Reader, indexer, import preflight, and figure renderer load
+PDF.js character maps, standard fonts, and image decoders from the application origin
+on demand. No third-party resource CDN is required. Numeric rows, dense layouts, and
+uncertain geometry retain source-only warnings. The measured regression corpus is
+[102 pages across three documents](../../benchmarks/PDF_CORPUS.md). This does not prove
+general OCR, trusted hierarchy, complex reading order, semantic definitions/claims,
+or cross-reference recovery; those remain gated below.
 
 ## Central decision
 
@@ -39,14 +71,16 @@ Each arrow produces a persisted artifact with an input hash, implementation vers
 
 ## 1. Intake and immutable source
 
-On upload:
+On import, the hosted web application:
 
-- stream bytes to a temporary file rather than loading the book into browser or server memory;
+- streams bytes into a browser-local temporary OPFS object rather than loading the whole book into JavaScript memory or sending it to the application server;
 - compute SHA-256 while streaming;
 - detect duplicate content before processing;
 - record original filename, size, MIME evidence, rights/use declaration, import time, optional edition metadata, and `cloud_policy: local_only`;
-- move the completed file to content-addressed storage only after its hash and basic validation succeed;
+- move the completed object to browser-local content-addressed storage only after its hash and basic validation succeed;
 - never rewrite the canonical source in place.
+
+The implemented Python worker follows the same logical sequence using a restricted temporary file and content-addressed filesystem storage. That route remains valuable for corpus evaluation and formats that later exceed the browser pipeline, but using it for a personal source requires a separate, explicit product mode and truthful privacy disclosure.
 
 The learner declares one of: public domain, open license, personally authorized/private use, or unknown. Unknown rights permit local inspection but block redistribution and public lesson export.
 
@@ -274,11 +308,11 @@ A section is not compilation-ready merely because retrieval returned relevant-lo
 
 The manifest records what was intentionally excluded and why. Retrieval recall, evidence localization, and support review are therefore separate gates. The 2026 CiteVQA, DocScope, and XL-DocBench results that motivate stronger attribution remain preprints; they justify testing, not confidence in a particular parser or model.
 
-## 9. Cloud-file boundary
+## 9. Agent and cloud boundary
 
 OpenAI’s current file-input API can extract PDF text and page images, but each request is limited to 50 MB combined and visual page processing increases token use. The official guide itself recommends retrieval for large files. [OpenAI file-input guide](https://developers.openai.com/api/docs/guides/file-inputs).
 
-Therefore PRISM does not make direct full-book upload its primary cloud path. Whole-book structural and search indexing runs locally, while deep generation begins only when the learner opens a section. PRISM sends only the minimum approved section evidence. A relevant page image or crop is included only when text extraction cannot express a diagram, equation, or spatial relation.
+Therefore PRISM does not make direct full-book upload its primary agent or cloud path. Whole-book structural and search indexing runs on the device, while deep generation begins only when the learner opens a section. PRISM returns only the minimum approved section evidence through WebMCP. A relevant page image or crop is included only when text extraction cannot express a diagram, equation, or spatial relation and the source policy permits that evidence class.
 
 Cloud consent is per source, not global. Import, indexing, and prior approval of another file do not authorize transmission. Before the first cloud task for a private source, the UI previews the exact spans or page regions, task, and provider; approval is recorded against the immutable source hash.
 

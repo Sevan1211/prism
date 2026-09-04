@@ -1,7 +1,25 @@
 # PRISM project brief
 
-**Reviewed:** 2026-08-23 against the GPT Pro research dossier and current repository baseline  
+**Reviewed:** 2026-08-31 against the project-understanding-workspace direction and current repository baseline  
 **Research integration:** [`research/DOSSIER_INTEGRATION_REVIEW.md`](research/DOSSIER_INTEGRATION_REVIEW.md)
+**Current product contract:** [`product/PROJECT_UNDERSTANDING_WORKSPACE.md`](product/PROJECT_UNDERSTANDING_WORKSPACE.md) and [`product/INTERACTIVE_LESSON_SPEC.md`](product/INTERACTIVE_LESSON_SPEC.md)
+
+**Owner clarification — 2026-09-03:** Agent-authored lessons are browser-native,
+Markdown-style reading documents with substantive explanations and inline visuals.
+PDFs are original source material, not the generated lesson format. See the
+[`submission readiness`](engineering/SUBMISSION_READINESS.md) for the agreed empty-library,
+soft-length, original-visual, and same-lesson revision contract and its acceptance evidence.
+The approved [reading release execution plan](engineering/READING_RELEASE_EXECUTION.md)
+prioritizes authoring latency, original figure quality, dedicated reading routes, and
+purposeful domain-neutral visuals, including explicitly labeled AI illustrations.
+
+The owner's latest storage requirement is independent access to one synchronized
+library across browsers, including ChatGPT's native browser, without a companion.
+The [synced-library implementation](architecture/SYNCED_LIBRARY.md) now uses
+encrypted cloud copies with account-free recovery keys. The owner removed folder
+mode from the release: storage is either this browser's local vault or an explicitly
+connected encrypted library. Browser acceptance and remaining limits are recorded
+in the submission readiness document; cross-browser source/brief sync is verified.
 
 ## Name
 
@@ -21,19 +39,21 @@ That framing permits speed improvements where they are safe while treating under
 
 ## Product thesis
 
-PRISM is three connected systems:
+PRISM is five connected systems:
 
-1. **Representation compiler** — parses a source, builds a traceable semantic model, and proposes representations suited to each idea.
-2. **Technical reader and Traceable Semantic Relay player** — preserves an enhanced static Source Reader and experimentally presents source-grounded frames through an Anchor, Advance, Integrate, and Repair cycle.
-3. **Sparse learning loop** — uses bounded retrieval, explanation, application, source-linked repair, and delayed review to collect and strengthen specific learning evidence.
+1. **Project workspace and learning route** — keeps a goal-bound source collection, explicit source membership, a transparent route, and project-local learning state rather than treating each lesson as an isolated chat task.
+2. **Device-local Source Reader** — preserves each original document as a fully navigable, selectable, annotatable, searchable, and copyable source.
+3. **Document-intelligence compiler** — recovers page layout, hierarchy, text, figures, tables, equations, code, cross-references, and stable source anchors with explicit confidence and fallback.
+4. **Agent-authored interactive lesson system** — lets a WebMCP agent inspect a learner-approved route step, propose coverage, and build a saved, multi-section interactive textbook experience from typed, source-grounded representations.
+5. **Understanding-evidence and repair loop** — places questions after instruction, lets the learner answer through the agent conversation, and records immediate evidence-linked completion, clarification, or learner-approved repair without making a mastery claim.
 
-The proposed innovation is the coordination of these systems. Phrase-level streaming alone is useful but defensible competitors can copy it. A source-grounded compiler, evidence-locked representation relay, and validated sparse learning loop create the deeper research contribution. Traceable Semantic Relay is **Experimental** until it beats or meaningfully complements the enhanced Source Reader on delayed outcomes.
+The innovation is their coordination. PRISM is not a generic PDF summarizer, a quiz site, or an AI chat beside a document. The learner and agent share one live project, source, route, lesson, and evidence surface. Traceable Semantic Relay remains an **Experimental** alternate renderer for selected semantic frames; it is no longer the definition of the primary lesson experience.
 
 ## North star
 
-The aspirational experience is a single calm screen on which the most useful representation appears at the right moment. The learner can focus on that screen and emerge able to explain and use the material.
+The primary experience is a visually composed interactive textbook generated for the learner's actual assignment. It uses detailed, easy-to-follow prose; meaningful sections and subsections; source-authored and reconstructed visuals; equations; code; worked examples; and user-controlled interactions. The learner can discuss any confusing part with the connected agent, open its exact source evidence, and approve a durable revision or repair.
 
-This is a research direction, not a promise that arbitrary information can be “uploaded” through rapid flashes. Current evidence supports very fast extraction of visual gist, but not equally fast consolidation of durable, relational knowledge. PRISM should test whether coherent frames, stable context, learner-stepped advancement, sparse checks, source-linked repair, and delayed retrieval reduce wasted effort without removing productive rereading.
+Semantic frames remain the internal source-grounded composition units. The primary lesson renders them as a coherent, scrollable instructional narrative rather than an uninterrupted sequence of isolated screens. The one-screen Traceable Semantic Relay canvas remains available as an Experimental representation when a process, relation, or focused explanation benefits from it.
 
 ### Long-term research mission
 
@@ -66,9 +86,26 @@ Understand and Study are learner-stepped by default; Study has no instructional 
 
 This is narrow enough to validate the mechanism honestly before claiming generalization to children, clinical populations, second-language learning, mobile contexts, or accessibility-specialized experiences.
 
-## Initial content and full-PDF mission
+## Cross-domain contract and initial benchmark
 
-PRISM should eventually accept the broad range of PDFs a learner actually encounters. Its first domain family is computing and AI-related material: databases, networks, distributed systems, algorithms, operating systems, Python, data engineering, cloud, and adjacent AI topics.
+PRISM should accept the broad range of structured PDFs a learner actually encounters.
+The first stress-testing and challenge-demo corpus is computing and AI-related material:
+databases, networks, distributed systems, algorithms, operating systems, Python, data
+engineering, cloud, and adjacent AI topics.
+
+**Owner clarification recorded 2026-08-31:** computing is the challenge demonstration
+corpus, not the product boundary. The released product, WebMCP tools, lesson contracts,
+evaluation criteria, and representation grammar remain discipline-neutral. A learner
+should be able to use the same source-grounded workflow for mathematics, natural and
+social sciences, engineering, medicine, law, history, literature, business, and other
+structured academic or professional material. Domain-specific renderers may be added,
+but no core contract may assume that the source contains code, equations, or a technical
+mechanism.
+
+The challenge may use a computer-systems chapter because it stress-tests hierarchy,
+figures, code, exact terminology, and causal explanation in one source. Success on that
+demo is evidence for one demanding corpus only. It is not evidence of universal parsing
+or cross-domain learning efficacy.
 
 **Decision recorded 2026-08-19:** the first benchmark trio is database transaction isolation, TCP congestion control, and distributed consensus. These concepts deliberately test precise definitions and anomalies, causal change over time, and multi-node reasoning rather than optimizing the prototype around one kind of technical explanation.
 
@@ -86,24 +123,24 @@ Private sources remain local by default. Cloud transformation requires explicit 
 
 “All PDFs” is a long-range compatibility target, not a claim that every file can be transformed reliably today. PRISM must explicitly report unsupported or low-confidence pages and retain Source mode rather than flattening them into plausible-looking misinformation.
 
-## Core product modes
+## Core product surfaces
 
-- **Preview:** fast structural map and key questions; optimized for orientation and gist.
-- **Understand:** learner-controlled Traceable Semantic Relay frames with context and optional explanatory representations.
-- **Study:** a deeper TSR bundle with sparse retrieval, application, repair, and spaced follow-up.
-- **Source:** an enhanced static reader for normal study, verification, search, structure, and unrestricted navigation.
+- **Source Reader:** the original document with structure, search, selection, copy, local annotations, exact region navigation, and extraction-status inspection. It works without an agent.
+- **Lesson Library:** multiple named lessons attached to each source, each showing its chapter/page coverage, objectives, status, version, and any parent or repair relationship.
+- **Interactive Lesson:** a detailed, multi-section digital-textbook experience built by the agent from an approved lesson plan and saved locally.
+- **Agent Collaboration:** source search, exact navigation, lesson planning, composition, discussion, revision, end-question analysis, and learner-approved repair through WebMCP.
 
-Keeping these goals separate prevents a fast preview from being mislabeled as deep study.
+Previously generated lessons remain viewable without an active agent. Creating, evaluating, or revising a lesson requires a connected agent.
 
 ## Non-goals for the first version
 
 - replacing normal reading for every text or reader;
 - promising extreme words-per-minute rates;
 - eye tracking, EEG, or camera-required adaptation;
-- fully automatic animation generation;
+- arbitrary executable animation or UI generation;
 - pretending that arbitrary textbooks have been parsed perfectly;
 - transforming an entire book as one model prompt or one uninterrupted stream;
-- becoming a quiz bank, flashcard site, course platform, or instructor dashboard;
+- becoming a quiz bank, flashcard site, classroom platform, or instructor dashboard;
 - diagnosing learning disabilities or cognitive state;
 - matching people to fixed “learning styles.”
 

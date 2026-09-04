@@ -1,85 +1,88 @@
-# WebMCP integration: the instrument hands the agent its evidence
+# WebMCP integration
 
-**Status:** adopted direction (owner decision 2026-08-26); every learning-effect claim in this document is **Experimental**  
-**Reviewed:** 2026-08-26  
-**External deadline:** OpenAI WebMCP Challenge submission, 2026-09-03 13:00 PDT  
-**Related:** [`../product/PRODUCT_SPEC.md`](../product/PRODUCT_SPEC.md), [`../product/READER_SPEC.md`](../product/READER_SPEC.md), [`AI_STRATEGY.md`](AI_STRATEGY.md), [`../research/EVIDENCE_REVIEW.md`](../research/EVIDENCE_REVIEW.md)
+**Reviewed:** 2026-09-03  
+**Contract:** browser-local reading, source-grounded authoring, and learner-approved changes.  
+**Related:** [Lesson specification](../product/INTERACTIVE_LESSON_SPEC.md), [document intelligence](DOCUMENT_INTELLIGENCE.md), [release evidence](../engineering/SUBMISSION_READINESS.md).
 
-## What WebMCP is
+## Shared workspace
 
-WebMCP is a W3C Web Machine Learning Community Group draft (announced 2026-02-10; draft report 2026-07-21, edited by Google and Microsoft) that lets a web page register JavaScript tools — name, description, JSON Schema input, async `execute` callback — that browser-hosted agents can discover and invoke. The page keeps its own session, validation, and UI; the agent gets a typed contract instead of scraping the DOM.
+The learner brings a compatible browser agent. PRISM registers page tools through `document.modelContext` where supported. A normal browser still provides the source library and Reader; generation requires an external agent. PRISM has no hosted inference service or embedded chatbot.
 
-Current support: Chrome ships an origin trial (149–156) plus a testing flag; the ChatGPT desktop app's built-in browser, ChatGPT Sites, and Codex support it natively as "Site tools"; Edge is behind a flag; Gemini-in-Chrome is announced as Google's first consumer. The API surface is `document.modelContext` (with a `navigator.modelContext` fallback that Chrome 150 deprecates). Adoption is near zero, which is the opportunity.
+The current route-stable surface has 27 tools. Tool discovery in the actual host, application validation, source fidelity, and owner approval are separate checks. [Official WebMCP documentation](https://learn.chatgpt.com/docs/webmcp).
 
-```javascript
-const ctx = document.modelContext ?? navigator.modelContext
-await ctx?.registerTool({
-  name: 'get_frame_evidence',
-  description: 'Exact source spans backing the current semantic frame',
-  inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-  annotations: { readOnlyHint: true },
-  async execute() { /* returns claim + spans from the player store */ },
-}, { signal: lessonAbortController.signal })
-```
+## Source access
 
-## Design thesis
+| Tool | Purpose |
+|---|---|
+| `prepare_source_import` | Open the visible import dialog; cannot select files, upload bytes, or grant content access |
+| `list_sources` | Discover source metadata and access/readiness state |
+| `get_source_map` | Candidate outline, page count, index state, and limitations |
+| `get_scope_manifest` | Cursor-paged element inventory for up to 32 pages |
+| `read_source_page` | One page's paginated elements and stable original-image anchor, including scans |
+| `read_source_bundle` | Bounded evidence from selected anchors |
+| `search_source` | Local lexical search with page regions |
+| `open_source_location` | Open the canonical Reader at a selected page/region |
+| `open_source_visual` | Render a page or normalized crop and wait for its pixels |
+| `close_source_visual` | Return from inspection to the underlying workspace |
 
-Generic agent browsing makes AI *less* accountable: it summarizes content it half-read. PRISM's WebMCP surface is designed to make a connected agent *more* accountable than it is anywhere else, because every content-bearing tool returns hash-validated, source-verbatim spans with page and region provenance — the same receipts the human sees. The agent tutoring the learner can only cite, never invent. This is AGENTS.md principle 9 ("AI output is untrusted until checked") turned into an interface: the checking substrate is the API.
+`open_source_visual` does not return an image attachment or prove visual understanding. The host's browser vision must actually inspect the rendered page. A caption is not enough to infer a chart's values. Page-image anchors support source crops independently of text extraction; they certify origin, not interpretation.
 
-PRISM itself ships no model. The learner brings whatever agent lives in their browser; PRISM defines what that agent may see and do. The M5 provider boundary in the implementation plan is unrelated: it governs models PRISM invokes, while this document governs agents the learner invokes.
+Private and unknown-rights content is denied until the learner grants the relevant payload classes. A former text-only grant does not silently permit page images. Access revocation is checked again at content boundaries. Public/open-license status and private-source consent are distinct concepts.
 
-## Tool rings
+## Planning and long-source review
 
-Registered per surface, unregistered on exit via `AbortSignal`. Ring 1 and Ring 2 tools carry `readOnlyHint`.
+| Tool | Purpose |
+|---|---|
+| `get_authoring_guide` | Generic writing, fidelity, visual, and revision guidance |
+| `create_lesson_brief` | Save the goal, prior knowledge, range, depth, output kind, and soft length/time targets |
+| `get_lesson_brief` | Resume the saved assignment |
+| `record_scope_review` | Save a nonoverlapping 1–8 page review with essential anchors and visual findings |
+| `get_scope_reviews` | Resume one review at a time with compact overall progress |
+| `propose_lesson_plan` | Propose the teaching sequence and complete coverage accounting |
+| `get_lesson_plan` | Read plan metadata and one section's evidence when requested |
+| `open_lesson` | Open a plan or saved document without approving it |
 
-| Ring | Tool | Contract |
-|---|---|---|
-| 1 · Navigate | `list_sources`, `get_readiness` | Library contents, trusted-page evidence, recommended ranges |
-| 1 | `open_lesson`, `goto_frame`, `set_mode`, `set_pace` | Drive the player the learner is watching; identical guardrails to the UI (no autoplay on high-inspection frames, bundle receipts shown) |
-| 1 | `open_source_page` | Open the Reader at an exact page — learner control and the source path stay primary |
-| 2 · Evidence | `get_current_frame`, `get_frame_evidence` | Claim text plus exact spans (element id, page, region, offsets, verbatim text) and verification status |
-| 2 | `search_source` | FTS5 search over the indexed book returning spans, not prose (the Reader's search endpoint) |
-| 2 | `describe_visual` | The active figure/table's accessible text, caption, page, and provenance |
-| 3 · Tutor | `get_study_prompt`, `submit_explanation` | The learner's free-recall attempt is recorded as a `study_submitted` research event; the tool response then, and only then, includes the exact source span for comparison |
-| 3 | `suggest_repair` | Agent proposes returning to a prerequisite frame; the player offers, never forces, the jump (TSR's Repair step, mediated) |
-| 3 | `get_session_evidence` | Exposure summary from the append-only event log, labeled as exposure |
+Small scopes classify the complete element inventory. Large scopes require reviews covering every requested page, contiguous coverage ranges with explicit rationales, and a selected essential-anchor ledger. An unresolved visual review cannot silently become taught content. The agent must inspect or explicitly exclude it. The selected evidence set is bounded; a long source is never treated as one unrestricted prompt.
 
-## Guarded tutoring is the point, not a limitation
+Word count and reading time are approximate targets, not hard truncation budgets. A ten-page equivalent is expressed as a word target because browser layout has no fixed printed page count. End questions are optional.
 
-2025–2026 tutoring trials are consistent: structured programs with pedagogical guardrails produced large gains, while unrestricted assistant access improved in-the-moment performance and *reduced* later unassisted performance. PRISM's tool surface encodes the guardrail structurally:
+**The agent cannot approve its own plan.** The visible learner control freezes the scope and sequence. Browser automation that impersonates the learner does not satisfy this boundary. Approval authorizes composition; it does not establish correctness, source fidelity, or learning.
 
-- `submit_explanation` requires a non-empty attempt before any comparison material is returned — attempt-before-assistance is enforced by the API shape, not by prompt suggestions;
-- content tools return source-verbatim spans, so agent feedback is anchored to inspectable evidence;
-- every agent invocation of a Ring 3 tool is logged as an `agent_*` research event beside the learner's own events, which makes human-plus-agent co-study a measurable future experiment arm rather than an unexamined feature;
-- no tool can mark anything learned, verified, or complete; verification vocabulary stays owned by the deterministic compiler and future review states.
+## Composition and revision
 
-The learning-effect framing ("agent co-study helps") is **Experimental** and earns claims only through the validation plan's delayed-outcome machinery.
+| Tool | Purpose |
+|---|---|
+| `get_lesson_document` | Compact document outline; bounded section content with continuation cursor |
+| `apply_lesson_patch` | Progressive typed edits to an approved draft with an expected version |
+| `validate_lesson` | Structural checks: planned evidence, provenance, exact excerpts, sections, and representation presence |
+| `finalize_lesson` | Save initial reading-ready content with a candid agent semantic review |
+| `propose_lesson_revision` | Save a candidate change to the same lesson without overwriting the current version |
 
-## Rights-gated exposure
+The grammar supports connected rich text, excerpts, original source crops, equations, code as text, tables, worked examples, declarative scenes, numeric plots, and other typed blocks. Scenes accept bounded nodes, edges, positions, focus steps, and textual explanations. Charts accept explicit finite numeric data. No arbitrary HTML, SVG source, CSS, JavaScript, expressions, remote Markdown images, paths, or callbacks are executed from an agent's lesson.
 
-Tool results flow to the agent vendor's servers. Agent exposure is therefore a per-source policy in the same family as `rights_status` and `cloud_policy`:
+A ready document cannot be silently patched. A revision includes a summary, before/after content, changed evidence, and any moved blocks. Only the learner accepts or dismisses it. Stale proposals fail if the document changes. Acceptance and immutable version storage are atomic; restoration creates a new current version and preserves history.
 
-- `public_domain` and `open_license` sources expose tools by default;
-- `private_authorized` and `unknown` sources register **no content-bearing tools** unless the learner explicitly enables agent access for that source; navigation metadata (titles, readiness) may remain;
-- the consent is per source, revocable, and recorded — importing or reading a source never implies agent exposure, mirroring the existing cloud-consent rule.
+Structural validation cannot determine whether a claim is true, a diagram is scientifically correct, an omission is acceptable, or a lesson teaches well. The agent must separately compare the content with its sources and inspect the rendered result. Its review remains explicitly agent-authored.
 
-## Security rules
+## Discussion and optional learning checks
 
-- Agent-supplied tool arguments are untrusted input: schema-validated, length-capped, and never interpolated into SQL, paths, or shell;
-- content responses are size-capped; tools never return raw PDF bytes;
-- no tool mutates rights, policies, deletion state, or research data (Ring 3 appends learner-visible events only);
-- registration happens only on surfaces the learner opened; closing the lesson or reader aborts every registration;
-- the feature detects `document.modelContext ?? navigator.modelContext` and degrades to nothing — no polyfill that fakes agent presence.
+| Tool | Purpose |
+|---|---|
+| `get_active_lesson_context` | Current route, source, plan, version, and selected passage/request |
+| `get_lesson_end_check` | Optional questions and their source-grounded evaluation criteria |
+| `record_answer_analysis` | Evidence-linked analysis of an answer, including uncertainty |
+| `propose_lesson_outcome` | Recommend continued discussion, closing, or a separate repair scope |
 
-## Engineering approach
+The default response to a confusing concept is a proposed improvement to the same saved lesson. A separate child lesson remains available when a genuinely separate scope is desired. Learner controls decide outcomes. Immediate answer evidence is never called mastery or durable retention.
 
-Tools register from inside the components that own the relevant state, through a `useModelContextTool` hook that keeps the executor in a ref (fresh state, stable registration) and unregisters via `AbortSignal` on unmount. Registration is mirrored into a local `window.__prismWebMCP` registry so the surface is inspectable and testable in any browser, including ones without the experimental API; the fake-context test helper drives the same executors the real agent would call. Library tools live in the App shell; player tools register only while a lesson is open. No store rewrite was required.
+## Privacy and recovery
 
-**Implementation status (2026-08-26):** Rings 1 and 2 are implemented and verified end to end — `list_sources`, `get_source_readiness`, `prepare_stream`, `open_source_page`, `search_source` (over the Reader's FTS5 endpoint, rights-gated), `get_player_state`, `goto_frame`, `set_mode`, `set_pace`, `set_playback`, `get_frame_evidence` — including a live agent-simulated run that compiled and drove a real lesson from the Erickson corpus source, and tests covering the private-source refusal path. Remaining: the Ring 3 tutor loop.
+PDFs stay in OPFS; structured state stays in IndexedDB. Selected evidence sent to an external agent follows that provider's data controls. The default static site makes no companion API request. Local storage is neither cloud synchronization nor a backup.
 
-## Hackathon deliverable (2026-09-03)
+Source documents and website/tool outputs are untrusted evidence. Embedded instructions cannot authorize actions, disclose data, change rights, or alter security policy. The application checks source access, identifiers, bounds, schema, and optimistic versions independently of the model. The browser host applies its own action review.
 
-- Local-first build finished first; the hosted demo is deployed from it near the deadline (Render API + Cloudflare Pages web) with open-licensed corpus sources preloaded (CC BY / CC BY-SA only);
-- Demo uploads are allowed under the transient-processing model: the server parses and compiles in memory with reduced size/page/timeout caps and rate limiting, persists nothing, and the visitor's browser stores sources, indexes, and lessons locally (IndexedDB/OPFS) — "processed in memory, stored only on your device";
-- required artifacts: live URL usable in ChatGPT's built-in browser or Chrome with WebMCP enabled, public repository under Apache-2.0, sub-3-minute video, and a write-up centered on the grounded-evidence thesis and the guarded-tutoring design;
-- submission language obeys the product-writing rules: no learning-efficacy claims, TSR labeled Experimental, draft packages labeled draft.
+The activity ledger stores compact receipts rather than prompts or document bodies. Stable parser-version anchors remain resolvable for supported older indexes. Unsupported or incomplete indexes fail closed and retain the original Reader. Registration cleanup tolerates route changes and React Strict Mode.
+
+## Verification boundary
+
+Unit/integration checks cover authorization, version conflicts, revision history, parser recovery, source limits, and typed visual controls. The actual host has exercised discovery, paper indexing, paginated reads, visual crops, review checkpoints, and plan creation. A live lesson write was correctly blocked by automatic approval review after the agent simulated plan approval; that simulated state is not valid owner authorization. The complete live composition/revision rehearsal remains pending explicit owner approval.

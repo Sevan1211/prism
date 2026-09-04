@@ -1,13 +1,32 @@
 # Technical stack
 
-**Status:** adopted for the local clean-PDF vertical slice; complex-document adapters remain evidence-gated  
-**Reviewed:** 2026-08-23  
+**Status:** Python baseline proven; hosted browser-local challenge target adopted  
+**Reviewed:** 2026-08-29  
 **Decision rule:** choose the smallest stack that preserves source fidelity, supports large local PDFs, and can run controlled learning experiments.
-**Implementation sequence:** [`../engineering/IMPLEMENTATION_PLAN.md`](../engineering/IMPLEMENTATION_PLAN.md)
+**Immediate implementation sequence:** [`../engineering/WEBMCP_CHALLENGE_PLAN.md`](../engineering/WEBMCP_CHALLENGE_PLAN.md)
+
+## Challenge target amendment
+
+The current FastAPI/SQLite implementation proved important parsing, provenance, recovery, and generated-contract assumptions. The hosted WebMCP product now requires a different default runtime boundary:
+
+```text
+hosted React + TypeScript + Vite shell
+          │
+          ├── PDF.js reader + selectable text layer
+          ├── WebMCP page tools in the live learner session
+          ├── Web Workers for parsing/indexing
+          └── IndexedDB + OPFS for sources, indexes, lessons, and state
+
+optional, separately disclosed services
+          ├── static open-license showcase corpus
+          └── Python document companion for evidence-gated formats after the challenge
+```
+
+The browser owns personal source bytes. The hosted origin serves code and open-license showcase assets; it does not silently become a personal-document store or transient upload processor. See [`DEVICE_LOCAL_WEB_ARCHITECTURE.md`](DEVICE_LOCAL_WEB_ARCHITECTURE.md).
 
 ## Recommendation
 
-Build PRISM as a local-first two-process web application:
+The proven local research baseline is a two-process web application:
 
 ```text
 React + TypeScript + Vite
@@ -21,7 +40,7 @@ Python + FastAPI + Pydantic
           └── SQLite + content-addressed files
 ```
 
-This is deliberately less elaborate than a production SaaS. It gives the browser a strong interactive canvas while keeping document, AI, and learning-science code in Python, where the relevant ecosystem is strongest.
+Keep this baseline available for parser experiments and optional local-companion work. Do not treat it as the challenge release architecture for personal sources.
 
 ## Stack by responsibility
 
@@ -29,11 +48,12 @@ This is deliberately less elaborate than a production SaaS. It gives the browser
 |---|---|---|---|
 | Learner interface | React + TypeScript | Precise stateful playback, accessible controls, typed frame rendering | No framework change unless the player prototype exposes a concrete limitation |
 | Frontend build | Vite | A lean client-only build with fast development and optimized static output; no server rendering is needed | Next.js is unnecessary while PRISM is a local application without public SEO pages |
-| API and orchestration | Python + FastAPI + Pydantic | Typed contracts, automatic JSON Schema/OpenAPI, and direct access to document/ML tooling | A Rust service only if profiling later proves Python is the bottleneck |
+| Challenge orchestration | Browser application state plus WebMCP | Keeps the agent in the same live learner session and avoids a hosted account/database requirement | Add server orchestration only for a capability that cannot safely remain local |
+| Research/parser companion | Python + FastAPI + Pydantic | Preserves the proven typed document and evaluation path | Package or host only behind a separately disclosed source-transfer mode |
 | PDF structure | `pypdfium2` for the clean embedded-text and source-visual route | Small deterministic dependency, reusable document handles, page-level text/object regions, lazy bounded rendering, and a clear capability boundary | Add Docling behind a parser adapter for table-cell semantics, fragmented vector layouts, mixed pages, and OCR only after golden-corpus comparison |
-| Source display | Inline browser PDF viewer for the first slice | Keeps exact original pages visible with no additional runtime dependency | Add PDF.js when region overlays and controlled rendering become the next measured requirement |
-| Local persistence | SQLite in WAL mode | One durable local database for jobs, versions, learner state, events, and full-text search | PostgreSQL only when multi-user/server deployment actually exists |
-| Search | SQLite FTS5 first | Enough for exact terms, definitions, code, and section search without a vector service | Local embeddings and a vector extension after a measured semantic-search need |
+| Source display | PDF.js page canvas plus text and annotation layers | Enables selectable text, exact page navigation, highlights, crops, and lesson backlinks in one controlled reader | Native browser PDF embed cannot satisfy the full reader contract |
+| Challenge persistence | IndexedDB plus OPFS | Durable, same-device storage without accounts or hosted personal-source retention | Optional explicit workspace-folder export after the challenge |
+| Search | Browser-local exact/lexical index first | Enough for exact terms, definitions, code, citations, and section search without a remote vector service | Local embeddings/reranking only after measured retrieval gaps |
 | Binary/artifact storage | Content-addressed files beside the database | Large PDFs, page images, and lesson packages do not belong in database blobs; hashes make caching and provenance explicit | Object storage only for a future synchronized product |
 | Background work | One local worker plus a durable SQLite job table | Resumable imports without Redis, Celery, or a message broker | A real queue only after parallel workloads exceed one machine |
 | Cloud AI | OpenAI Responses API behind a provider interface | Current vision-capable file/image input and strict structured outputs | Other providers must implement the same internal contracts and pass the same evals |
@@ -42,11 +62,15 @@ This is deliberately less elaborate than a production SaaS. It gives the browser
 
 Primary documentation: [Vite](https://vite.dev/guide/), [FastAPI](https://fastapi.tiangolo.com/features/), [SQLite WAL](https://www.sqlite.org/wal.html), [SQLite FTS5](https://www.sqlite.org/fts5.html), [`pypdfium2`](https://pypdfium2.readthedocs.io/), [Docling supported formats](https://github.com/docling-project/docling/blob/main/docs/usage/supported_formats.md), and [PDF.js](https://mozilla.github.io/pdf.js/getting_started/).
 
-## Why not one all-TypeScript application?
+## Why the challenge path is mostly TypeScript
 
-The player itself belongs in TypeScript. PDF layout recovery, OCR, scientific-document processing, model evaluation, and research analysis fit Python better. Forcing those into a Node-only stack would either narrow capability or add subprocess wrappers around Python anyway.
+The hosted release must open a personal PDF, preserve it locally, render it, expose narrow WebMCP tools, and save lessons without requiring a server account. Browser TypeScript, PDF.js, workers, IndexedDB, and OPFS directly satisfy that boundary. The most reliable existing Python algorithms may be ported selectively or retained behind an optional local companion later.
 
-The boundary stays small: JSON APIs for imports, lessons, playback events, learner state, and generation jobs. FastAPI exposes a checked-in OpenAPI schema; frontend model types are generated from that contract so the two sides do not drift.
+## Why keep the Python baseline?
+
+PDF layout recovery, OCR, scientific-document processing, model evaluation, and research analysis still fit Python well. The distinction is between a useful engineering runtime and the default privacy promise of the hosted web product.
+
+Where the companion is used, the boundary stays typed and narrow. Provider-specific or parser-specific objects never cross into product UI state.
 
 ## Why not a desktop shell now?
 
@@ -140,10 +164,10 @@ Do not pin today’s framework versions in a design document and then forget the
 - schedule dependency updates as small, tested changes;
 - never auto-merge a parser, model, or PDF-renderer upgrade without running the golden PDF corpus.
 
-## Explicitly rejected for v0
+## Explicitly rejected unless a measured capability requires it
 
 - microservices;
-- Kubernetes, Docker as a user requirement, or cloud deployment infrastructure;
+- Kubernetes, Docker as a user requirement, or stateful cloud infrastructure for personal documents;
 - Redis, Celery, Kafka, or a hosted queue;
 - PostgreSQL;
 - a vector database before semantic retrieval is measured;
@@ -169,4 +193,4 @@ The stack becomes accepted only after a thin vertical slice can:
 
 The stack cleared its engineering adoption gate on 2026-08-19 using the 489-page TCP benchmark and synthetic recovery fixtures. The implementation preserves source hashes and regions, resumes without duplicate page elements, invalidates stale parser artifacts, emits deterministic draft packages, plays them with learner control and inline Source mode, exports research events, and passes the repository quality command. The lesson remains `draft`; this evidence adopts the engineering stack, not the learning claim.
 
-The next gate does not require a framework or parser replacement. It requires an enhanced Source Reader, local security envelope, contract-v2 migration, and one manually reviewed transaction-isolation package before TSR automation or model integration. PDF.js becomes a dependency only if the Source Reader’s exact overlay and controlled-rendering acceptance cases demonstrate that the current inline viewer cannot meet them. Docling, vector search, a local model runtime, a cloud provider, Tauri, and complex-document adapters remain separately justified additions rather than roadmap defaults.
+That evidence remains valid for the Python research baseline. The next challenge gate is the browser-local migration in [`../engineering/WEBMCP_CHALLENGE_PLAN.md`](../engineering/WEBMCP_CHALLENGE_PLAN.md): PDF.js is now adopted for the controlled Reader, IndexedDB/OPFS owns personal state, and the active agent operates through WebMCP. Docling, vector search, a local model runtime, Tauri, and complex-document adapters remain separately justified additions rather than challenge defaults.

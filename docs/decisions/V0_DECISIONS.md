@@ -1,10 +1,12 @@
 # PRISM v0 decision record
 
-**Decision sessions:** 2026-08-19 and dossier integration on 2026-08-23  
+**Decision sessions:** 2026-08-19, 2026-08-23, 2026-08-26, and product alignment on 2026-08-29  
 **Status:** confirmed unless explicitly marked open  
 **Owner:** project owner
 
 This is the current source of truth for PRISM’s v0 product and research direction. Evidence requirements in `AGENTS.md` and the validation plan still govern implementation; an owner preference does not convert an experimental mechanism into an established claim.
+
+> **Precedence:** the owner decisions in section 11 supersede incompatible earlier delivery and interaction choices. In particular, the hosted browser-local product now precedes the owner-only desktop research instrument; the composed interactive lesson is primary; TSR is an optional experimental renderer; and final lesson questions replace in-flow diagnostic prompts in the challenge product.
 
 ## 1. Governing vision
 
@@ -34,7 +36,7 @@ This is the current source of truth for PRISM’s v0 product and research direct
 - PRISM may offer a Deeper bundle after task evidence reveals an unresolved governing relation. Pauses, rewinds, source inspection, replay, response time, or focus loss cannot independently trigger remediation or a learning-state inference.
 - Narration is optional and complementary; it should not duplicate identical on-screen prose by default.
 - Notes, highlights, and questions are available without leaving the flow, with deeper editing after the stream.
-- **Decision updated 2026-08-20:** the visual direction is **warm optical editorial**: mineral paper, near-black ink, restrained vermilion, and spectral blue. The PRISM mark remains; generic dark AI-dashboard styling, background text, decorative grids, and excessive card containers do not.
+- **Decision superseded 2026-08-30:** the visual direction is the **scholarly instrument**: warm paper and neutral editorial surfaces, a compact graphite rail, editorial reading typography, and one restrained vermilion accent. Decorative spectral gradients, blue glow, generic AI-dashboard styling, chat-first layouts, background text, fake technical ornament, and excessive card containers are excluded.
 - The desktop player keeps the most recent relevant source visual on the left, resets it at a section boundary, and places the preceding semantic frame below the active frame for quick skimming.
 - Front matter and back matter remain searchable and source-visible but are skipped by semantic playback by default.
 - Progress feedback shows specific evidence and review strength without a mastery badge, proprietary score, or addictive streak pressure.
@@ -61,7 +63,7 @@ This is the current source of truth for PRISM’s v0 product and research direct
 - “Support all PDFs” is the compatibility mission, not permission to silently produce unreliable output. Scanned, mixed, encrypted, malformed, equation-heavy, and layout-ambiguous PDFs move through capability and confidence gates.
 - Scanned/OCR-heavy or structurally ambiguous PDFs remain out of scope until extraction quality and provenance are reliable.
 - Use public-domain/open-license passages plus private user uploads that are not redistributed.
-- Use one canonical source per lesson in v0. Multi-source synthesis comes later.
+- Use one canonical primary source per lesson in v0. A Project may organize a textbook or source collection into a route, but multi-source lesson composition comes later.
 - PRISM may simplify and reorganize wording through explicit, reversible layers while preserving the canonical source and source spans.
 - Generated examples and analogies may appear automatically as clearly labeled drafts. Approved lesson records still require the appropriate grounding and review gates.
 - Generated diagrams may show both explicit source relations and clearly marked PRISM inferences.
@@ -81,7 +83,7 @@ This is the current source of truth for PRISM’s v0 product and research direct
 - v0 may use scored task evidence, post-answer confidence, and prior learning history. Response time, pauses, rewinds, replays, Source use, and browser focus remain ambiguous context and cannot independently create a learning state or remediation decision.
 - Future opt-in sensor research starts with gaze/eye-tracked displays, not EEG or broader biosignals.
 - Long-term learning history is local first, with optional encrypted sync later.
-- PRISM should eventually maintain a personal knowledge graph across sources and courses for prerequisites, connections, representation selection, and review scheduling.
+- PRISM should first maintain a project-local understanding map for prerequisites, connections, representation selection, and review scheduling. Any cross-project learner graph is a separately approved future capability.
 - Explicitly opted-in, anonymized interaction data may improve future models. Personal learning data must never be sold.
 
 ## 6. AI and assessment policy
@@ -155,3 +157,56 @@ The initial implementation-policy questions are resolved:
 3. the first benchmarks cover transaction isolation, TCP congestion control, and distributed consensus.
 
 The remaining contract-migration, pilot-threshold, and complex-document choices are implementation-evidence questions tracked in `OPEN_QUESTIONS.md`.
+
+## 11. Interactive-lesson product alignment recorded 2026-08-29
+
+### Hosted, device-local product
+
+- PRISM is a hosted web application whose personal sources, indexes, lessons, annotations, reading state, versions, and answer analyses persist in the learner's browser profile.
+- The challenge release does not require an account. Same-browser-profile continuity is promised; multi-device continuity is not.
+- Import copies a source into browser-owned OPFS by default. Merely retaining a user file path is not the persistence contract.
+- Personal source bytes do not pass through or persist on PRISM's hosted server in the default path.
+- An active browser agent may receive bounded source spans or visual regions only through narrow WebMCP tools and the source's explicit consent policy.
+- Open-license showcase sources may be hosted and preloaded when their redistribution terms permit it.
+- An optional user-chosen PRISM Workspace folder for exports, backups, agent artifacts, or companion workflows is recommended after the challenge. It is not required for browser persistence and is not an invisible memory store.
+
+### Reader and document intelligence
+
+- Without an agent, PRISM must be an excellent, fully usable PDF reader.
+- The reader supports selectable/copyable text, search, outline/thumbnails, zoom, page and continuous modes, exact citation navigation, local highlights and notes, and visual-region copy/export.
+- PDF.js is the canonical browser renderer. Derived text and visual indexes never replace the immutable source.
+- PRISM models a textbook as page, layout, structure, visual, and semantic graphs rather than indexed text alone.
+- Retrieval combines structure, exact lexical search, visual evidence, cross-references, and later semantic reranking; every evidence item carries stable page/span/region anchors.
+- Unsupported, scanned, encrypted, malformed, or low-confidence material fails closed to Reader/source-only mode. PRISM must not silently generate a lesson from uncertain extraction.
+
+### Lessons
+
+- The primary generated object is a visually composed, scrollable, multi-section interactive textbook or online-course lesson—not a summary, chat transcript, slide deck, or frame slideshow.
+- Lessons contain detailed explanatory text and only representations that improve structure, causality, space, change, comparison, or quantity: source visuals, generated diagrams/charts, equations, code, tables, and bounded accessible interactions.
+- Semantic frames remain the typed internal composition/provenance units. TSR remains an optional Experimental alternate presentation and research condition.
+- Each source can own multiple named lessons. Every lesson records its source, page/section/content range, learner goal, assumed knowledge, coverage ledger, provenance, version history, and relationship to parent/repair lessons.
+- The agent proposes a coverage-aware plan before composition. It covers all assigned objectives, compresses supporting material according to importance and use, and discloses omissions.
+- Saved lessons reopen and remain readable without an agent. An agent is required for semantic creation, discussion, evaluation, and revision.
+- Lesson revisions are versioned. The learner must approve substantial changes; the canonical source is never rewritten.
+
+### Continuous discussion and end questions
+
+- The agent can retrieve the active source, lesson, section, selection, and learner-invoked context so the learner can discuss a difficult point without restating where they are.
+- The agent can navigate the live Reader to the exact page and region where a concept is introduced or supported.
+- Instruction comes first. A lesson ends with normally 3–6 grounded explanation and application questions; PRISM does not interrupt normal reading with a quiz cadence.
+- The learner answers in the agent conversation. Structured analysis is stored locally with the question and lesson version, strengths, gaps, evidence, uncertainty, and recommended action.
+- A substantial gap becomes a named child repair lesson. Smaller clarifications may become a versioned patch with learner approval.
+- Completion means the learner finished the lesson and its immediate evidence loop. It is not a mastery or durable-learning claim.
+
+The authoritative contracts are [`../product/INTERACTIVE_LESSON_SPEC.md`](../product/INTERACTIVE_LESSON_SPEC.md), [`../product/READER_SPEC.md`](../product/READER_SPEC.md), [`../architecture/DEVICE_LOCAL_WEB_ARCHITECTURE.md`](../architecture/DEVICE_LOCAL_WEB_ARCHITECTURE.md), [`../architecture/DOCUMENT_INTELLIGENCE.md`](../architecture/DOCUMENT_INTELLIGENCE.md), and [`../architecture/WEBMCP_INTEGRATION.md`](../architecture/WEBMCP_INTEGRATION.md).
+
+## 12. Project understanding workspace recorded 2026-08-31
+
+- PRISM's product boundary is a private, goal-bound Project that helps a learner form a usable mental model from dense technical sources. Courses and assigned readings are important use cases, not the product definition.
+- A Project contains selected sources, a project-local map, a learner-approved learning route, source-grounded lessons, immediate understanding evidence, and learner-approved repairs. It does not silently create a global cross-project learner graph.
+- The route can span a whole textbook or source collection, but the challenge implementation keeps each generated lesson anchored to one primary source and bounded range until typed multi-source provenance is designed and measured.
+- The agent may propose routes, revisions, repairs, and bounded external-evidence requests. The learner alone approves routes, material revisions, repairs, permissions, deletion, and external enrichment.
+- When project sources conflict or are unclear, PRISM first shows the evidence and uncertainty. It may ask for clarification. External evidence is opt-in, separately sourced, and visibly distinct from project-source content.
+- The product promise is the fastest source-accountable route to a stated understanding goal with disclosed tradeoffs and immediate evidence of understanding. It must not promise universal comprehension, compression ratios, or mastery from completion.
+
+The detailed product and roadmap contracts are [`../product/PROJECT_UNDERSTANDING_WORKSPACE.md`](../product/PROJECT_UNDERSTANDING_WORKSPACE.md) and [`../engineering/PROJECT_ROUTE_ROADMAP.md`](../engineering/PROJECT_ROUTE_ROADMAP.md).
