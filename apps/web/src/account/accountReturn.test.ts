@@ -15,6 +15,12 @@ it('keeps the local route and useful query while excluding provider return data'
     .toBe('/sources?query=physics&prism_account=1')
 })
 
+it('returns landing and external-looking destinations to the library', () => {
+  expect(accountReturnPath('/', '')).toBe('/sources?prism_account=1')
+  expect(accountReturnPath('//outside.example', '')).toBe('/sources?prism_account=1')
+  expect(accountReturnPath('/sources/example/reader', '?page=2')).toBe('/sources/example/reader?page=2&prism_account=1')
+})
+
 it('consumes only the app return flag and preserves history, hash and SDK handshake', () => {
   window.history.replaceState({ selected: true }, '', '/sources?prism_account=1&__clerk_handshake=synthetic-test#chapter')
   consumeAccountReturnFlag()

@@ -1,4 +1,4 @@
-import { ClerkProvider, SignIn, UserProfile, useAuth, useClerk, useUser } from '@clerk/react'
+import { ClerkProvider, SignIn, SignUp, UserProfile, useAuth, useClerk, useUser } from '@clerk/react'
 import { useId, useLayoutEffect, useRef, useState } from 'react'
 import { SignOut } from '@phosphor-icons/react'
 import { accountReturnPath } from './accountReturn'
@@ -11,6 +11,7 @@ function AccountControls() {
   const clerk = useClerk()
   const [view, setView] = useState<'storage' | 'profile'>('storage')
   const [profileVisited, setProfileVisited] = useState(false)
+  const [creatingAccount, setCreatingAccount] = useState(false)
   const tabsId = useId()
   const tokenGetter = useRef(getToken)
   useLayoutEffect(() => { tokenGetter.current = getToken }, [getToken])
@@ -45,8 +46,18 @@ function AccountControls() {
       <div className="account-view account-profile" role="tabpanel" tabIndex={0} id={`${tabsId}-profile-panel`} aria-labelledby={`${tabsId}-profile-tab`} hidden={view !== 'profile'}>{profileVisited && <UserProfile routing="hash" />}</div>
     </div>
   </div>
-  return <div className="account-auth"><p className="account-auth-caption">Sign in to take your library with you.</p>
-    <SignIn routing="hash" withSignUp fallbackRedirectUrl={accountReturnPath(window.location.pathname, window.location.search)} />
+  const returnTo = accountReturnPath(window.location.pathname, window.location.search)
+  return <div className="account-auth"><p className="account-auth-caption">Your library, wherever you read.</p>
+    <div className="account-auth-options" role="group" aria-label="Sign in or create an account">
+      {([false, true] as const).map(create => <button type="button" key={String(create)} aria-pressed={creatingAccount === create} onClick={() => {
+        if (creatingAccount === create) return
+        window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}`)
+        setCreatingAccount(create)
+      }}>{create ? 'Create account' : 'Sign in'}</button>)}
+    </div>
+    {creatingAccount
+      ? <SignUp routing="hash" signInUrl={returnTo} forceRedirectUrl={returnTo} signInForceRedirectUrl={returnTo} appearance={{ elements: { footerAction: { display: 'none' } } }} />
+      : <SignIn routing="hash" withSignUp signInUrl={returnTo} signUpUrl={returnTo} forceRedirectUrl={returnTo} signUpForceRedirectUrl={returnTo} appearance={{ elements: { footerAction: { display: 'none' } } }} />}
     <p className="account-privacy">Signing in won’t upload your files or give an agent access to them.</p>
   </div>
 }

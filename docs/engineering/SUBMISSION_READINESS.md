@@ -18,15 +18,41 @@ pre-authentication rate limiting and hourly deleted-account cleanup are implemen
 Public privacy/beta-use notices and a [release runbook](CLOUDFLARE_RELEASE.md) are added.
 
 Local checks: full repository quality passed (23 Python tests, 228 web tests),
-25 Worker tests pass, Worker types and native dry-run pass, and documentation links
+26 Worker tests pass, Worker types and native dry-run pass, and documentation links
 pass. No production sign-in or cross-device claim follows from those results.
 
-Pending: expanded Cloudflare domain/certificate authorization, a dedicated GitHub
-deploy token, Clerk authentication/mail DNS verification, production OAuth
-credentials and hosted acceptance. At this record, no Worker/site has been published
-and no release has been merged to `main`. Automatic approval review requested
-explicit approval for expanded persistent Cloudflare login scopes; the prior
-Workers/D1 access remains available for unaffected work.
+GitHub quality runs 34177208921 (PR) and 34177206819 (branch) passed for candidate
+`171995e`; deployment correctly skipped outside `main`. Expanded Cloudflare login
+permissions are approved and verified. A dedicated account-owned deployment token
+is stored as `CLOUDFLARE_API_TOKEN` in GitHub's `production` environment, restricted
+to branch `main`. Its permissions are Workers Scripts Write and D1 Write for the
+account, plus Workers Routes Write and Zone Read for `sevanlewispayne.com`.
+An initial token exposed in a diagnostic response was rotated before installation;
+the replacement was transferred without printing its value. All five Clerk DNS
+records are verified and both authentication certificates are issued.
+
+The owner explicitly approved the live Clerk secret transfer, Google's User Data
+Policy, public Google sign-in and hiding the unconfigured GitHub provider. Those
+steps are complete. Google project `prism-sevan-production` has a production OAuth
+client; its original exposed secret was replaced, disabled and deleted. Only the
+replacement is installed in Clerk. No private credential is committed.
+
+Candidate `171995e` is hosted at https://prism.sevanlewispayne.com. Exact-version,
+homepage/library route and anonymous account-boundary checks passed. The owner
+completed real Google sign-in, the Worker verified the account, and an empty cloud
+library was created with the 1 GB allowance and Up to date status. No existing
+browser PDFs were copied. A complete synthetic PDF transfer across independent
+browser caches and password-account verification remain acceptance work; these
+are not established by an empty-library check.
+
+The follow-up authentication fix adds explicit Sign in / Create account controls
+inside the existing popup. Clerk's duplicate account-portal footer is suppressed;
+local sign-in URLs and forced library return URLs prevent the separate account
+site and landing-page detour. General dialog button sizing no longer stretches
+the password visibility control. Real local forms were switched both ways, with
+the password input and visibility button measured at the same vertical center.
+Web lint, types, 230 tests and build passed. Main merge and its first automatic
+deployment remain pending at this record.
 
 ## Popup regression and account switching — 2026-09-07
 

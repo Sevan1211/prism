@@ -30,11 +30,12 @@ GitHub repository variable:
 
 - `VITE_CLERK_PUBLISHABLE_KEY`: live public frontend key.
 
-GitHub production secret:
+GitHub `production` environment secret (deployment branch rule: `main` only):
 
 - `CLOUDFLARE_API_TOKEN`: dedicated scoped deploy token; do not use a developer's
-  short-lived Wrangler OAuth token. It requires Worker scripts, D1 migrations and
-  the domain-routing permissions for the specified account/zone. R2 file content
+  short-lived Wrangler OAuth token. The account-owned token grants Workers Scripts
+  Write and D1 Write on the account, and Workers Routes Write plus Zone Read only
+  on `sevanlewispayne.com`. R2 file content
   is not sent through GitHub; runtime access comes from the private bucket binding.
 
 Cloudflare Worker secret:

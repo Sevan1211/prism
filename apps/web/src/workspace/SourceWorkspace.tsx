@@ -548,7 +548,7 @@ function ImportDialog({
         </label> : null}
         <div className="privacy-receipt">
           <LockKey aria-hidden="true" weight="bold" />
-          <p>{synced.connected ? 'This PDF will be encrypted in your browser and synced to your private cloud library. ' : 'The file stays in this browser. '}{publicSource ? 'Agents can read selected text and page images from sources you identify as public or openly licensed.' : 'Your agent can access this source only with your permission. Lesson plans and revisions still need your approval.'}</p>
+          <p>{synced.connected ? 'This PDF will sync to your private cloud library, protected in transit and at rest. PRISM’s service can read stored files. ' : 'The file stays in this browser. '}{publicSource ? 'Agents can read selected text and page images from sources you identify as public or openly licensed.' : 'Your agent can access this source only with your permission. Lesson plans and revisions still need your approval.'}</p>
         </div>
         {downloadError ? <p role="alert" className="import-feedback">{downloadError}</p> : null}
         {downloading ? <p role="status" className="import-feedback">Downloading · {formatBytes(downloadBytes)}</p> : null}

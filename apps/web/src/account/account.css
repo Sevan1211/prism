@@ -97,9 +97,13 @@
 .account-storage-dialog:has(.account-auth) .account-dialog-body { display: block; flex: 0 1 auto; overflow-y: auto; scrollbar-gutter: auto; }
 .account-dialog-body .account-auth { display: flex; flex-direction: column; max-width: 420px; gap: 16px; padding: 0; overflow: visible; }
 .account-auth-caption { text-align: center; }
+.account-auth-options { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); }
+.account-auth-options button { flex: 1; padding: 9px 12px; color: var(--ink-soft); background: transparent; border-radius: 5px; }
+.account-auth-options button[aria-pressed="true"] { color: var(--ink); background: var(--surface); box-shadow: 0 1px 3px #0002; }
 .account-auth .cl-card { padding: 12px 8px; gap: 20px; }
 .account-auth .cl-main { gap: 20px; }
 .account-auth .cl-header { gap: 8px; }
 .account-auth .cl-form { gap: 16px; }
+.account-auth .cl-formFields { gap: 14px; }
 .account-auth .cl-footer { padding: 12px 8px; }
 .account-auth > .account-privacy { text-align: center; font-size: 12px; }

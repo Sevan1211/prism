@@ -10,7 +10,8 @@ export function accountReturnPath(pathname: string, search: string): string {
   const params = new URLSearchParams(search)
   for (const key of [...params.keys()]) if (key.startsWith('__clerk_')) params.delete(key)
   params.set(returnFlag, '1')
-  return `${pathname}?${params}`
+  const destination = pathname === '/sources' || pathname.startsWith('/sources/') ? pathname : '/sources'
+  return `${destination}?${params}`
 }
 
 export function consumeAccountReturnFlag(): void {
