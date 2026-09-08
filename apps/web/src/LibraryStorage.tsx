@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { CloudCheck, HardDrive, X } from '@phosphor-icons/react'
 import { useSyncStatus } from './storage/useSyncStatus'
-import { SYNC_CHANGED, syncStatus } from './storage/syncedLibrary'
 import { AccountPanel } from './account/AccountPanel'
 import { consumeAccountReturnFlag, isAccountReturn } from './account/accountReturn'
 import { containDialogFocus } from './workspace/dialogKeyboard'
@@ -19,17 +18,6 @@ export function LibraryStorageHost() {
     return () => window.removeEventListener(OPEN_STORAGE, show)
   }, [])
   useEffect(() => { consumeAccountReturnFlag() }, [])
-  useEffect(() => {
-    let shown = ''
-    const attention = () => {
-      const next = syncStatus()
-      const message = ['conflict', 'error'].includes(next.state) ? `${next.state}:${next.detail}` : ''
-      if (message && message !== shown) setOpen(true)
-      shown = message
-    }
-    window.addEventListener(SYNC_CHANGED, attention)
-    return () => window.removeEventListener(SYNC_CHANGED, attention)
-  }, [])
   useEffect(() => { if (open) dialog.current?.showModal?.(); else dialog.current?.close?.() }, [open])
   return <>
     <dialog ref={dialog} className="storage-dialog account-storage-dialog" tabIndex={-1} onKeyDown={containDialogFocus} onCancel={() => setOpen(false)} onClose={() => setOpen(false)} aria-labelledby="storage-heading">

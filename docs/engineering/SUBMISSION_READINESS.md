@@ -1,5 +1,27 @@
 # Submission readiness
 
+## Sync recovery follow-up — 2026-09-07
+
+PR #7 deployed successfully in GitHub run 34183218757. The hosted Reader opened
+the public Mozilla test PDF with cloud identity intact and page navigation working.
+The subsequent user report identified unsolicited storage dialogs and an exhausted
+account request budget: aggregate remote metadata showed 11 commits, 18 objects
+and over 2,800 requests in the active account window. This does not identify every
+origin of the earlier traffic; do not infer complete cross-device acceptance.
+
+Background sync errors/conflicts now use the existing Storage attention indicator;
+only an explicit open action or an authentication return opens the dialog. Worker
+rate-limit responses include their retry interval. The client stores an account-scoped
+deadline shared across reloads/tabs, retains the durable outbox, and schedules a retry.
+Verified download chunks are cached before proceeding, binary records transfer in
+order, and a stalled acknowledgement/reconciliation loop stops after five attempts
+without discarding pending edits. Storage shows the queued change count and clears
+obsolete errors when a refresh succeeds. Existing rate and storage budgets remain.
+
+Regression coverage includes dismissed dialogs, retained edits across rate-limit
+recovery/account rebinding, bounded stalled acknowledgements, and interrupted
+multi-object downloads. Live recovery acceptance is pending deployment of this fix.
+
 ## Hosted follow-up — 2026-09-07
 
 PR #6 merged as `5962ea5`. GitHub run 34182600002 passed both quality and deployment,

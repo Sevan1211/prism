@@ -8,7 +8,7 @@ const SITE_QUOTA = CLOUD_POLICY.globalQuotaBytes
 const idPattern = /^[a-f0-9]{64}$/
 const uuidPattern = /^[a-f0-9-]{36}$/
 const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } })
-class HttpError extends Error { constructor(readonly status: number, message: string) { super(message) } }
+class HttpError extends Error { constructor(readonly status: number, message: string, readonly retryAfter?: number) { super(message) } }
 function assert(value: unknown, status: number, message: string): asserts value { if (!value) throw new HttpError(status, message) }
 async function hashBytes(value: Uint8Array) { return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', value as Uint8Array<ArrayBuffer>)), b => b.toString(16).padStart(2, '0')).join('') }
 const randomId = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2, '0')).join('')
@@ -39,7 +39,7 @@ async function body(request: Request): Promise<Record<string, unknown>> {
 async function rate(env: Env, key: string, limit: number, period: number) {
   const now = Math.floor(Date.now() / 1000), window = Math.floor(now / period)
   const result = await env.DB.prepare('INSERT INTO cloud_limits (key, count, expires) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET count = count + 1 RETURNING count').bind(`${key}:${window}`, now + period * 2).first<{ count: number }>()
-  assert(result && result.count <= limit, 429, 'Please wait before trying again.')
+  if (!result || result.count > limit) throw new HttpError(429, 'Cloud storage is temporarily rate-limited. Your changes remain saved on this browser.', (window + 1) * period - now)
   // Bounded cleanup; no source content or raw client addresses enter this table.
   if (result.count === 1) await env.DB.prepare('DELETE FROM cloud_limits WHERE key IN (SELECT key FROM cloud_limits WHERE expires < ? LIMIT 100)').bind(now).run()
 }
@@ -77,7 +77,7 @@ async function route(request: Request, env: Env) {
     // Coarse pre-auth burst protection; account-level limits still apply after
     // verification. Cloudflare maintains these counters locally at each edge.
     const limited = await env.API_RATE_LIMIT.limit({ key: request.headers.get('CF-Connecting-IP') ?? 'local' })
-    assert(limited.success, 429, 'Too many requests. Please wait a minute before trying again.')
+    if (!limited.success) throw new HttpError(429, 'Cloud storage is busy. Your changes remain saved on this browser.', 60)
   }
   if (url.pathname === '/api/account/session') return accountSession(request, env)
   if (url.pathname.startsWith('/api/account/')) throw new HttpError(404, 'Not found.')
@@ -169,5 +169,9 @@ async function route(request: Request, env: Env) {
 }
 export default { async scheduled(_event: ScheduledController, env: Env) { await reconcileDeletedAccounts(env) }, async fetch(request: Request, env: Env) {
   try { return await route(request, env) }
-  catch (error) { return json({ error: error instanceof HttpError ? error.message : 'The sync service could not complete this request. Your local changes are retained.' }, error instanceof HttpError ? error.status : 503) }
+  catch (error) {
+    const response = json({ error: error instanceof HttpError ? error.message : 'The sync service could not complete this request. Your local changes are retained.' }, error instanceof HttpError ? error.status : 503)
+    if (error instanceof HttpError && error.retryAfter) response.headers.set('Retry-After', String(error.retryAfter))
+    return response
+  }
 } }

@@ -87,7 +87,18 @@ it('rejects API bursts before authentication or storage work', async () => {
   f.env.API_RATE_LIMIT = { limit: async () => ({ success: false }) }
   const response = await worker.fetch(new Request(`${origin}/api/account/session`), f.env)
   expect(response.status).toBe(429)
+  expect(response.headers.get('Retry-After')).toBe('60')
   expect(f.db.prepare('SELECT COUNT(*) AS count FROM cloud_libraries').get()?.count).toBe(0)
+})
+it('returns the remaining account window without weakening its request budget', async () => {
+  const f = fixture()
+  await f.create()
+  f.db.exec('UPDATE cloud_limits SET count = 2400')
+  const response = await f.request('user_alpha', '/library')
+  expect(response.status).toBe(429)
+  const delay = Number(response.headers.get('Retry-After'))
+  expect(delay).toBeGreaterThan(0)
+  expect(delay).toBeLessThanOrEqual(3600)
 })
 it('round-trips bytes, commits idempotently and keeps another account out', async () => {
   const f = fixture(), id = await f.create(), uploaded = await f.upload(id, 5)

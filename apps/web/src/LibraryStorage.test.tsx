@@ -14,6 +14,7 @@ vi.mock('./account/AccountPanel', () => ({ AccountPanel: () => {
 afterEach(cleanup)
 beforeEach(() => {
   vi.clearAllMocks()
+  HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); this.dispatchEvent(new Event('close')) }
   const state = { connected: false, state: 'local' as const, detail: 'Saved in this browser', lastSynced: null, pending: 0 }
   vi.mocked(useSyncStatus).mockReturnValue(state)
   vi.mocked(syncStatus).mockReturnValue(state)
@@ -25,11 +26,21 @@ it('offers account storage without recovery keys or a folder picker', () => {
   expect(screen.queryByText(/recovery.key/i)).not.toBeInTheDocument()
   expect(screen.queryByText('Choose destination')).not.toBeInTheDocument()
 })
-it('opens a visible dialog when sync needs a conflict decision', () => {
-  render(<><LibraryStorageHost /><LibraryStorage /></>)
-  vi.mocked(syncStatus).mockReturnValue({ connected: true, state: 'conflict', detail: 'Two versions need review', lastSynced: null, pending: 1 })
-  fireEvent(window, new Event(SYNC_CHANGED))
-  expect(screen.getByRole('dialog')).toBeVisible()
+it('signals background errors and conflicts without reopening a dismissed dialog', () => {
+  const view = render(<><LibraryStorageHost /><LibraryStorage /></>)
+  fireEvent.click(screen.getByRole('button', { name: 'Library storage' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Close library storage' }))
+  for (const state of ['error', 'syncing', 'error', 'conflict'] as const) {
+    const status = { connected: true, state, detail: 'Sync needs review', lastSynced: null, pending: 1 }
+    vi.mocked(syncStatus).mockReturnValue(status)
+    vi.mocked(useSyncStatus).mockReturnValue(status)
+    fireEvent(window, new Event(SYNC_CHANGED))
+    view.rerender(<><LibraryStorageHost /><LibraryStorage /></>)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  }
+  expect(screen.getByRole('button', { name: 'Library storage' })).toHaveAttribute('data-attention', 'true')
+  fireEvent.click(screen.getByRole('button', { name: 'Library storage' }))
+  expect(screen.getByRole('dialog')).toHaveTextContent('Account library options')
 })
 
 it('keeps the activated account mounted when the workspace header leaves for the reader', () => {

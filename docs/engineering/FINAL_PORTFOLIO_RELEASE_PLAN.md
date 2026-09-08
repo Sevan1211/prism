@@ -1,11 +1,13 @@
 # PRISM final portfolio release plan
 
 **Owner choices recorded:** 2026-09-04; Cloudflare stack confirmed 2026-09-07  
-**Status:** local cleanup first; hosting and DNS work are on hold
+**Status:** owner resumed and authorized public hosting/DNS on 2026-09-07;
+Cloudflare is deployed through the main-branch CI/CD workflow. Follow
+[current acceptance evidence](SUBMISSION_READINESS.md) for outstanding release fixes.
 
 The owner accepted the [Cloudflare hosting/account contract](../architecture/CLOUDFLARE_HOSTING.md).
-Finish the remaining local product changes before resuming hosting. The architecture
-decision is not a deployment, completed account integration, or paid-plan activation.
+The owner subsequently authorized deployment and ongoing main-branch publishing.
+Passing builds alone do not prove account/sync acceptance or authorize paid plans.
 
 The approved [reading-quality improvements](LEARNING_EXPERIENCE_IMPROVEMENTS.md) implement the first product slice. [Reference lessons](../experiments/REFERENCE_LESSONS.md) and the [owner trial](../experiments/OWNER_LEARNING_TRIAL.md) provide its acceptance path; they are not completed results.
 
