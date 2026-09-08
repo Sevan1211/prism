@@ -188,12 +188,12 @@ function ReadingWorkspace() {
 
   usePrismLibraryTools({ activeRoute: route, openReader, prepareSourceImport, importSource: handleUpload })
 
-  async function handleUpload(file: File, rightsStatus: RightsStatus, allowAgentAccess = false) {
+  async function handleUpload(file: File, rightsStatus: RightsStatus) {
     setBusy(true)
     setError(null)
     try {
       const source = await importBrowserSource(file, rightsStatus)
-      if (allowAgentAccess && !['open_license', 'public_domain'].includes(source.rights_status)) {
+      if (!['open_license', 'public_domain'].includes(source.rights_status)) {
         try { await setBrowserAgentContentAccess(source.id, true) }
         catch { setError('Your PDF was added, but agent access could not be saved. Check access in the source overview before asking your agent to read it.') }
       }

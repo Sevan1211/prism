@@ -120,3 +120,58 @@ the existing repository checks. No paid inference is run implicitly in CI.
 - Human lesson approval, complete live source-to-revision rehearsals and delayed
   outcomes remain separate acceptance events. Source selection does not imply
   that either reference lesson has been composed or accepted.
+
+## Incremental composition and review — 2026-09-08
+
+The owner requested automatic upload access and substantially faster composition
+without reducing detail or quality. Successful visible uploads now enable source
+access; the redundant checkbox is removed and the import disclosure explains the
+provider boundary. Revocation remains available. This supersedes the earlier
+unchecked-checkbox import contract, not learner plan or revision approval.
+
+Draft saves can now carry incremental coverage-review entries. The agent compares
+source and section while both are in context, saves the review with that section,
+and receives bounded pending-block/evidence counts. Review-only saves are also
+supported. Changes to content or its ordering invalidate affected entries. The
+finalizer checks the complete saved union, so it does not require the model to
+retype a previously completed map. It still revalidates structural requirements
+and requires an attributable semantic review after rendered inspection.
+
+The deterministic test in `apps/web/src/lesson/lessonDocumentRead.test.ts` builds
+13 sections / 104 blocks and proves unchanged content through checkpoints. Full
+content retrieval takes **39 reads with the previous 11,000-character page budget
+versus 13 with the new 24,000-character budget** (66.7% fewer calls). Filtered reads
+return only unreviewed or visual blocks. Once checkpoints cover all prose, no
+redundant prose reread is needed; edited blocks reappear in the pending set.
+This is a synthetic transport benchmark, not a timing of model generation, browser
+inspection, or a completed textbook lesson. It does not establish equal semantic
+quality or a threefold end-to-end speedup.
+
+Run `npm run test:web -- src/lesson/lessonDocumentRead.test.ts` to reproduce the
+fixed workload. For end-to-end acceptance, use the same source range, approved
+scope, detail target, model and host. Record first complete section time and total
+composition/review time, tool timings, retries and resulting fidelity defects.
+Keep all substantive content and inspect each authored visual, its meaningful
+states, final/reset behavior, crop bounds, numeric data and static transcript.
+Reusing tested renderer controls is allowed; uninspected authored meaning is not.
+
+### Original run attribution
+
+The owner identified Astra low. The original composition turn lasted
+1,779.974 seconds. Its 39 outer tool calls sum to 264.687 seconds (14.9%);
+1,515.287 seconds (85.1%) occurred outside recorded tool execution. Six draft
+readback calls took 98.339 seconds. Calls used direct PRISM WebMCP and browser
+controls. The trace contains 151,090 characters of tool-call code, including
+lesson prose, and shows repeated helper/version recovery and a repeated section
+payload. This does not identify token throughput or pure model reasoning time.
+
+The revised guide avoids host-side last-block tracking (`after_block_id: null`
+already appends in operation order), preserves payloads for idempotent retries,
+and describes optional 2–4-worker drafting of independent approved sections with
+one coordinator owning all writes and the cross-section/visual review. It does
+not add a hosted inference service or enable concurrent versioned writes.
+[OpenAI's Astra guidance](https://developers.openai.com/api/docs/guides/latest-model)
+supports explicit delegation instructions when the host provides subagents;
+[latency guidance](https://developers.openai.com/api/docs/guides/latency-optimization)
+recommends parallelizing independent work. Equivalent lesson quality and the
+actual time saved still require a source-faithful end-to-end comparison.

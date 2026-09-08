@@ -87,7 +87,7 @@ fallback; existing old links work; source inspection returns to the invoking pas
 - Preserve the lesson request through visible local-file selection and indexing.
 - Support public PDF URL import where browser access permits, with bounded downloads,
   cancellation, clear failure and local-file fallback. Do not bypass browser file access.
-- Use one import pipeline for user and agent entry points; access consent stays distinct.
+- Use one import pipeline; visible uploads enable agent source access with disclosure and revocation (owner decision, 2026-09-08). Plan and revision approval stay distinct.
 - Demonstrate same-lesson revision, stale-version handling and recovery after refresh.
 - Prioritize portable local export/import if separate browser stores obstruct the rehearsal.
 

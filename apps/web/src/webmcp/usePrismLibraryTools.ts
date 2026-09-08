@@ -18,7 +18,8 @@ import {
   getLessonEditProposal,
 } from '../lesson/lessonDocuments'
 import type { ApplyLessonPatchInput, LessonDocument } from '../lesson/lessonDocumentTypes'
-import { coverageReviewPage, coverageReviewSchema } from '../lesson/lessonCoverageReview'
+import { coverageReviewPage, coverageReviewSchema, coverageReviewProgress } from '../lesson/lessonCoverageReview'
+import { readLessonBlocks } from '../lesson/lessonDocumentRead'
 import {
   getLessonEndCheck,
   proposeLessonOutcome,
@@ -598,6 +599,7 @@ export function usePrismLibraryTools({
         document_version: { type: 'integer', minimum: 1, description: 'Continuation version from next_call; stale reads fail instead of skipping changed blocks.' },
         plan_id: { type: 'string' },
         include_content: { type: 'boolean' },
+        content_filter: { type: 'string', enum: ['all', 'unreviewed', 'visuals'], description: 'Read only pending review blocks or visual representations without retransmitting reviewed prose. Does not replace actual rendered inspection.' },
         include_review: { type: 'boolean' },
         review_cursor: { type: 'integer', minimum: 0 },
         section_id: { type: 'string' },
@@ -647,23 +649,19 @@ export function usePrismLibraryTools({
         if (sectionId && !section) return refusalResult('unknown section_id')
         const proposal = await getLessonEditProposal(document.lesson_id)
         if (args.block_id !== undefined && (!includeContent || !section?.blocks.some(block => block.block_id === args.block_id))) return refusalResult('Choose an existing block_id within the requested content section.')
-        const blocks = section?.blocks.filter((block) => !args.block_id || block.block_id === args.block_id) ?? []
+        const contentFilter = args.content_filter ?? 'all'
+        if (args.content_filter !== undefined && !includeContent) return refusalResult('content_filter requires include_content.')
         const offset = typeof args.cursor === 'number' ? args.cursor : 0
-        if (!Number.isSafeInteger(offset) || offset < 0 || offset > blocks.length) return refusalResult('Invalid content cursor.')
-        const pageBlocks = []
-        let characters = 0
-        for (const block of blocks.slice(offset)) {
-          const size = JSON.stringify(block).length
-          if (pageBlocks.length && characters + size > 11_000) break
-          pageBlocks.push(block); characters += size
-        }
+        const contentPage = readLessonBlocks(document, section, contentFilter, offset, args.block_id)
+        const pageBlocks = contentPage.blocks
         const reviewPage = args.include_review === true ? coverageReviewPage(document, typeof args.review_cursor === 'number' ? args.review_cursor : 0) : undefined
-        const nextContent = includeContent && offset + pageBlocks.length < blocks.length ? offset + pageBlocks.length : null
+        const nextContent = includeContent ? contentPage.next_cursor : null
         return textResult({
-          next_call: nextContent !== null ? { tool: 'get_lesson_document', arguments: { lesson_id: document.lesson_id, document_version: document.document_version, section_id: sectionId, ...(args.block_id ? { block_id: args.block_id } : {}), include_content: true, cursor: nextContent } } : null,
+          next_call: nextContent !== null ? { tool: 'get_lesson_document', arguments: { lesson_id: document.lesson_id, document_version: document.document_version, section_id: sectionId, ...(args.block_id ? { block_id: args.block_id } : {}), content_filter: contentFilter, include_content: true, cursor: nextContent } } : null,
           next_review_call: reviewPage?.next_review_cursor != null ? { tool: 'get_lesson_document', arguments: { lesson_id: document.lesson_id, document_version: document.document_version, include_review: true, review_cursor: reviewPage.next_review_cursor } } : null,
-          next_cursor: includeContent && offset + pageBlocks.length < blocks.length ? offset + pageBlocks.length : null,
+          next_cursor: nextContent,
           coverage_review: reviewPage,
+          review_progress: coverageReviewProgress(document),
           pending_revision: proposal ? { proposal_id: proposal.proposal_id, base_version: proposal.base_version, summary: proposal.summary } : null,
           lesson: {
             document_version: document.document_version,
@@ -729,6 +727,7 @@ export function usePrismLibraryTools({
           warning_count: document.validation.warnings.length,
           warnings: document.validation.warnings.slice(0, 6),
           saved: true,
+          review_progress: coverageReviewProgress(document, plan),
         })
       } catch (cause) {
         return refusalResult(cause instanceof Error ? cause.message : 'lesson_patch_rejected')
@@ -751,8 +750,8 @@ export function usePrismLibraryTools({
 
   useModelContextTool({
     name: 'finalize_lesson',
-    description: 'Finish initial composition after reading the complete draft and checking claims, qualifications, numbers, essential source coverage, and actual rendered visuals. Save a candid semantic review naming limitations. This agent review is distinct from structural validation and human acceptance. A finished lesson requires proposed revisions for future edits.',
-    inputSchema: { type: 'object', properties: { lesson_id: { type: 'string' }, coverage_review: coverageReviewSchema, expected_version: { type: 'integer', minimum: 1 }, review_summary: { type: 'string', minLength: 1, maxLength: 4000 }, reviewer: { type: 'string', minLength: 1, maxLength: 120 } }, required: ['lesson_id', 'expected_version', 'review_summary', 'reviewer', 'coverage_review'], additionalProperties: false },
+    description: 'Finish initial composition after checking every passage against its source and inspecting actual rendered visuals. Reuse section coverage_review checkpoints already saved with apply_lesson_patch; omit coverage_review here to validate their complete union. Missing or invalidated mappings still block finalization. Save an attributed semantic review naming limitations; agent review is not human acceptance.',
+    inputSchema: { type: 'object', properties: { lesson_id: { type: 'string' }, coverage_review: coverageReviewSchema, expected_version: { type: 'integer', minimum: 1 }, review_summary: { type: 'string', minLength: 1, maxLength: 4000 }, reviewer: { type: 'string', minLength: 1, maxLength: 120 } }, required: ['lesson_id', 'expected_version', 'review_summary', 'reviewer'], additionalProperties: false },
     execute: async (args) => {
       const document = await getLessonDocument(String(args.lesson_id))
       if (!document || await lessonAccessRefusal(document)) return refusalResult(AGENT_ACCESS_REFUSAL)
@@ -1195,14 +1194,15 @@ function lessonPatchSchema() {
       plan_id: { type: 'string' },
       expected_version: { type: ['integer', 'null'], minimum: 0 },
       request_id: { type: 'string', minLength: 1, maxLength: 120, description: 'Unique identifier for this patch. Reuse exactly the same id and payload when retrying an uncertain save; the original committed version is returned without duplicating blocks.' },
+      coverage_review: { ...coverageReviewSchema, description: 'Optional incremental content-review entries for these sections. Unchanged reviews persist; edited or reordered blocks invalidate their entries. Save reviewed definitions, reasoning, examples and qualifications while source evidence is in context. Empty operations may save a review-only checkpoint. Finalization still requires complete coverage and rendered inspection.' },
       operations: {
         type: 'array',
-        minItems: 1,
+        minItems: 0,
         maxItems: 24,
         items: {
           oneOf: [
             operationSchema('insert_block', {
-              after_block_id: { type: ['string', 'null'] }, block, section_id: identifier,
+              after_block_id: { type: ['string', 'null'], description: 'null appends to the end of this section, in operation order. Use an existing block id only to insert after that specific block; no last-block tracking helper is needed.' }, block, section_id: identifier,
             }, ['after_block_id', 'block', 'section_id']),
             operationSchema('replace_block', { block, block_id: identifier }, ['block', 'block_id']),
             operationSchema('remove_block', { block_id: identifier }, ['block_id']),

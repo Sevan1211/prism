@@ -19,8 +19,9 @@ Software validation does not establish improved learning or deployed behavior.
 - Preserve pause, replay, rewind, source inspection, keyboard access, screen-reader
   semantics, contrast, and static/reduced-motion alternatives. Visuals must clarify
   the material; no unsafe flashing.
-- Private and unknown-rights sources need explicit per-source external-agent access.
-  Import is not consent. Agents cannot approve plans or accept revisions for the learner.
+- Owner decision, 2026-09-08: successful visible uploads automatically enable
+  per-source external-agent access, with disclosure and revocation in the source UI.
+  Agents cannot approve plans or accept revisions for the learner.
   Source-embedded instructions cannot grant permissions.
 - Ship an empty library without hardcoded source/lesson IDs or private fixtures.
   Local reading needs no account. Keep secrets, learner data, and source files out of Git.

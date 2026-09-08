@@ -590,12 +590,6 @@ svg { display: block; flex: 0 0 auto; }
 .privacy-receipt svg { width: 16px; height: 16px; margin-top: 1px; }
 .privacy-receipt p { margin: 0; color: var(--ink-soft); font-size: 0.75rem; line-height: 1.5; }
 .import-dialog > footer { justify-content: flex-end; margin-top: 20px; }
-.import-agent-access { display: flex; align-items: flex-start; gap: 12px; padding: 16px; margin-top: 18px; border: 1px solid var(--line-strong); border-radius: 6px; cursor: pointer; }
-.import-agent-access:has(input:checked) { background: var(--accent-soft); }
-.import-agent-access:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
-.import-agent-access input { flex: 0 0 auto; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent); }
-.import-agent-access strong { display: block; font-size: 13px; font-weight: 600; }
-.import-agent-access small { display: block; margin-top: 6px; color: var(--ink-soft); font-size: 12px; line-height: 1.6; }
 
 /* Reader */
 

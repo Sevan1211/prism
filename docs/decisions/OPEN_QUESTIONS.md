@@ -331,3 +331,9 @@ Client automatic restore/upload and online/visible-tab recovery have regression
 coverage. Verify two independent deployed browser sessions and measure operation
 budgets under the 30-second visible-tab poll before claiming complete cross-device
 acceptance. Existing rate limits and explicit local-library choice remain enforced.
+
+- 2026-09-08 authoring speed: repeat the original Chapter 1 scope with the same
+  Astra low model and retained detail, recording first-section and total time.
+  Incremental coverage reviews and 39-to-13 synthetic read-call reduction are
+  implemented; end-to-end latency and unchanged semantic quality are not yet
+  measured. Do not infer model throughput from tool durations alone.

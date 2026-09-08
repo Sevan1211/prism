@@ -414,6 +414,15 @@ describe('coverage-aware lesson plans', () => {
     expect(await getLessonEditProposal(document.lesson_id, env)).toBeUndefined()
     expect((await getLessonDocument(document.lesson_id, env))?.document_version).toBe(6)
 
+    const checkpoint = { plan_id: plan.plan_id, expected_version: 6, request_id: 'review-checkpoint', operations: [], coverage_review: coverageReview }
+    const checked = await applyLessonPatch(checkpoint, { environment: env })
+    expect(checked.coverage_review).toEqual(coverageReview)
+    await expect(applyLessonPatch(checkpoint, { environment: env })).resolves.toEqual(checked)
+    await expect(applyLessonPatch({ ...checkpoint, coverage_review: [{ ...coverageReview[0], retained_details: 'A different review with the same request id must not be accepted.' }] }, { environment: env })).rejects.toThrow('different lesson content')
+    const completed = await finalizeLesson(document.lesson_id, 7, { summary: 'All source comparisons and rendered states reviewed incrementally.', reviewer: 'Test agent' }, { environment: env })
+    expect(completed.status).toBe('ready')
+    expect(completed.coverage_review).toEqual(coverageReview)
+
     await deleteBrowserSource(source.id, env)
     await expect(getLessonDocument(document.lesson_id, env)).resolves.toBeUndefined()
   })

@@ -114,6 +114,7 @@ export type LessonPatchOperation =
     }
 
 export interface ApplyLessonPatchInput {
+  coverage_review?: LessonCoverageReview[]
   request_id?: string
   expected_version: number | null
   operations: LessonPatchOperation[]

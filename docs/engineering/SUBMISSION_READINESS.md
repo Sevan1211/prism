@@ -697,3 +697,21 @@ must not be described as audited or universally browser-compatible. The local
 Wrangler background process also exited intermittently during rebuilds; the
 hosted service works independently of it. Existing personal libraries have not
 been automatically uploaded into the test library.
+
+### Upload access and incremental review — September 8
+
+The owner explicitly replaced the import checkbox with automatic source access
+on successful visible upload. Import disclosure, per-source revocation, plan
+approval and revision acceptance remain. Draft coverage checkpoints, pending
+review diagnostics, targeted reads and a larger bounded section response reduce
+repeated transport. Finalization still requires complete coverage and an agent
+semantic review; invalidated entries cannot be reused.
+
+Local checks cover 247 web tests, lint/typecheck, build, documentation and release
+privacy checks. Browser inspection confirmed the import disclosure and absence of
+the checkbox. The deterministic 13-section read workload fell from 39 to 13 calls;
+this is not an end-to-end generation benchmark. PR/CI and live release evidence
+must be checked before claiming publication. The owner identified Astra low. The original task trace confirms direct WebMCP
+and browser controls: 39 outer tool calls total 264.687 seconds of its 1,779.974
+second composition turn. The remaining 1,515.287 seconds is outside recorded
+tool execution; the trace does not separate generation, reasoning and host delay.

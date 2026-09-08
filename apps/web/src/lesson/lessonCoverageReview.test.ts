@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { coverageReviewPage, unchangedCoverageReview, validateCoverageReview } from './lessonCoverageReview'
+import { coverageReviewPage, unchangedCoverageReview, validateCoverageReview, mergeCoverageReview, coverageReviewProgress } from './lessonCoverageReview'
 import type { LessonCoverageReview, LessonDocument } from './lessonDocumentTypes'
 import type { LessonPlan } from './lessonPlanTypes'
 
@@ -8,6 +8,25 @@ const document = { sections: [{ blocks: [{ block_id: 'b1', source_element_ids: [
 const plan = { sections: [{ source_element_ids: ['e1'] }] } as LessonPlan
 
 describe('source-to-passage review', () => {
+  it('merges section checkpoints without accepting incomplete coverage and invalidates moves', () => {
+    const next = structuredClone(document)
+    next.sections.push({ section_id: 's2', title: 'Second', objective_ids: [], blocks: [{ block_id: 'b2', provenance: 'source_grounded', source_element_ids: ['e2'], content: { kind: 'prose', text: 'A second condition.' } }] })
+    const fullPlan = { sections: [{ source_element_ids: ['e1'] }, { source_element_ids: ['e2'] }] } as LessonPlan
+    const second = [{ concept: 'Second condition', block_ids: ['b2'], source_element_ids: ['e2'], retained_details: 'Retains the second condition with its application and limitations.' }]
+    expect(() => validateCoverageReview(review, next, fullPlan)).toThrow('missing planned evidence')
+    next.coverage_review = mergeCoverageReview(document, next, fullPlan, second)
+    expect(validateCoverageReview(next.coverage_review, next, fullPlan)).toHaveLength(2)
+    expect(coverageReviewProgress(next, fullPlan)).toMatchObject({ unreviewed_block_count: 0, unmapped_evidence_count: 0 })
+    const edited = structuredClone(next)
+    edited.sections[1].blocks[0].content = { kind: 'prose', text: 'Always applies.' }
+    edited.coverage_review = mergeCoverageReview(next, edited, fullPlan)
+    expect(edited.coverage_review).toEqual(review)
+    expect(coverageReviewProgress(edited, fullPlan)).toMatchObject({ unreviewed_blocks: [{ section_id: 's2', block_id: 'b2' }], unmapped_evidence_count: 1 })
+    const moved = structuredClone(next)
+    moved.sections[0].blocks.push(moved.sections[1].blocks.pop()!)
+    expect(unchangedCoverageReview(next, moved)).toEqual(review)
+    expect(() => mergeCoverageReview(next, next, fullPlan, [{ ...second[0], source_element_ids: ['invented'] }])).toThrow('mapped evidence')
+  })
   it('paginates long reviews without losing entries and rejects invalid cursors', () => {
     const long = { ...document, coverage_review: Array.from({ length: 12 }, (_, index) => ({ ...review[0], concept: `Concept ${index}`, retained_details: 'x'.repeat(2000) })) }
     const entries = []
