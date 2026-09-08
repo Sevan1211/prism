@@ -51,8 +51,20 @@ local sign-in URLs and forced library return URLs prevent the separate account
 site and landing-page detour. General dialog button sizing no longer stretches
 the password visibility control. Real local forms were switched both ways, with
 the password input and visibility button measured at the same vertical center.
-Web lint, types, 230 tests and build passed. Main merge and its first automatic
-deployment remain pending at this record.
+Web lint, types, 230 tests and build passed. Release PR #5 merged as `1e085db`.
+GitHub run 34181701814 passed quality and uploaded production, but its hosted marker
+check failed twice from the GitHub runner. The same exact main marker, app routes
+and anonymous 401 check pass from the development machine. Verification now reports
+HTTP/challenge failures separately from stale commits and allows three minutes for
+propagation; a green automatic deploy remains pending.
+
+Production Google sign-in was repeated after the popup fix: it returned to Library
+with Account & storage open and reconnected the cloud library. A temporary folder
+was saved, reported Up to date and survived reload; it was then removed. The local
+file chooser is blocked until the browser extension has file-URL access. W3C's
+sample URL correctly reported a browser download restriction. An older open tab
+also encountered a missing lazy-loaded PDF chunk during deployment; refresh loaded
+the current bundle. Cross-browser PDF/lesson acceptance remains incomplete.
 
 ## Popup regression and account switching — 2026-09-07
 
