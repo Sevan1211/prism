@@ -1,5 +1,23 @@
 # Submission readiness
 
+## Hosted follow-up — 2026-09-07
+
+PR #6 merged as `5962ea5`. GitHub run 34182600002 passed both quality and deployment,
+including the live commit, app-route and anonymous-account checks. Cloudflare event
+inspection identified Bot Fight Mode as the cause of the previous runner failures.
+The owner explicitly approved turning it off for the entire sevanlewispayne.com
+zone; the toggle was verified off. Other security controls were not changed.
+
+The public Mozilla PDF.js `basicapi.pdf` fixture imported into the selected cloud
+library and reached Evidence ready. Entering Reader then exposed a lifetime bug:
+the workspace header owned the account provider, so navigation disconnected cloud
+identity. A single app-level storage host now preserves that provider across library,
+source, lesson and reader routes. Header controls only open its dialog. A regression
+test checks that the activated account is not unmounted when the header leaves or
+returns. Web lint, types, 231 tests and build pass. Hosted Reader acceptance of this
+follow-up is still pending at this record. Remaining source/Reader wording about
+the retired encryption model is corrected to account cloud storage.
+
 ## First Cloudflare release candidate — 2026-09-07
 
 The owner authorized public deployment, domain/DNS configuration and merging the

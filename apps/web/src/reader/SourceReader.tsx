@@ -51,8 +51,8 @@ function ReaderSession({ source, ...props }: Props & { onReload: () => void }) {
     loadReadingState: () => storage === 'browser_vault' ? getBrowserReadingState(id) : readingState(id),
     saveReadingState: (page, ratio) => storage === 'browser_vault' ? updateBrowserReadingState(id, page, ratio) : updateReadingState(id, page, ratio),
     search: query => storage === 'browser_vault' ? searchBrowserSource(id, query) : searchSource(id, query),
-    storageLabel: storage !== 'browser_vault' ? 'Local companion' : synced.connected ? 'Encrypted synced library' : 'This browser only',
+    storageLabel: storage !== 'browser_vault' ? 'Local companion' : synced.connected ? 'Cloud library' : 'This browser only',
   } : null, [id, pdfUrl, storage, synced.connected])
-  if (!access) return <LoadingState title="Opening your source" detail={synced.connected ? 'Retrieving and unlocking the PDF. Large files can take longer on the first visit to this browser.' : 'Preparing the original PDF and its contents. You can return to your source at any time.'} error={error} onRetry={props.onReload} onBack={props.onExit} />
+  if (!access) return <LoadingState title="Opening your source" detail={synced.connected ? 'Retrieving the PDF from your cloud library. Large files can take longer on the first visit to this browser.' : 'Preparing the original PDF and its contents. You can return to your source at any time.'} error={error} onRetry={props.onReload} onBack={props.onExit} />
   return <Reader {...props} source={source} access={access} structure={resource?.structure ?? null} />
 }
