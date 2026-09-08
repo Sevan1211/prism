@@ -1,0 +1,80 @@
+.app-header {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-width: 0;
+  height: 64px;
+  padding-inline: 24px;
+  background: var(--ground);
+  border-bottom: 1px solid var(--line);
+}
+.app-identity,.app-header-actions { display: flex; align-items: center; min-width: 0; gap: 20px; }
+.app-location { display: flex; align-items: center; gap: 10px; margin: 0; padding-left: 20px; border-left: 1px solid var(--line); font: 500 16px/1.3 var(--font-ui); letter-spacing: -.02em; }
+.app-location a:hover { text-decoration: underline; text-underline-offset: 5px; }
+.library-count { font: 11px/1 var(--font-ui); color: var(--muted); }
+.app-header-actions { gap: 14px; }
+.app-header .app-header-status { display: flex; align-items: center; gap: 4px; }
+.app-header .app-header-status > button,
+.app-header .workspace-tools-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: 500 12px/1 var(--font-ui);
+  white-space: nowrap;
+}
+.app-header .app-header-status > button:hover,
+.app-header .workspace-tools-toggle:hover { color: var(--ink); background: var(--surface-2); }
+.app-header .app-header-status > button:active,
+.app-header .workspace-tools-toggle:active { background: var(--accent-soft); }
+.app-header .app-header-status > button[data-attention="true"] { border-color: var(--alert); color: var(--alert); }
+.app-header .app-header-status > button > svg,
+.app-header .workspace-tools-toggle > svg { width: 18px; height: 18px; flex-shrink: 0; color: currentColor; }
+.app-header .app-header-status > button > span { display: inline; }
+.app-header .header-import { height: 38px; min-height: 38px; padding-inline: 14px; gap: 7px; border-radius: 6px; white-space: nowrap; font-size: 12px; }
+.app-header .workspace-tools-toggle { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .app-header .app-header-status > button,.app-header .workspace-tools-toggle { transition: background-color 140ms ease,color 140ms ease; }
+}
+@media (max-width: 1050px) {
+  .app-header .storage-button-detail { display: none; }
+  .app-header-actions { gap: 8px; }
+}
+@media (max-width: 760px) {
+  .app-header { height: 60px; gap: 10px; padding-inline: 18px; }
+  .app-identity { gap: 12px; }
+  .app-location { padding-left: 12px; font-size: 14px; gap: 6px; }
+  .app-header .workspace-tools-toggle { display: inline-flex; width: 40px; height: 40px; padding: 0; }
+  .app-header .app-header-status { display: none; position: absolute; right: 18px; top: 54px; min-width: 210px; padding: 7px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; box-shadow: var(--shadow); }
+  .app-header .workspace-tools .app-header-status { display: flex; flex-direction: column; align-items: stretch; visibility: hidden; pointer-events: none; }
+  .app-header .workspace-tools[data-expanded="true"] .app-header-status { visibility: visible; pointer-events: auto; }
+  /* Dialogs live in the top layer and must remain visible after the menu closes. */
+  .app-header .app-header-status dialog[open] { visibility: visible; pointer-events: auto; }
+  .app-header .app-header-status > button { width: 100%; height: 44px; justify-content: flex-start; }
+  .app-header .storage-button-detail { display: inline; }
+  .app-header .header-import { height: 40px; }
+}
+@media (max-width: 400px) {
+  .app-header { padding-inline: 12px; gap: 6px; }
+  .app-header .brand-wordmark { width: 64px; padding: 0; }
+  .app-header .brand-wordmark .prism-wordmark { width: 100%; }
+  .app-identity { gap: 9px; }
+  .app-location { padding-left: 9px; }
+  .app-header .library-count { display: none; }
+  .app-header-actions { gap: 4px; }
+  .app-header .header-import { padding-inline: 10px; }
+}
+@media (forced-colors: active) {
+  .app-header .app-header-status > button,
+  .app-header .workspace-tools-toggle { border: 1px solid ButtonText; }
+}

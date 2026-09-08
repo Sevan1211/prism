@@ -1,0 +1,40 @@
+.lesson-visual { margin: 12px 0; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); overflow: hidden; font-family: var(--font-ui); }
+.lesson-visual > figcaption { padding: 20px 24px; font-size: .9rem; font-weight: 650; border-bottom: 1px solid var(--line); color: var(--ink); }
+.visual-scene-scroll { overflow-x: auto; background: var(--surface-2); }
+.visual-scene, .plot-svg { display: block; width: 100%; min-width: 570px; margin-inline: auto; }
+.visual-scene { max-width: min(850px, max(600px, calc((100dvh - 325px) * 1.6667))); }
+.plot-svg { max-width: min(880px, max(600px, calc((100dvh - 280px) * 1.8723))); }
+.scene-node { transition: transform 350ms ease; }
+.scene-node :is(rect, ellipse) { fill: var(--surface); stroke: var(--line-strong); stroke-width: 2; transition: fill 200ms ease, stroke 200ms ease; }
+.scene-node[data-tone="accent"] :is(rect, ellipse), .scene-node[data-emphasized="true"] :is(rect, ellipse) { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 3; }
+.scene-node[data-tone="muted"] :is(rect, ellipse) { fill: var(--surface-3); }
+.scene-node-label { display: flex; align-items: center; justify-content: center; text-align: center; width: 100%; height: 100%; color: var(--ink); font: 600 19px/1.3 var(--font-ui); overflow-wrap: anywhere; }
+.scene-edge { color: var(--ink-soft); }
+.scene-edge line { stroke: currentColor; stroke-width: 2; }
+.scene-edge text { fill: var(--ink-soft); paint-order: stroke; stroke: var(--surface-2); stroke-width: 6px; stroke-linejoin: round; font: 16px var(--font-ui); }
+.visual-player { display: flex; gap: 10px; align-items: center; padding: 14px 20px; border-top: 1px solid var(--line); }
+.visual-player input { flex: 1; min-width: 40px; accent-color: var(--accent); }
+.visual-player > span { white-space: nowrap; color: var(--ink-soft); font: .75rem var(--font-mono); }
+.visual-player .icon-button { flex: 0 0 36px; width: 36px; height: 36px; background: var(--surface-2); }
+.visual-explanation { padding: 20px 24px; font-size: .87rem; line-height: 1.7; color: var(--ink-soft); }
+.visual-explanation strong { color: var(--ink); font-weight: 650; }
+.visual-explanation p { margin: 6px 0 0; }
+.visual-node-controls { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 24px 20px; }
+.visual-node-controls button { padding: 7px 11px; min-height: 36px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); color: var(--ink-soft); font-size: .75rem; transition: border-color 150ms ease, background 150ms ease; }
+.visual-node-controls button:hover { border-color: var(--accent); color: var(--accent-strong); }
+.visual-node-controls button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-strong); }
+.visual-node-detail { margin: 0 24px 24px; padding: 16px 20px; border-left: 3px solid var(--accent); background: var(--surface-2); font-size: .85rem; line-height: 1.7; }
+.visual-node-detail p { margin: 6px 0 0; }
+.visual-transcript { padding: 16px 24px; border-top: 1px solid var(--line); font-size: .8rem; line-height: 1.7; }
+.visual-transcript summary { cursor: pointer; color: var(--ink-soft); }
+.visual-transcript dl > div { margin-top: 12px; }.visual-transcript dt { font-weight: 650; }.visual-transcript dd { margin: 4px 0 0; }
+.data-plot > .visual-node-controls { padding-top: 18px; }
+.plot-grid line { stroke: var(--line); }.plot-grid text, .plot-tick, .plot-label { fill: var(--ink-soft); font: 15px var(--font-ui); }.plot-label { font-weight: 600; }
+.plot-axis { stroke: var(--line-strong); }.plot-series { color: var(--accent); }.plot-series[data-series="1"] { color: var(--ink-soft); }.plot-series[data-series="2"] { color: var(--trusted); }.plot-series[data-series="3"] { color: var(--warning); }
+.data-plot .visual-node-controls button { display: inline-flex; align-items: center; gap: 8px; }
+.plot-legend-swatch { display: inline-block; width: 16px; height: 3px; background: var(--accent); }
+.plot-legend-swatch[data-series="1"] { background: var(--ink-soft); }.plot-legend-swatch[data-series="2"] { background: var(--trusted); }.plot-legend-swatch[data-series="3"] { background: var(--warning); }
+.plot-series polyline { stroke: currentColor; stroke-width: 3; }.plot-series :is(rect,circle) { fill: currentColor; }
+.plot-data { overflow-x: auto; }.plot-data table { width: 100%; border-collapse: collapse; }.plot-data :is(td,th) { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line); font-size: .8rem; }
+@media (max-width: 600px) { .visual-player { gap: 5px; padding: 10px; }.visual-node-controls { padding-inline: 16px; }.visual-explanation { padding: 16px; } }
+@media (prefers-reduced-motion: reduce) { .scene-node, .scene-node :is(rect,ellipse), .visual-node-controls button { transition: none; } }

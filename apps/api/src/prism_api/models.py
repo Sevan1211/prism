@@ -240,6 +240,56 @@ class ResearchEventRecord(ResearchEventIn):
     schema_version: int
 
 
+class SourceSection(BaseModel):
+    """One navigable section of a source, from its outline or computed headings."""
+
+    id: str
+    parent_id: str | None = None
+    title: str
+    level: Annotated[int, Field(ge=1, le=4)]
+    page_start: Annotated[int, Field(ge=1)]
+    page_end: Annotated[int, Field(ge=1)]
+    origin: Literal["outline", "computed"]
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+
+
+class SourceStructure(BaseModel):
+    source_id: str
+    origin: Literal["outline", "computed", "none"]
+    sections: list[SourceSection]
+
+
+class SearchHit(BaseModel):
+    element_id: str
+    page_number: int
+    kind: ElementKind
+    document_region: DocumentRegion
+    status: PageStatus
+    bbox_normalized: NormalizedBBox
+    snippet: str
+
+
+class SearchResponse(BaseModel):
+    source_id: str
+    query: str
+    hits: list[SearchHit]
+
+
+class ReadingState(BaseModel):
+    """Per-source reading position. Exposure evidence only — never a learning claim."""
+
+    source_id: str
+    last_page: Annotated[int, Field(ge=1)] = 1
+    furthest_page: Annotated[int, Field(ge=1)] = 1
+    last_scroll_ratio: Annotated[float, Field(ge=0.0, le=1.0)] = 0.0
+    updated_at: datetime | None = None
+
+
+class ReadingStateUpdate(BaseModel):
+    last_page: Annotated[int, Field(ge=1)]
+    last_scroll_ratio: Annotated[float, Field(ge=0.0, le=1.0)] = 0.0
+
+
 class HealthResponse(BaseModel):
     status: Literal["ok"] = "ok"
     version: str

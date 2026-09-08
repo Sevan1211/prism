@@ -1,0 +1,7 @@
+# Copy to .dev.vars for local Wrangler only. Never commit .dev.vars.
+# The account probe uses Clerk's public JWT verification key; no secret is needed.
+CLERK_JWT_KEY=""
+CLERK_ISSUER=""
+PRISM_APP_ORIGIN="http://127.0.0.1:5173"
+CLOUD_STORAGE_ENABLED="true"
+CLOUD_STORAGE_MODE="local"

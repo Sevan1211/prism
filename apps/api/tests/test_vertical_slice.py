@@ -672,6 +672,92 @@ def test_invalid_compiler_candidate_does_not_replace_last_valid_lesson(
     assert store.lesson(lesson.id) == saved_before_failure
 
 
+def test_outline_pdf_produces_hierarchical_sections(tmp_path: Path) -> None:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen.canvas import Canvas
+
+    pdf_path = tmp_path / "outline-fixture.pdf"
+    canvas = Canvas(str(pdf_path), pagesize=letter, invariant=1, pageCompression=0)
+    outline_plan = [
+        ("Chapter 1 Recursion", 0, "k1"),
+        ("1.1 Towers of Hanoi", 1, "k2"),
+        ("Chapter 2 Backtracking", 0, "k3"),
+    ]
+    for page_number, (title, level, key) in enumerate(outline_plan, start=1):
+        canvas.setFont("Times-Roman", 12)
+        canvas.drawString(72, 700, f"Body text for {title} on page {page_number}.")
+        canvas.bookmarkPage(key)
+        canvas.addOutlineEntry(title, key, level)
+        canvas.showPage()
+    canvas.save()
+
+    _, service = make_service(tmp_path)
+    with pdf_path.open("rb") as stream:
+        response = service.import_pdf(
+            stream, original_name=pdf_path.name, rights_status=RightsStatus.OPEN_LICENSE
+        )
+    service.process_job(response.job.id)
+
+    structure = service.structure(response.source.id)
+    assert structure.origin == "outline"
+    titles = [section.title for section in structure.sections]
+    assert titles == ["Chapter 1 Recursion", "1.1 Towers of Hanoi", "Chapter 2 Backtracking"]
+    chapter_one, subsection, chapter_two = structure.sections
+    assert (chapter_one.page_start, chapter_one.page_end) == (1, 2)
+    assert (subsection.page_start, subsection.page_end) == (2, 2)
+    assert (chapter_two.page_start, chapter_two.page_end) == (3, 3)
+    assert subsection.parent_id == chapter_one.id
+    assert chapter_one.parent_id is None
+
+
+def test_computed_sections_fall_back_to_detected_headings() -> None:
+    from prism_api.services import computed_sections, fts_query
+
+    headings = [
+        {"page_number": 5, "text": "Chapter 1: A Tour of Computer Systems"},
+        {"page_number": 9, "text": "1.2 Programs Are Translated by Other Programs"},
+        {"page_number": 14, "text": "Chapter 2: Representing Information"},
+        {"page_number": 14, "text": "2.1 Information Storage"},
+    ]
+    sections = computed_sections(headings, page_count=30)
+
+    assert [section["title"][:9] for section in sections] == [
+        "Chapter 1",
+        "1.2 Progr",
+        "Chapter 2",
+    ]
+    assert sections[0]["page_start"] == 5
+    assert sections[0]["page_end"] == 13
+    assert sections[1]["parent_id"] == sections[0]["id"]
+    assert sections[2]["page_end"] == 30
+
+    assert fts_query('congestion OR NEAR("') == '"congestion" "OR" "NEAR("'
+    assert fts_query("   ") is None
+
+
+def test_reading_state_tracks_furthest_page_and_clamps(
+    tmp_path: Path, sample_pdf: Path
+) -> None:
+    store, service = make_service(tmp_path)
+    job_id = import_fixture(service, sample_pdf)
+    service.process_job(job_id)
+    job = store.job(job_id)
+    assert job is not None
+
+    initial = service.reading_state(job.source_id)
+    assert (initial.last_page, initial.furthest_page) == (1, 1)
+
+    service.update_reading_state(job.source_id, last_page=99, last_scroll_ratio=0.4)
+    state = service.reading_state(job.source_id)
+    assert state.last_page == 3  # clamped to the page count
+    assert state.furthest_page == 3
+
+    service.update_reading_state(job.source_id, last_page=1, last_scroll_ratio=0.0)
+    revisited = service.reading_state(job.source_id)
+    assert revisited.last_page == 1
+    assert revisited.furthest_page == 3
+
+
 def test_visual_is_lazy_rendered_to_a_bounded_cached_asset(
     tmp_path: Path, sample_pdf: Path
 ) -> None:

@@ -175,6 +175,36 @@ class Store:
                 "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES(5, ?)",
                 (utc_now(),),
             )
+            connection.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS source_sections (
+                    id TEXT PRIMARY KEY,
+                    source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+                    parent_id TEXT,
+                    title TEXT NOT NULL,
+                    level INTEGER NOT NULL,
+                    page_start INTEGER NOT NULL,
+                    page_end INTEGER NOT NULL,
+                    origin TEXT NOT NULL,
+                    confidence REAL NOT NULL,
+                    position INTEGER NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_sections_source
+                    ON source_sections(source_id, position);
+
+                CREATE TABLE IF NOT EXISTS reading_state (
+                    source_id TEXT PRIMARY KEY REFERENCES sources(id) ON DELETE CASCADE,
+                    last_page INTEGER NOT NULL,
+                    furthest_page INTEGER NOT NULL,
+                    last_scroll_ratio REAL NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                """
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES(6, ?)",
+                (utc_now(),),
+            )
             connection.commit()
 
     def _backup_before_migration(self, connection: sqlite3.Connection, *, version: int) -> None:
@@ -598,6 +628,127 @@ class Store:
             "confidence": json.loads(str(row["confidence_json"])),
             "parser_version": str(row["parser_version"]),
         }
+
+    def replace_sections(self, source_id: str, sections: list[dict[str, Any]]) -> None:
+        with self.connection() as connection:
+            connection.execute(
+                "DELETE FROM source_sections WHERE source_id = ?", (source_id,)
+            )
+            for position, section in enumerate(sections):
+                connection.execute(
+                    """
+                    INSERT INTO source_sections(
+                        id, source_id, parent_id, title, level, page_start,
+                        page_end, origin, confidence, position
+                    ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        section["id"],
+                        source_id,
+                        section.get("parent_id"),
+                        section["title"],
+                        section["level"],
+                        section["page_start"],
+                        section["page_end"],
+                        section["origin"],
+                        section["confidence"],
+                        position,
+                    ),
+                )
+            connection.commit()
+
+    def sections_for_source(self, source_id: str) -> list[dict[str, Any]]:
+        with self.connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, parent_id, title, level, page_start, page_end, origin, confidence
+                FROM source_sections
+                WHERE source_id = ?
+                ORDER BY position
+                """,
+                (source_id,),
+            ).fetchall()
+        return [
+            {
+                "id": str(row["id"]),
+                "parent_id": str(row["parent_id"]) if row["parent_id"] else None,
+                "title": str(row["title"]),
+                "level": int(row["level"]),
+                "page_start": int(row["page_start"]),
+                "page_end": int(row["page_end"]),
+                "origin": str(row["origin"]),
+                "confidence": float(row["confidence"]),
+            }
+            for row in rows
+        ]
+
+    def search_elements(
+        self, source_id: str, fts_query: str, *, limit: int = 40
+    ) -> list[dict[str, Any]]:
+        with self.connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT e.id, e.page_number, e.kind, e.document_region, e.status,
+                       e.bbox_json,
+                       snippet(elements_fts, 2, '[', ']', '…', 12) AS snip
+                FROM elements_fts
+                JOIN elements e ON e.id = elements_fts.element_id
+                WHERE elements_fts MATCH ? AND elements_fts.source_id = ?
+                ORDER BY bm25(elements_fts)
+                LIMIT ?
+                """,
+                (fts_query, source_id, limit),
+            ).fetchall()
+        return [
+            {
+                "element_id": str(row["id"]),
+                "page_number": int(row["page_number"]),
+                "kind": str(row["kind"]),
+                "document_region": str(row["document_region"]),
+                "status": str(row["status"]),
+                "bbox_normalized": json.loads(str(row["bbox_json"])),
+                "snippet": str(row["snip"]),
+            }
+            for row in rows
+        ]
+
+    def reading_state(self, source_id: str) -> dict[str, Any] | None:
+        with self.connection() as connection:
+            row = connection.execute(
+                "SELECT * FROM reading_state WHERE source_id = ?", (source_id,)
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "source_id": str(row["source_id"]),
+            "last_page": int(row["last_page"]),
+            "furthest_page": int(row["furthest_page"]),
+            "last_scroll_ratio": float(row["last_scroll_ratio"]),
+            "updated_at": str(row["updated_at"]),
+        }
+
+    def upsert_reading_state(
+        self, source_id: str, *, last_page: int, last_scroll_ratio: float
+    ) -> dict[str, Any]:
+        with self.connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO reading_state(
+                    source_id, last_page, furthest_page, last_scroll_ratio, updated_at
+                ) VALUES(?, ?, ?, ?, ?)
+                ON CONFLICT(source_id) DO UPDATE SET
+                    last_page = excluded.last_page,
+                    furthest_page = MAX(reading_state.furthest_page, excluded.furthest_page),
+                    last_scroll_ratio = excluded.last_scroll_ratio,
+                    updated_at = excluded.updated_at
+                """,
+                (source_id, last_page, last_page, last_scroll_ratio, utc_now()),
+            )
+            connection.commit()
+        state = self.reading_state(source_id)
+        if state is None:
+            raise RuntimeError("reading state upsert did not persist")
+        return state
 
     def save_lesson(self, package: dict[str, Any]) -> None:
         with self.connection() as connection:

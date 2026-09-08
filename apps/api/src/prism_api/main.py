@@ -17,10 +17,14 @@ from prism_api.models import (
     ImportJob,
     ImportResponse,
     LessonPackage,
+    ReadingState,
+    ReadingStateUpdate,
     ResearchEventIn,
     ResearchEventRecord,
     RightsStatus,
+    SearchResponse,
     SourceReadiness,
+    SourceStructure,
     SourceSummary,
 )
 from prism_api.pdf_parser import NativePdfParser
@@ -74,7 +78,7 @@ def create_app(settings: Settings | None = None, *, start_worker: bool = True) -
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
         allow_credentials=False,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PUT"],
         allow_headers=["Content-Type"],
     )
 
@@ -138,6 +142,54 @@ def create_app(settings: Settings | None = None, *, start_worker: bool = True) -
             )
         except LookupError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @app.get("/api/sources/{source_id}/structure", response_model=SourceStructure)
+    def source_structure(source_id: str) -> SourceStructure:
+        try:
+            return service.structure(source_id)
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @app.get("/api/sources/{source_id}/search", response_model=SearchResponse)
+    def source_search(
+        source_id: str,
+        q: Annotated[str, Query(min_length=1, max_length=200)],
+        limit: Annotated[int, Query(ge=1, le=100)] = 40,
+    ) -> SearchResponse:
+        try:
+            return service.search(source_id, q, limit=limit)
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @app.get("/api/sources/{source_id}/reading-state", response_model=ReadingState)
+    def get_reading_state(source_id: str) -> ReadingState:
+        try:
+            return service.reading_state(source_id)
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @app.put("/api/sources/{source_id}/reading-state", response_model=ReadingState)
+    def put_reading_state(source_id: str, update: ReadingStateUpdate) -> ReadingState:
+        try:
+            return service.update_reading_state(
+                source_id,
+                last_page=update.last_page,
+                last_scroll_ratio=update.last_scroll_ratio,
+            )
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @app.get("/api/sources/{source_id}/cover")
+    def source_cover(source_id: str) -> FileResponse:
+        try:
+            path = service.cover_asset(source_id)
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        return FileResponse(
+            path,
+            media_type="image/webp",
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
 
     @app.get("/api/sources/{source_id}/file")
     def source_file(source_id: str) -> FileResponse:

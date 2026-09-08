@@ -124,6 +124,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sources/{source_id}/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Source Cover */
+        get: operations["source_cover_api_sources__source_id__cover_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sources/{source_id}/file": {
         parameters: {
             query?: never;
@@ -167,6 +184,58 @@ export interface paths {
         };
         /** Source Readiness */
         get: operations["source_readiness_api_sources__source_id__readiness_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sources/{source_id}/reading-state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Reading State */
+        get: operations["get_reading_state_api_sources__source_id__reading_state_get"];
+        /** Put Reading State */
+        put: operations["put_reading_state_api_sources__source_id__reading_state_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sources/{source_id}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Source Search */
+        get: operations["source_search_api_sources__source_id__search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sources/{source_id}/structure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Source Structure */
+        get: operations["source_structure_api_sources__source_id__structure_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -238,6 +307,16 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /**
+         * DocumentRegion
+         * @enum {string}
+         */
+        DocumentRegion: "body" | "front_matter" | "back_matter";
+        /**
+         * ElementKind
+         * @enum {string}
+         */
+        ElementKind: "heading" | "paragraph" | "code" | "caption" | "figure" | "table" | "furniture";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -345,6 +424,46 @@ export interface components {
             /** Technical Term Count */
             technical_term_count: number;
         };
+        /**
+         * PageStatus
+         * @enum {string}
+         */
+        PageStatus: "trusted_for_transform" | "transform_with_warning" | "source_only";
+        /**
+         * ReadingState
+         * @description Per-source reading position. Exposure evidence only — never a learning claim.
+         */
+        ReadingState: {
+            /**
+             * Furthest Page
+             * @default 1
+             */
+            furthest_page: number;
+            /**
+             * Last Page
+             * @default 1
+             */
+            last_page: number;
+            /**
+             * Last Scroll Ratio
+             * @default 0
+             */
+            last_scroll_ratio: number;
+            /** Source Id */
+            source_id: string;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** ReadingStateUpdate */
+        ReadingStateUpdate: {
+            /** Last Page */
+            last_page: number;
+            /**
+             * Last Scroll Ratio
+             * @default 0
+             */
+            last_scroll_ratio: number;
+        };
         /** ResearchEventIn */
         ResearchEventIn: {
             /**
@@ -400,6 +519,29 @@ export interface components {
          * @enum {string}
          */
         RightsStatus: "public_domain" | "open_license" | "private_authorized" | "unknown";
+        /** SearchHit */
+        SearchHit: {
+            /** Bbox Normalized */
+            bbox_normalized: number[];
+            document_region: components["schemas"]["DocumentRegion"];
+            /** Element Id */
+            element_id: string;
+            kind: components["schemas"]["ElementKind"];
+            /** Page Number */
+            page_number: number;
+            /** Snippet */
+            snippet: string;
+            status: components["schemas"]["PageStatus"];
+        };
+        /** SearchResponse */
+        SearchResponse: {
+            /** Hits */
+            hits: components["schemas"]["SearchHit"][];
+            /** Query */
+            query: string;
+            /** Source Id */
+            source_id: string;
+        };
         /**
          * SectionReadiness
          * @description Inspectable readiness evidence for one requested PDF page range.
@@ -509,6 +651,31 @@ export interface components {
              */
             trusted_body_pages: number;
         };
+        /**
+         * SourceSection
+         * @description One navigable section of a source, from its outline or computed headings.
+         */
+        SourceSection: {
+            /** Confidence */
+            confidence: number;
+            /** Id */
+            id: string;
+            /** Level */
+            level: number;
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "outline" | "computed";
+            /** Page End */
+            page_end: number;
+            /** Page Start */
+            page_start: number;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Title */
+            title: string;
+        };
         /** SourceSpan */
         SourceSpan: {
             /** Bbox Normalized */
@@ -529,6 +696,18 @@ export interface components {
          * @enum {string}
          */
         SourceStatus: "source_ready" | "indexing" | "structure_ready" | "needs_review" | "failed";
+        /** SourceStructure */
+        SourceStructure: {
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "outline" | "computed" | "none";
+            /** Sections */
+            sections: components["schemas"]["SourceSection"][];
+            /** Source Id */
+            source_id: string;
+        };
         /** SourceSummary */
         SourceSummary: {
             cloud_policy: components["schemas"]["CloudPolicy"];
@@ -845,6 +1024,37 @@ export interface operations {
             };
         };
     };
+    source_cover_api_sources__source_id__cover_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     source_file_api_sources__source_id__file_get: {
         parameters: {
             query?: never;
@@ -932,6 +1142,137 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SourceReadiness"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_reading_state_api_sources__source_id__reading_state_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadingState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_reading_state_api_sources__source_id__reading_state_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadingStateUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadingState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    source_search_api_sources__source_id__search_get: {
+        parameters: {
+            query: {
+                q: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    source_structure_api_sources__source_id__structure_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceStructure"];
                 };
             };
             /** @description Validation Error */

@@ -1,85 +1,232 @@
-# WebMCP integration: the instrument hands the agent its evidence
+# WebMCP integration
 
-**Status:** adopted direction (owner decision 2026-08-26); every learning-effect claim in this document is **Experimental**  
-**Reviewed:** 2026-08-26  
-**External deadline:** OpenAI WebMCP Challenge submission, 2026-09-03 13:00 PDT  
-**Related:** [`../product/PRODUCT_SPEC.md`](../product/PRODUCT_SPEC.md), [`../product/READER_SPEC.md`](../product/READER_SPEC.md), [`AI_STRATEGY.md`](AI_STRATEGY.md), [`../research/EVIDENCE_REVIEW.md`](../research/EVIDENCE_REVIEW.md)
+**Reviewed:** 2026-09-07  
+**Contract:** browser-local reading, source-grounded authoring, and learner-approved changes.  
+**Related:** [Lesson specification](../product/INTERACTIVE_LESSON_SPEC.md), [document intelligence](DOCUMENT_INTELLIGENCE.md), [release evidence](../engineering/SUBMISSION_READINESS.md).
 
-## What WebMCP is
+## Shared workspace
 
-WebMCP is a W3C Web Machine Learning Community Group draft (announced 2026-02-10; draft report 2026-07-21, edited by Google and Microsoft) that lets a web page register JavaScript tools — name, description, JSON Schema input, async `execute` callback — that browser-hosted agents can discover and invoke. The page keeps its own session, validation, and UI; the agent gets a typed contract instead of scraping the DOM.
+The [2026-09-07 tool audit](../engineering/WEBMCP_TOOL_AUDIT.md) recorded the previous 32-tool surface. Its five consolidations are now implemented locally: **27 tools** remain, with unchanged learner consent and approval boundaries.
 
-Current support: Chrome ships an origin trial (149–156) plus a testing flag; the ChatGPT desktop app's built-in browser, ChatGPT Sites, and Codex support it natively as "Site tools"; Edge is behind a flag; Gemini-in-Chrome is announced as Google's first consumer. The API surface is `document.modelContext` (with a `navigator.modelContext` fallback that Chrome 150 deprecates). Adoption is near zero, which is the opportunity.
+The learner brings a compatible browser agent. PRISM registers page tools through `document.modelContext` where supported. A normal browser still provides the source library and Reader; generation requires an external agent. PRISM has no hosted inference service or embedded chatbot.
 
-```javascript
-const ctx = document.modelContext ?? navigator.modelContext
-await ctx?.registerTool({
-  name: 'get_frame_evidence',
-  description: 'Exact source spans backing the current semantic frame',
-  inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-  annotations: { readOnlyHint: true },
-  async execute() { /* returns claim + spans from the player store */ },
-}, { signal: lessonAbortController.signal })
-```
+Tools register at the application root and remain available across library, overview, lesson and Reader routes. Tool discovery in the actual host, application validation, source fidelity, and owner approval are separate checks. [Official WebMCP documentation](https://learn.chatgpt.com/docs/webmcp).
 
-## Design thesis
+## Discovery and efficient authoring — local change, awaiting deployment
 
-Generic agent browsing makes AI *less* accountable: it summarizes content it half-read. PRISM's WebMCP surface is designed to make a connected agent *more* accountable than it is anywhere else, because every content-bearing tool returns hash-validated, source-verbatim spans with page and region provenance — the same receipts the human sees. The agent tutoring the learner can only cite, never invent. This is AGENTS.md principle 9 ("AI output is untrusted until checked") turned into an interface: the checking substrate is the API.
+The September 4 change follows [OpenAI's integration guidance](https://learn.chatgpt.com/docs/webmcp), [Chrome's imperative API](https://developer.chrome.com/docs/ai/webmcp/imperative-api), [Chrome's best practices](https://developer.chrome.com/docs/ai/webmcp/best-practices), and the [WebMCP specification](https://webmachinelearning.github.io/webmcp/). JavaScript registration uses top-level `document.modelContext.registerTool` with AbortSignal cleanup. Registration promises can stay pending for the tool lifetime; their rejection is observed without blocking startup.
 
-PRISM itself ships no model. The learner brings whatever agent lives in their browser; PRISM defines what that agent may see and do. The M5 provider boundary in the implementation plan is unrelated: it governs models PRISM invokes, while this document governs agents the learner invokes.
+A single page registry handles API arrival with a bounded startup probe, focus/page-show recovery and explicit retry. React state changes update executors without registering duplicate tools. Registration failures are visible and failed registrations are aborted. The Agent tools dialog distinguishes interface availability, tools offered, and the last completed/error call. It does not claim the host discovered tools merely because registration was attempted. Host/model support, site-tool settings and approval remain external constraints.
 
-## Tool rings
+`get_active_lesson_context` is the startup tool: current source, index/access state, active plan/document version, and suggested next calls. Follow an explicit resume call directly. `get_authoring_guide` core is read once before authoring; simple navigation does not require it. Source overview and Reader orientation remain metadata-only without content permission. Existing saved work is resumed rather than recreated.
 
-Registered per surface, unregistered on exit via `AbortSignal`. Ring 1 and Ring 2 tools carry `readOnlyHint`.
+`read_source_packet` now accepts the full requested page range and loads at most eight indexed pages per call. It preserves exact extracted text, anchors, warnings, and text offsets within the existing bounded response. `next_call` includes the exact continuation arguments; dense pages may require multiple calls. `pages_completed_in_packet` records transport, not understanding; `range_exhausted` means there is no next packet, not that earlier packets were read. Missing indexes and invalid cursors fail with actionable errors. Original pixels still require separate inspection. Scope reviews remain nonoverlapping ranges of at most eight pages.
 
-| Ring | Tool | Contract |
-|---|---|---|
-| 1 · Navigate | `list_sources`, `get_readiness` | Library contents, trusted-page evidence, recommended ranges |
-| 1 | `open_lesson`, `goto_frame`, `set_mode`, `set_pace` | Drive the player the learner is watching; identical guardrails to the UI (no autoplay on high-inspection frames, bundle receipts shown) |
-| 1 | `open_source_page` | Open the Reader at an exact page — learner control and the source path stay primary |
-| 2 · Evidence | `get_current_frame`, `get_frame_evidence` | Claim text plus exact spans (element id, page, region, offsets, verbatim text) and verification status |
-| 2 | `search_source` | FTS5 search over the indexed book returning spans, not prose (the Reader's search endpoint) |
-| 2 | `describe_visual` | The active figure/table's accessible text, caption, page, and provenance |
-| 3 · Tutor | `get_study_prompt`, `submit_explanation` | The learner's free-recall attempt is recorded as a `study_submitted` research event; the tool response then, and only then, includes the exact source span for comparison |
-| 3 | `suggest_repair` | Agent proposes returning to a prerequisite frame; the player offers, never forces, the jump (TSR's Repair step, mediated) |
-| 3 | `get_session_evidence` | Exposure summary from the append-only event log, labeled as exposure |
+Public `/llms.txt` and `/agent-guide.md` are generated from the same authoring contract as `get_authoring_guide`; `node scripts/write_agent_docs.mjs --check` detects drift. Dev/build regenerates them. The [llms.txt proposal](https://llmstxt.org/) is supplemental documentation, not a WebMCP enablement mechanism or a promise that every host will fetch it. These files contain no library content or credentials. Tool descriptions and runtime registration remain the primary interface.
 
-## Guarded tutoring is the point, not a limitation
+For lower transport overhead, `read_source_packet` accepts `format: compact`:
+`rows` use the returned `columns` order in place of repeated object keys. Every
+text fragment, full citation ID, bounding box, status and continuation offset is
+retained. Detailed objects remain the default for existing callers. `next_call`
+preserves the chosen format. `get_authoring_workspace` joins saved authoring state
+and paginates review checkpoints; it grants no permissions and does not generate
+content or approve work. See the [latency contract](../engineering/LEARNING_EXPERIENCE_IMPROVEMENTS.md#latency-and-recovery)
+for benchmark limits and recovery behavior.
 
-2025–2026 tutoring trials are consistent: structured programs with pedagogical guardrails produced large gains, while unrestricted assistant access improved in-the-moment performance and *reduced* later unassisted performance. PRISM's tool surface encodes the guardrail structurally:
+## Source access
 
-- `submit_explanation` requires a non-empty attempt before any comparison material is returned — attempt-before-assistance is enforced by the API shape, not by prompt suggestions;
-- content tools return source-verbatim spans, so agent feedback is anchored to inspectable evidence;
-- every agent invocation of a Ring 3 tool is logged as an `agent_*` research event beside the learner's own events, which makes human-plus-agent co-study a measurable future experiment arm rather than an unexamined feature;
-- no tool can mark anything learned, verified, or complete; verification vocabulary stays owned by the deterministic compiler and future review states.
+| Tool | Purpose |
+|---|---|
+| `import_public_pdf` | Download a requested public-domain or openly licensed HTTPS PDF and start indexing |
+| `prepare_source_import` | Open the visible import dialog; cannot select files, upload bytes, or grant content access |
+| `list_sources` | Paginated source metadata, access/readiness and folder information; optional name/folder filters |
+| `get_source_map` | Candidate outline, page count, index state, and limitations |
+| `get_scope_manifest` | Cursor-paged element inventory for up to 32 pages |
+| `read_source_packet` | Full requested range, bounded lossless evidence packets with exact continuation calls |
+| `read_source_bundle` | Bounded evidence from selected anchors |
+| `search_source` | Local lexical search with page regions |
+| `open_source_location` | Open the canonical Reader at a selected page/region |
+| `get_source_visual_catalog` | On-demand raster/vector region candidates, caption previews and suggested crops; four pages per call |
+| `inspect_source_visual` | `action: open` renders one detailed page/crop or 1–4 selected views; `action: close` dismisses the viewer without requiring source access |
 
-The learning-effect framing ("agent co-study helps") is **Experimental** and earns claims only through the validation plan's delayed-outcome machinery.
+`inspect_source_visual` does not return an image attachment or prove visual understanding. The host's browser vision must actually inspect the rendered page. A caption is not enough to infer a chart's values. Page-image anchors support source crops independently of text extraction; they certify origin, not interpretation.
 
-## Rights-gated exposure
+Visual selection starts from the learner goal and indexed evidence. Full requested
+source coverage does not require opening every decorative, duplicate or unrelated
+image. `get_source_visual_catalog` is optional discovery for relevant pages, not a
+mandatory image tour. It uses PDF.js image coordinates and drawing bounds, clusters
+candidate regions, associates nearby caption candidates and offers padded crops.
+It retains a full-page fallback and labels uncertain associations and omissions.
+The metadata cache is bounded; two pages render concurrently and requests process
+at most four pages. Image access is checked before loading or returning cached
+data. The catalog does not extract original encoded assets, perform OCR, recover
+numeric chart data or verify semantic figure boundaries. See the
+[document intelligence contract](DOCUMENT_INTELLIGENCE.md).
 
-Tool results flow to the agent vendor's servers. Agent exposure is therefore a per-source policy in the same family as `rights_status` and `cloud_policy`:
+The batch viewer renders up to four views in one dialog. Agents inspect the contact
+sheet with browser vision, then enlarge only details needed to support the lesson.
+Successful receipts follow rendering and a browser paint opportunity; partial
+failures remain visible. An overview never establishes unreadable numeric values.
 
-- `public_domain` and `open_license` sources expose tools by default;
-- `private_authorized` and `unknown` sources register **no content-bearing tools** unless the learner explicitly enables agent access for that source; navigation metadata (titles, readiness) may remain;
-- the consent is per source, revocable, and recorded — importing or reading a source never implies agent exposure, mirroring the existing cloud-consent rule.
+Private and unknown-rights content is denied until the learner grants the relevant payload classes. A former text-only grant does not silently permit page images. Access revocation is checked again at content boundaries. Public/open-license status and private-source consent are distinct concepts.
 
-## Security rules
+The visible PDF import dialog includes an optional, initially unchecked **Allow my
+agent to read this PDF** checkbox for private and unknown-rights sources. It grants
+structure, selected text, and page-image access to the imported source's fingerprint
+after the PDF is saved, before returning to the source overview. Replacing the file,
+editing its URL, or changing rights resets the checkbox. A failed grant retains the
+imported PDF and reports the access failure. Existing grants on duplicate imports
+are not revoked by leaving the checkbox unchecked. Public/open-license imports keep
+their existing rights-based access behavior.
 
-- Agent-supplied tool arguments are untrusted input: schema-validated, length-capped, and never interpolated into SQL, paths, or shell;
-- content responses are size-capped; tools never return raw PDF bytes;
-- no tool mutates rights, policies, deletion state, or research data (Ring 3 appends learner-visible events only);
-- registration happens only on surfaces the learner opened; closing the lesson or reader aborts every registration;
-- the feature detects `document.modelContext ?? navigator.modelContext` and degrades to nothing — no polyfill that fakes agent presence.
+`prepare_source_import` opens this dialog without preselecting consent;
+`import_public_pdf` has no private-access grant parameter. The learner can grant
+access in the import dialog or change it later in the source overview. This choice
+does not approve a lesson plan, accept a revision, or authorize an agent to approve
+on the learner's behalf.
 
-## Engineering approach
+## Planning and long-source review
 
-Tools register from inside the components that own the relevant state, through a `useModelContextTool` hook that keeps the executor in a ref (fresh state, stable registration) and unregisters via `AbortSignal` on unmount. Registration is mirrored into a local `window.__prismWebMCP` registry so the surface is inspectable and testable in any browser, including ones without the experimental API; the fake-context test helper drives the same executors the real agent would call. Library tools live in the App shell; player tools register only while a lesson is open. No store rewrite was required.
+| Tool | Purpose |
+|---|---|
+| `get_authoring_guide` | Concise core by default; focused writing, visuals and revisions topics on request |
+| `get_authoring_workspace` | Explicit saved-work resume; paginated discovery by source; focused brief, plan and review views; source access and fingerprint gated |
+| `create_lesson_brief` | Save the goal, prior knowledge, range, depth, output kind, and soft length/time targets |
+| `record_scope_review` | Save a nonoverlapping 1–8 page review with essential anchors and visual findings |
+| `propose_lesson_plan` | Propose the teaching sequence and complete coverage accounting |
+| `open_lesson` | Open a plan or saved document without approving it |
 
-**Implementation status (2026-08-26):** Ring 1 plus `get_frame_evidence` is implemented and verified end to end — `list_sources`, `get_source_readiness`, `prepare_stream`, `open_source_page`, `get_player_state`, `goto_frame`, `set_mode`, `set_pace`, `set_playback`, `get_frame_evidence` — including a live agent-simulated run that compiled and drove a real lesson from the Erickson corpus source, and tests covering the private-source refusal path. Remaining: `search_source` (Ring 2, with the Reader's FTS5 endpoint) and the Ring 3 tutor loop.
+Small scopes classify the complete element inventory. Large scopes require reviews covering every requested page, contiguous coverage ranges with explicit rationales, and a selected essential-anchor ledger. An unresolved visual review cannot silently become taught content. The agent must inspect or explicitly exclude it. The selected evidence set is bounded; a long source is never treated as one unrestricted prompt.
 
-## Hackathon deliverable (2026-09-03)
+Word count and reading time are approximate targets, not hard truncation budgets. A ten-page equivalent is expressed as a word target because browser layout has no fixed printed page count. End questions are optional.
 
-- Local-first build finished first; the hosted demo is deployed from it near the deadline (Render API + Cloudflare Pages web) with open-licensed corpus sources preloaded (CC BY / CC BY-SA only);
-- Demo uploads are allowed under the transient-processing model: the server parses and compiles in memory with reduced size/page/timeout caps and rate limiting, persists nothing, and the visitor's browser stores sources, indexes, and lessons locally (IndexedDB/OPFS) — "processed in memory, stored only on your device";
-- required artifacts: live URL usable in ChatGPT's built-in browser or Chrome with WebMCP enabled, public repository under Apache-2.0, sub-3-minute video, and a write-up centered on the grounded-evidence thesis and the guarded-tutoring design;
-- submission language obeys the product-writing rules: no learning-efficacy claims, TSR labeled Experimental, draft packages labeled draft.
+**The agent cannot approve its own plan.** The visible learner control freezes the scope and sequence. Browser automation that impersonates the learner does not satisfy this boundary. Approval authorizes composition; it does not establish correctness, source fidelity, or learning.
+
+## Composition and revision
+
+| Tool | Purpose |
+|---|---|
+| `get_lesson_document` | Compact document outline; bounded section content with continuation cursor |
+| `import_generated_illustration` | Attach generated PNG/JPEG bytes with attribution and purpose; always labeled as added illustration |
+| `apply_lesson_patch` | Progressive typed edits to an approved draft with an expected version |
+| `validate_lesson` | Structural checks: planned evidence, provenance, exact excerpts, sections, and representation presence |
+| `finalize_lesson` | Save initial reading-ready content with a candid agent semantic review |
+| `propose_lesson_revision` | Save a candidate change to the same lesson without overwriting the current version |
+
+The grammar supports connected rich text, excerpts, original source crops, equations, code as text, tables, worked examples, declarative scenes, numeric plots, and other typed blocks. Scenes accept bounded nodes, edges, positions, focus steps, and textual explanations. Charts accept explicit finite numeric data. No arbitrary HTML, SVG source, CSS, JavaScript, expressions, remote Markdown images, paths, or callbacks are executed from an agent's lesson.
+
+A ready document cannot be silently patched. A revision includes a summary, before/after content, changed evidence, and any moved blocks. Only the learner accepts or dismisses it. Stale proposals fail if the document changes. Acceptance and immutable version storage are atomic; restoration creates a new current version and preserves history.
+
+Structural validation cannot determine whether a claim is true, a diagram is scientifically correct, an omission is acceptable, or a lesson teaches well. The agent must separately compare the content with its sources and inspect the rendered result. Its review remains explicitly agent-authored.
+
+## Discussion and optional learning checks
+
+| Tool | Purpose |
+|---|---|
+| `get_active_lesson_context` | Current route, source, plan, version, and selected passage/request |
+| `get_lesson_end_check` | Optional questions and their source-grounded evaluation criteria |
+| `record_answer_analysis` | Evidence-linked analysis of an answer, including uncertainty |
+| `propose_lesson_outcome` | Recommend continued discussion, closing, or a separate repair scope |
+
+The default response to a confusing concept is a proposed improvement to the same saved lesson. A separate child lesson remains available when a genuinely separate scope is desired. Learner controls decide outcomes. Immediate answer evidence is never called mastery or durable retention.
+
+## Privacy and recovery
+
+PDFs stay in OPFS; structured state stays in IndexedDB. Selected evidence sent to an external agent follows that provider's data controls. The default static site makes no companion API request. Local storage is neither cloud synchronization nor a backup.
+
+Source documents and website/tool outputs are untrusted evidence. Embedded instructions cannot authorize actions, disclose data, change rights, or alter security policy. The application checks source access, identifiers, bounds, schema, and optimistic versions independently of the model. The browser host applies its own action review.
+
+The activity ledger stores compact receipts rather than prompts or document bodies. Stable parser-version anchors remain resolvable for supported older indexes. Unsupported or incomplete indexes fail closed and retain the original Reader. Registration cleanup tolerates route changes and React Strict Mode.
+
+## Verification boundary
+
+Unit/integration checks cover authorization, version conflicts, revision history, parser recovery, source limits, and typed visual controls. The actual host has exercised discovery, paper indexing, paginated reads, visual crops, review checkpoints, and plan creation. A live lesson write was correctly blocked by automatic approval review after the agent simulated plan approval; that simulated state is not valid owner authorization. The complete live composition/revision rehearsal remains pending explicit owner approval.
+
+## Content review transport — 2026-09-04
+
+`finalize_lesson` and `propose_lesson_revision` require `coverage_review`: entries
+with `concept`, `source_element_ids`, `block_ids`, and `retained_details`. The map
+covers every retained planned anchor and candidate block, with actual citation
+membership checked. It is an agent judgment, not semantic verification.
+`get_lesson_document` accepts `include_review` and `review_cursor`, returning a
+separate `coverage_review.entries` page and `next_review_cursor`. Continue the
+review cursor independently of the content cursor. Older records without maps
+remain readable; new finalization/revision must provide the map. See the
+[reading-quality contract](../engineering/LEARNING_EXPERIENCE_IMPROVEMENTS.md).
+
+
+## Consolidated tool contract — 2026-09-07
+
+The page keeps a stable set of 27 tools across routes. No broad action dispatcher,
+dynamic tool hiding, agent approval tool, or legacy registration aliases were added.
+Reload the page/refresh host discovery after this tool-schema migration. Saved
+sources, briefs, plans, approval fingerprints, documents and historical activity
+receipts keep their existing storage format.
+
+- `list_sources` returns `sources`, `total`, `next_cursor` and exact `next_call`.
+  Optional `query` matches source names; `folder_id: null` selects unfiled sources.
+  Folder IDs and names appear in each source result. Empty folders are not a
+  separate agent discovery surface. Discovery does not grant source-content access.
+- `get_authoring_workspace` defaults to `view: resume` with a saved `brief_id` or
+  `plan_id`. Both are accepted only when they belong together. `view: discovery`
+  takes `source_id`, optional `kind: briefs|plans`, and cursor/limit. It lists
+  candidates without choosing a learner assignment. `view: brief` reads one goal;
+  `view: reviews` paginates complete checkpoints and reports review progress.
+  `view: plan` requires a plan ID and provides paginated `part: sections|coverage|ranges|objectives|questions`.
+  Optional `section_id` selects one section in the sections part. Full details live
+  in these focused views; resume includes bounded progress previews and detail calls.
+  Saved-work reads and evidence packets recheck source access before disclosure,
+  including when access is revoked or the source is removed during an async read.
+- Source and saved-work discovery cursors carry a collection checksum. Changed
+  collections or filters fail with restart guidance rather than silently skipping
+  records. This checksum is a consistency check, not a security credential.
+- `read_source_packet` accepts `include_details: true` for complete page profiles,
+  element confidence, order and reasons. Equal start/end selects one page. Compact
+  columns name the extra fields; exact continuations retain details and format.
+  Oversized text elements split with offsets; scans retain original-image anchors.
+- `inspect_source_visual` requires `action`. Opening requires a source and either
+  one page/crop or a selected batch. Closing takes `action: close` alone and remains
+  possible after source access is revoked. Opening still checks image permission
+  and waits for actual rendering; the result is not an image attachment.
+- `get_authoring_guide` accepts `topic: core|writing|visuals|revisions`. Core includes
+  fidelity, consent, approval, continuation and review requirements. Detailed topics
+  remain available. The public guide is generated from the same complete contract.
+- Source maps/manifests and lesson content/coverage-map reads return exact continuation
+  calls. Lesson continuation calls bind `document_version`; changed documents require
+  restarting the read. Content and coverage-review continuations remain independent.
+  Document summaries link to optional question criteria instead of repeating them.
+- Document reads, standalone validation and end-check reads require exactly one of
+  lesson ID or plan ID. Wrong-view workspace arguments and conflicting selectors are
+  rejected. Search discloses its 20-hit limit and suggests narrowing saturated queries.
+- Successful patch receipts carry the saved version and validation. Standalone
+  validation is optional diagnostics; finalization always performs fresh validation
+  and still requires an attributed content review. Proposal receipts link directly
+  to the visible learner review step. Draft writes and proposed revisions stay separate.
+
+Checks for this migration distinguish isolated synthetic browser acceptance from
+actual agent-host discovery, owner approvals and source-fidelity review. The
+synthetic rehearsal must never be interpreted as authorization for a real lesson.
+
+### Local migration evidence
+
+An isolated Chrome rehearsal verified all 27 registrations and exercised the canonical
+workflow using a synthetic PDF: import with a test grant, source discovery,
+packet details, text search, rendered visual inspection, saved brief discovery,
+coverage checkpoint, plan proposal, refusal before approval, the visible approval
+control on the synthetic fixture, draft save and idempotent retry, workspace
+resume, plan detail read, finalization, stale-version refusal, ready-draft write
+refusal, revision isolation, reload recovery, source-access revocation and close
+after revocation. Rendered inspection and saved-lesson screenshots were reviewed.
+
+Final local checks passed: 219 web tests across 55 files, lint, TypeScript and
+production build, generated-agent-document drift checks, and Markdown checks.
+The existing large-JavaScript-chunk build warning remains. The development preview
+was restarted on port 5173 after its process stopped during a concurrent validation
+run; the complete isolated browser rehearsal then passed against the stable preview.
+
+The default core guide measured 3,116 serialized characters versus 11,233 before
+the change (about 72% less). Removing five tool names only slightly reduces total
+descriptor size: replacement schemas carry the preserved detail and discovery
+options. These are transport measurements, not measured agent task latency or
+proof of improved tool choice. Real external-host rediscovery and comparative
+agent-run evaluation remain separate from this local acceptance rehearsal.

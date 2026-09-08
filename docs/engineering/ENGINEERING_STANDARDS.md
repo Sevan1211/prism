@@ -1,9 +1,9 @@
 # Engineering standards
 
 **Status:** required  
-**Reviewed:** 2026-08-23  
+**Reviewed:** 2026-09-06 (instruction scope and validation proportionality)  
 **Goal:** keep PRISM lean, explainable, reproducible, and safe to change.
-**Current plan:** [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md)
+**Current plan:** [Portfolio release plan](FINAL_PORTFOLIO_RELEASE_PLAN.md); the earlier [implementation plan](IMPLEMENTATION_PLAN.md) remains historical context.
 
 ## Operating principle
 
@@ -16,7 +16,7 @@ The preferred implementation is the smallest complete vertical slice. Every laye
 A change is complete only when:
 
 - the user-visible or research outcome is stated;
-- tests cover the new behavior and important failure path;
+- meaningful checks cover changed behavior and important failure paths; wording-only or low-impact presentation changes do not require new tests that mirror implementation;
 - source/version/provenance contracts remain valid;
 - every changed factual clause, diagram relation, table focus, equation step, code state, prompt answer, and repair preserves typed support or fails closed;
 - accessibility behavior is included, not postponed;
@@ -31,7 +31,9 @@ A change is complete only when:
 
 ## Vertical-slice rule
 
-Build in end-to-end slices:
+Build current features in end-to-end slices that reach the requested user outcome.
+The sequence below is the historical streaming-prototype slice, applicable when
+working on that experimental renderer; it is not a prerequisite for reading-workspace fixes:
 
 1. one representative engineering PDF fixture and one bounded learning fixture;
 2. one canonical extraction path and first-class Source Reader fallback;
@@ -56,7 +58,8 @@ Do not build generic plugin systems, provider marketplaces, distributed queues, 
 
 ## Stale-code control
 
-Every implementation change includes a stale-code pass:
+When replacing behavior, check the affected capability for obsolete code and references.
+Use applicable checks below; do not scan unrelated subsystems for a local edit:
 
 1. search for replaced names, flags, routes, schema fields, and configuration;
 2. remove unused exports/imports and unreachable branches;
@@ -209,7 +212,13 @@ AI output is reviewed as untrusted contribution, just like AI-generated learning
 
 ## Merge/release gate
 
-At minimum, implementation changes must pass:
+During development, run affected checks and inspect the changed user flow. Fix
+change-caused failures and rerun affected checks; broaden or repeat only when new
+changes, failures, or unresolved risks justify it. Documentation-only edits need
+document checks, not application builds. Do not invoke paid AI evaluations or
+production services implicitly.
+
+For an implementation PR, the applicable merge checks remain:
 
 ```text
 format

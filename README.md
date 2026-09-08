@@ -1,104 +1,85 @@
 # PRISM
 
-**Personalized Representation and Information Streaming for Meaning**
+**A reading workspace for understanding difficult sources.**
 
-PRISM is a research-driven web project for turning source material into a paced, adaptive sequence of meaning-bearing representations: text, diagrams, images, equations, examples, and eventually animation.
+Import your own PDF, read the original, and work with a compatible browser agent to create a detailed lesson or research brief. PRISM keeps the source, coverage plan, saved reading document, visuals, and revisions together. Lessons use formatted text and inline representations; they are not generated PDFs.
 
-The core idea is not conventional speed reading. PRISM aims to optimize **durable comprehension per unit of time** while preserving source fidelity and giving the learner control. Its distinctive interaction is a one-screen **semantic stream** that presents meaningful units, keeps enough context available for integration and repair, and changes pace or representation when evidence suggests understanding is at risk.
+PRISM is being prepared for a portfolio-quality v1 and controlled public beta. It remains an engineering prototype, with no claim of improved learning speed or efficacy. The [release plan](docs/engineering/FINAL_PORTFOLIO_RELEASE_PLAN.md) defines the target; [current evidence](docs/engineering/SUBMISSION_READINESS.md) distinguishes local work, deployed behavior and human acceptance.
 
-## Current status
+The accepted release target is Cloudflare Worker Static Assets and a Worker API, Clerk with username/password and Google login, D1 metadata, and private R2 storage at `prism.sevanlewispayne.com`. Cloud accounts are optional; local reading remains account-free. The initial free beta is capped at 50 cloud users, 1 GB each, and 50 GB globally. [Hosting and account contract](docs/architecture/CLOUDFLARE_HOSTING.md).
 
-This repository now contains the documentation foundation, an independently generated research-and-implementation dossier, its project-level integration review, a milestone implementation plan, and the first local PDF-to-semantic-stream vertical slice. The implementation is an engineering prototype, not evidence that PRISM improves learning. No performance claim should be treated as proven until it has passed the experiments described here.
+**Current status:** real development login and account-owned storage work locally. The private Cloudflare bucket and database are provisioned and tested; the Worker/site and DNS are not deployed. Recovery-key sync has been retired. Production setup and cross-device acceptance remain release gates.
 
-Implemented in the current slice:
+The [Cloudflare release pipeline](docs/engineering/CLOUDFLARE_RELEASE.md) runs checks
+before publishing `main`. Development branches and pull requests do not deploy.
+The first public rollout is being configured; a workflow file alone does not mean
+the production deployment has succeeded.
 
-- streamed, content-addressed import of valid PDFs, with an original-PDF fallback for pages that cannot be safely transformed;
-- resumable page indexing into SQLite with parser-version invalidation, deterministic duplicate-artifact handling, and page-specific recovery errors;
-- body/front/back document-region classification that preserves navigation material for search while skipping it in playback;
-- per-source import state, parser currency, selected-range evidence, and an automatically suggested trusted body window rather than a fixed pages 1–3 default;
-- source spans and lazy, cached figure/table assets with one-based page numbers and normalized regions;
-- deterministic, source-verbatim draft semantic frames whose complete instructional payload is hashed and validated against exact indexed source spans before storage;
-- a responsive four-mode learning flow with Preview, Understand, Study, and a PDF-backed Reader; reversible navigation, exact source evidence, source visuals, bundle receipts, keyboard focus recovery, and reduced-motion behavior are implemented;
-- append-only research events and versioned JSON export through the local API;
-- local-only source policy with no upload-time blanket cloud permission;
-- generated OpenAPI and TypeScript contracts plus locked Python and npm dependencies.
+## How it works
 
-The slice has imported and visually checked the 489-page TCP benchmark textbook. It supports reliable embedded text plus lazy, source-faithful figure/table regions, and skips detected front/back matter during playback while preserving it for Source view. A frozen synthetic TCP fixture now locks compiler identities, frame order, exact text, visual binding, source locations, high-inspection autoplay behavior, parser duplicate recovery, and stale-parser full reindexing. The next learning-content milestone remains a manually authored transaction-isolation package for **Traceable Semantic Relay (TSR)**: Anchor → Advance → Integrate → Repair. TSR is an **Experimental** mechanism, not a validated learning method. Full Source Reader search/overlay behavior, OCR, table-cell/equation semantics, generated explanations or visuals, cloud AI, adaptive learning claims, and efficacy conclusions are not implemented or validated.
+1. **Bring a source.** The library starts empty. PDF processing happens in your browser. Read and save locally without an account. The account cloud mode is a separate opt-in.
+2. **Choose what you need.** Ask for one concept, a chapter, or a detailed synthesis of a longer document. Length and reading time are soft targets. A request such as “100 pages into about 10” must disclose what was compressed or omitted.
+   Default lessons preserve substantive definitions, reasoning, examples, qualifications and relevant figures. Shorter summaries require explicit scope approval.
 
-## Run locally on Windows
+3. **Review the plan.** The agent reads the requested pages through WebMCP, inspects relevant original visuals, saves review checkpoints, and proposes a source-grounded sequence. You approve the scope.
+4. **Read and inspect.** The agent composes connected Markdown-style explanations, original figure crops, equations, tables, worked examples, and controlled diagrams or charts. Citations open the original evidence.
+5. **Improve the same lesson.** Select a confusing passage, discuss it with your agent, and review a proposed revision. Accept or keep the current lesson; previous versions remain recoverable.
 
-Prerequisites: Node.js 24 and Python 3.12-3.14.
+Questions are optional. PRISM remains centered on reading and understanding. It does not include a built-in chatbot or prewritten textbook lessons. A compatible external agent supplies generation and interpretation under its provider's access and usage terms.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".\apps\api[dev]"
-npm install
-npm run schema:api
-```
+## Run locally
 
-Start the API and web app in separate PowerShell terminals:
+The browser application needs **Node.js 24**. Python and the companion API are optional.
 
 ```powershell
-npm run dev:api
-```
-
-```powershell
+npm ci
 npm run dev:web
 ```
 
-Open `http://127.0.0.1:5173`. Local application data defaults to `%LOCALAPPDATA%\PRISM`; set `PRISM_DATA_DIR` to use an explicit location.
-
-To test a textbook PDF, import it with the correct local rights declaration and wait for the page index.
-PRISM will recommend the first small window containing trusted explanatory body text; it will not silently stream a
-cover, table of contents, scan, or low-confidence extraction. You can change the page range, open the
-original PDF at any time, or use the visible local-reindex control if a parser upgrade or interrupted
-import requires recovery. A successful import does not mean that every page, table, equation, or scan is
-eligible for transformation.
-
-Run the complete repository gate with:
+Open `http://127.0.0.1:5173`. Use a browser host that supports WebMCP for agent authoring; the Reader remains usable without it. `localhost` and `127.0.0.1` are different storage origins, so consistently use the same address for your library.
 
 ```powershell
-npm run quality
+npm run quality:web
+npm run build
 ```
 
-## Repository map
+The production build contains no source PDFs. `dist/client` contains the browser application and `dist/server` the prototype sync Worker; legacy publishing packaging remains to be replaced as recorded in the [Cloudflare migration sequence](docs/architecture/CLOUDFLARE_HOSTING.md#implementation-sequence-after-local-cleanup). A successful build does not deploy. `npm run dev:sync` uses `wrangler.jsonc` to run local D1/R2 emulation on port 8787; initialize it with `npx wrangler d1 migrations apply DB --local`. The web development server proxies sync requests to it. Production bindings are not provisioned by these commands.
 
-- [`AGENTS.md`](AGENTS.md) — working rules for Codex and other contributors
-- [`apps/api`](apps/api) — FastAPI importer, compiler, storage, events, and recovery tests
-- [`apps/web`](apps/web) — React source library and semantic player
-- [`schemas/openapi.json`](schemas/openapi.json) — generated API contract
-- [`docs/00_PROJECT_BRIEF.md`](docs/00_PROJECT_BRIEF.md) — concise project thesis and boundaries
-- [`docs/research/EVIDENCE_REVIEW.md`](docs/research/EVIDENCE_REVIEW.md) — research synthesis and design implications
-- [`docs/research/DOSSIER_INTEGRATION_REVIEW.md`](docs/research/DOSSIER_INTEGRATION_REVIEW.md) — section-by-section audit of the imported GPT Pro dossier and adopted project deltas
-- [`docs/research/dossiers/2026-08-21/PRISM_RESEARCH_AND_IMPLEMENTATION_DOSSIER.md`](docs/research/dossiers/2026-08-21/PRISM_RESEARCH_AND_IMPLEMENTATION_DOSSIER.md) — preserved Markdown research artifact; the companion HTML is stored beside it
-- [`docs/research/SOURCE_LIBRARY.md`](docs/research/SOURCE_LIBRARY.md) — annotated primary and authoritative sources
-- [`docs/research/RESEARCH_TO_PRODUCT_MAP.md`](docs/research/RESEARCH_TO_PRODUCT_MAP.md) — evidence-to-mechanism map and frontier research sequence
-- [`docs/product/PRODUCT_SPEC.md`](docs/product/PRODUCT_SPEC.md) — proposed experience, modes, MVP, and requirements
-- [`docs/product/READER_SPEC.md`](docs/product/READER_SPEC.md) — enhanced Source Reader: sections, progress, search, and PDF.js adoption
-- [`docs/product/DESIGN_DIRECTION.md`](docs/product/DESIGN_DIRECTION.md) — visual direction, type/color tokens, and adoption sequence
-- [`docs/architecture/SYSTEM_DESIGN.md`](docs/architecture/SYSTEM_DESIGN.md) — conceptual pipeline and data contracts
-- [`docs/architecture/TECH_STACK.md`](docs/architecture/TECH_STACK.md) — adopted lean local-first implementation stack and deferred capabilities
-- [`docs/architecture/PDF_PIPELINE.md`](docs/architecture/PDF_PIPELINE.md) — resumable full-textbook ingestion and fidelity gates
-- [`docs/architecture/AI_STRATEGY.md`](docs/architecture/AI_STRATEGY.md) — hybrid local/cloud model roles, privacy, cost, and eval policy
-- [`docs/architecture/WEBMCP_INTEGRATION.md`](docs/architecture/WEBMCP_INTEGRATION.md) — browser-agent tool surface, rights-gated exposure, and the WebMCP Challenge plan
-- [`docs/engineering/ENGINEERING_STANDARDS.md`](docs/engineering/ENGINEERING_STANDARDS.md) — code hygiene, stale-code removal, performance, and release gates
-- [`docs/engineering/IMPLEMENTATION_PLAN.md`](docs/engineering/IMPLEMENTATION_PLAN.md) — dependency-ordered milestones, contract slices, acceptance gates, and first issue sequence
-- [`docs/experiments/VALIDATION_PLAN.md`](docs/experiments/VALIDATION_PLAN.md) — hypotheses, baselines, metrics, and gates
-- [`docs/experiments/BENCHMARK_CORPUS.md`](docs/experiments/BENCHMARK_CORPUS.md) — open-license source selections and passage gates
-- [`docs/decisions/OPEN_QUESTIONS.md`](docs/decisions/OPEN_QUESTIONS.md) — deferred choices and implementation-evidence gates
-- [`docs/decisions/V0_DECISIONS.md`](docs/decisions/V0_DECISIONS.md) — confirmed product, research, data, and delivery decisions
-- [`docs/decisions/OWNER_DISCOVERY_QUESTIONNAIRE.md`](docs/decisions/OWNER_DISCOVERY_QUESTIONNAIRE.md) — comprehensive owner-alignment questionnaire
+For the optional Python engineering baseline, create `.venv`, install `apps/api[dev]`, and run `npm run dev:api`. Set `VITE_PRISM_API_URL` explicitly when you want the browser to connect to that companion. The default hosted application makes no companion request.
+
+## Parsing and privacy
+
+PDF.js renders original pages and indexes embedded text in a worker. The parser preserves page regions, identifies candidate structure, infers sustained two-column reading order, and flags uncertain layouts and numeric rows for visual inspection. Scans remain viewable and can be inspected by a capable vision agent; browser OCR, verified table reconstruction, and universal document support are not claimed.
+
+Private and unknown-rights documents require explicit per-source agent access. Selected text and page images shared with an external agent may be processed by its provider; “browser-local” does not mean external inference stays on your device. Source text is untrusted evidence and cannot authorize tools or change consent.
+
+Browser caches are specific to a profile and origin. Cloud storage and agent disclosure require separate opt-in. The [accepted cloud account contract](docs/architecture/CLOUDFLARE_HOSTING.md) defines the upcoming cross-browser recovery and privacy behavior. Keep original files safe; local storage can be cleared or evicted.
+
+Use **Help** for the upload → request → approve → read/revise workflow. **Storage**
+opens the account and storage dialog. Signing in alone does not upload files; choose
+whether to copy the browser library when creating an account library. Local development
+is visibly labelled as a test using this computer's Cloudflare emulator. Cross-device
+cloud storage requires the production API. Account settings and sign-out remain available.
+No recovery-key file is required. See [implementation and setup evidence](docs/architecture/CLOUD_ACCOUNT_PROPOSAL.md).
+
+## Validation
+
+`npm run quality:web` checks lint, types, contracts, recovery, rendering, and production compilation. `npm run audit:pdf` separately audits downloaded independent PDFs; acquisition and provenance are documented in [the corpus record](benchmarks/PDF_CORPUS.md). These are engineering checks, not a semantic accuracy or learning-efficacy score.
+
+The live source-reading and image-inspection tools have been exercised on Recursive Language Models v3. The complete live reference-lesson/revision rehearsals and signed-out public-origin acceptance remain required before release. See the [reference lessons](docs/experiments/REFERENCE_LESSONS.md) and the approved [owner learning trial](docs/experiments/OWNER_LEARNING_TRIAL.md).
+
+## Repository
+
+- [Product brief](docs/00_PROJECT_BRIEF.md)
+- [Lesson contract](docs/product/INTERACTIVE_LESSON_SPEC.md)
+- [WebMCP tool and authorization contract](docs/architecture/WEBMCP_INTEGRATION.md)
+- [Document intelligence](docs/architecture/DOCUMENT_INTELLIGENCE.md)
+- [Local browser architecture](docs/architecture/DEVICE_LOCAL_WEB_ARCHITECTURE.md)
+- [Cloudflare hosting and accounts](docs/architecture/CLOUDFLARE_HOSTING.md)
+- [Portfolio release plan](docs/engineering/FINAL_PORTFOLIO_RELEASE_PLAN.md)
+- [Engineering standards](docs/engineering/ENGINEERING_STANDARDS.md)
+- [Learning validation plan](docs/experiments/VALIDATION_PLAN.md)
 
 ## License
 
-PRISM is licensed under [Apache-2.0](LICENSE). Benchmark source PDFs are never redistributed from this repository; their provenance, licenses, and hashes live in [`benchmarks/sources.json`](benchmarks/sources.json).
-
-## One-sentence thesis
-
-PRISM should be a **representation compiler plus Source Reader/TSR player plus sparse learning loop**, not a word-flashing speed reader.
-
-It remains a reading-centered learner product. Diagnostic checks are sparse evidence and repair mechanisms, not the main interface, and instructor/course-management features are intentionally excluded.
-
-## Working north-star metric
-
-First meet the selected standard for **retained, transferable understanding**; then minimize the time required to reach it. Words displayed per minute is never the governing metric.
+PRISM code is [Apache-2.0](LICENSE). The engineering fixture of Peterson and Davie's Computer Networks is separately CC BY 4.0; see its [attribution](benchmarks/fixtures/README.md). It is not installed into the released library or included in the static site. Other downloaded benchmark PDFs are excluded from Git and distribution.

@@ -1,0 +1,20 @@
+{
+  "name": "prism-sync",
+  "account_id": "8da821b8147e98cd956351e6b220fe39",
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": { "crons": ["17 * * * *"] },
+  "ratelimits": [{ "name": "API_RATE_LIMIT", "namespace_id": "1788829201", "simple": { "limit": 300, "period": 60 } }],
+  "routes": [{ "pattern": "prism.sevanlewispayne.com", "custom_domain": true }],
+  "vars": {
+    "PRISM_APP_ORIGIN": "https://prism.sevanlewispayne.com",
+    "CLERK_ISSUER": "https://clerk.prism.sevanlewispayne.com",
+    "CLOUD_STORAGE_ENABLED": "true",
+    "CLOUD_STORAGE_MODE": "remote"
+  },
+  "main": "apps/sync/worker.ts",
+  "compatibility_date": "2026-09-03",
+  "assets": { "directory": "apps/web/dist", "binding": "ASSETS", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"] },
+  "d1_databases": [{ "binding": "DB", "database_name": "prism-library", "database_id": "345cae76-12d8-44fe-9c0e-039f684bada2", "migrations_dir": "drizzle" }],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "prism-library-files" }]
+}

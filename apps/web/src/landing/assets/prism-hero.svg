@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="850" viewBox="0 0 1600 850" fill="none" role="img" aria-labelledby="prism-title prism-desc">
+  <title id="prism-title">PRISM — light revealed</title>
+  <desc id="prism-desc">A black glass triangular prism receiving a white beam and revealing a narrow spectrum of color. A stylized brand illustration.</desc>
+  <defs>
+    <linearGradient id="body" x1="602" y1="282" x2="1024" y2="700" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#232a31"/>
+      <stop offset=".3" stop-color="#080b0f"/>
+      <stop offset=".62" stop-color="#10161c"/>
+      <stop offset="1" stop-color="#333d46"/>
+    </linearGradient>
+    <linearGradient id="side" x1="778" y1="144" x2="1072" y2="654" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#c2cbd2"/>
+      <stop offset=".09" stop-color="#47525e"/>
+      <stop offset=".3" stop-color="#141b23"/>
+      <stop offset=".67" stop-color="#3d4855"/>
+      <stop offset=".92" stop-color="#202832"/>
+      <stop offset="1" stop-color="#b5c7d4"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="505" y1="650" x2="815" y2="145" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#a4b9ca"/>
+      <stop offset=".17" stop-color="#2b3744"/>
+      <stop offset=".5" stop-color="#e6edf2"/>
+      <stop offset=".58" stop-color="#526374"/>
+      <stop offset="1" stop-color="#6f7d87"/>
+    </linearGradient>
+    <linearGradient id="right-edge" x1="776" y1="146" x2="1034" y2="658" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f1f4f6"/>
+      <stop offset=".24" stop-color="#52616f"/>
+      <stop offset=".49" stop-color="#d1dfeb"/>
+      <stop offset=".72" stop-color="#526576"/>
+      <stop offset="1" stop-color="#c7d8e5"/>
+    </linearGradient>
+    <linearGradient id="base" x1="745" y1="633" x2="745" y2="662" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#46525f"/>
+      <stop offset=".24" stop-color="#131b24"/>
+      <stop offset=".8" stop-color="#26323e"/>
+      <stop offset="1" stop-color="#758798"/>
+    </linearGradient>
+    <linearGradient id="incident" x1="80" y1="550" x2="634" y2="391" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".17" stop-color="#e4ebf2" stop-opacity=".68"/>
+      <stop offset=".7" stop-color="#fff" stop-opacity=".94"/>
+      <stop offset="1" stop-color="#fff"/>
+    </linearGradient>
+    <radialGradient id="beam-halo">
+      <stop stop-color="#fff" stop-opacity=".34"/>
+      <stop offset=".4" stop-color="#e4edf6" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#d6e6f5" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="entry">
+      <stop stop-color="#fff" stop-opacity=".96"/>
+      <stop offset=".12" stop-color="#fff" stop-opacity=".5"/>
+      <stop offset=".4" stop-color="#d2e6fb" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#bedaff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="spectrum" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#ff5140"/>
+      <stop offset=".17" stop-color="#ff9b30"/>
+      <stop offset=".33" stop-color="#ffe665"/>
+      <stop offset=".5" stop-color="#63de8c"/>
+      <stop offset=".65" stop-color="#43d0ef"/>
+      <stop offset=".82" stop-color="#5079ee"/>
+      <stop offset="1" stop-color="#9c66e4"/>
+    </linearGradient>
+    <linearGradient id="spectrum-fade">
+      <stop stop-color="#fff"/>
+      <stop offset=".68" stop-color="#fff"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="ray-fade" x="0" y="0" width="590" height="96" maskUnits="userSpaceOnUse" style="mask-type:alpha">
+      <path d="M0 0H590V96H0Z" fill="url(#spectrum-fade)"/>
+    </mask>
+    <linearGradient id="inside" x1="639" y1="391" x2="911" y2="412" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff" stop-opacity=".75"/>
+      <stop offset=".22" stop-color="#e2d2b1" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#7db9cb" stop-opacity=".04"/>
+    </linearGradient>
+    <clipPath id="front-clip"><path d="M773 145 1027 651H497Z"/></clipPath>
+  </defs>
+
+  <!-- Geometric reconstruction of the approved AI image; no embedded bitmap. -->
+  <g id="refracted-light" transform="matrix(1 .245 .51 1 900 397)">
+    <g mask="url(#ray-fade)">
+      <path d="M0 0H590V96H0Z" fill="url(#spectrum)" opacity=".94"/>
+      <path d="M0 0H590" stroke="#ffd3b9" stroke-opacity=".38"/>
+    </g>
+  </g>
+
+  <g id="black-prism" stroke-linejoin="round">
+    <path d="m775 141 35 31 262 458-38 31Z" fill="url(#side)" stroke="#43505d" stroke-width="1.4"/>
+    <path d="M775 141 1034 661H486Z" fill="url(#body)" stroke="#26323e" stroke-width="2"/>
+    <path d="m775 141 2 11-276 493-15 16Z" fill="url(#edge)"/>
+    <path d="m775 141 259 520-13-11-246-498Z" fill="url(#right-edge)"/>
+    <path d="m486 661 15-16h520l13 16Z" fill="url(#base)"/>
+    <path d="m492 658 283-514 257 514Z" stroke="#c5d5e3" stroke-opacity=".52" stroke-width="1"/>
+    <path d="m501 642 274-486 243 486Z" stroke="#94a8bb" stroke-opacity=".12" stroke-width="1"/>
+    <path d="m811 175 257 454-32 25" stroke="#e1ecf6" stroke-opacity=".38" stroke-width="1.2"/>
+  </g>
+
+  <g id="internal-light" clip-path="url(#front-clip)">
+    <path d="m637 391 262 6 49 91Z" fill="url(#inside)"/>
+    <path d="m637 391 262 6" stroke="#e6c19a" stroke-opacity=".15"/>
+    <path d="m637 391 288 55" stroke="#5ec0dc" stroke-opacity=".1"/>
+    <path d="m637 391 311 97" stroke="#7775d8" stroke-opacity=".1"/>
+  </g>
+
+  <g id="incoming-light">
+    <ellipse cx="0" cy="0" rx="310" ry="18" transform="translate(357 472) rotate(-16.18)" fill="url(#beam-halo)"/>
+    <path d="m76 554 561-163" stroke="url(#incident)" stroke-opacity=".12" stroke-width="12"/>
+    <path d="m76 554 561-163" stroke="url(#incident)" stroke-opacity=".2" stroke-width="5"/>
+    <path d="m76 554 561-163" stroke="url(#incident)" stroke-width="2.4"/>
+    <ellipse cx="637" cy="391" rx="33" ry="25" fill="url(#entry)"/>
+  </g>
+</svg>

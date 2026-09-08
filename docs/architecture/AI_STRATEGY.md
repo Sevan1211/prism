@@ -1,13 +1,17 @@
 # AI strategy: local-first, hybrid, and evidence-gated
 
-**Status:** boundaries adopted; provider and compiler passes not implemented  
-**Reviewed:** 2026-08-23  
+**Status:** agent-first challenge boundary adopted; built-in provider/compiler remains post-challenge  
+**Reviewed:** 2026-08-29  
 **Budget:** no more than $25/month in v0 without a new owner decision
 **Research integration:** [`../research/DOSSIER_INTEGRATION_REVIEW.md`](../research/DOSSIER_INTEGRATION_REVIEW.md)
 
 ## Position
 
 PRISM should use AI where semantic judgment adds value, but the product must not become an opaque prompt wrapper. Parsing, provenance, pacing limits, state transitions, storage, rendering, accessibility constraints, and research measurement remain deterministic software.
+
+For the WebMCP Challenge, the learner's existing browser agent is the primary lesson author, discussion partner, and evaluator. PRISM supplies bounded document-intelligence and lesson-composition tools inside the live page; it does not require an embedded chat UI, an OpenAI API key, or a server-side model provider. Saved lessons remain readable without an agent. Creation, semantic revision, discussion, and answer evaluation require an agent connection.
+
+The agent is not granted the local vault. It can request source maps, search results, evidence bundles, active lesson context, and approved visual evidence through narrow tools. Every returned object carries stable anchors and the active source's consent policy. The page validates proposed lesson patches before storing or rendering them.
 
 The recommended design is hybrid:
 
@@ -28,11 +32,11 @@ Do not ask one model to “turn this chapter into the best lesson.” A full boo
 4. **Prerequisite analysis** — identify concepts required to understand the current unit and cite evidence or label the relation as a PRISM inference.
 5. **Frame planning** — group claims into coherent instructional units without changing truth conditions.
 6. **Representation proposal** — select text, source visual, table, equation, code trace, or a typed diagram specification.
-7. **Practice draft** — create sparse diagnostic items tied to claims and a repair path.
+7. **End-question draft** — create 3–6 grounded explanation and application questions after the instructional sections, with rubrics and repair targets.
 8. **Clause binding** — resolve every visible factual clause to immutable spans/regions and mark partial or absent support.
 9. **Qualification review** — preserve modality, negation, conditions, scope, exceptions, symbols, units, and uncertainty.
 10. **Representation specification** — emit constrained nodes, edges, cells, equation steps, code states, labels, and source bindings.
-11. **Practice draft** — create a sparse diagnostic tied to a governing relation, scoring rubric, and separate repair path.
+11. **End-question review** — verify that each final question is taught, answerable, non-duplicative, and mapped to coverage objectives.
 12. **Answerability and leakage review** — prove taught evidence supports the intended response without exposing it prematurely.
 13. **Accessibility draft** — propose transcript text, long description, reading order, and static/reduced-motion alternatives.
 14. **Independent fidelity review** — check omissions, contradictions, broadened claims, unsupported relations, and asset coverage.
@@ -97,7 +101,7 @@ On this laptop it can fit in system memory, but 8 GB VRAM means hybrid CPU/GPU e
 - offline regeneration and comparison experiments;
 - background work where seconds-per-output is acceptable.
 
-### What remains cloud-preferred initially
+### What remains frontier-agent-preferred initially
 
 - interpreting a visually dense page or unfamiliar diagram;
 - cross-checking subtle qualifiers across distant passages;
@@ -164,10 +168,10 @@ Reject or block a candidate that:
 - joins two source claims without marking the inference;
 - changes code behavior, equation symbols, or table headers;
 - creates a diagram arrow without an explicit or labeled inferred relation;
-- creates an unanswerable check or leaks the answer before the learner responds;
+- creates an end question that was not taught, is unanswerable from the lesson, or leaks its own answer;
 - introduces outside facts without a separate source.
 
-Fail closure is granular. One unsafe diagram may fall back to its source figure or a text relation list without blocking a sound text frame; a wrong source hash, unresolved required claim, or critical contradiction blocks the entire package.
+Fail closure is granular. One unsafe diagram may fall back to its source figure or a text relation list without blocking a sound lesson section; a wrong source hash, unresolved required claim, or critical contradiction blocks the entire lesson version.
 
 ## Representation generation
 
@@ -192,7 +196,7 @@ The local renderer turns this into accessible SVG with stable visual grammar. Th
 
 ## Runtime personalization
 
-Do not place an LLM in the frame-by-frame playback loop. The initial player uses a deterministic, versioned policy over:
+Do not let the agent silently rewrite the lesson in response to ambiguous behavior. The initial lesson uses a deterministic, versioned policy over:
 
 - goal and Faster ↔ Deeper position;
 - content difficulty features;
@@ -202,7 +206,7 @@ Do not place an LLM in the frame-by-frame playback loop. The initial player uses
 - accessibility constraints;
 - recent and delayed outcomes.
 
-AI may prepare representation alternatives before playback. A learned sequencing policy becomes reasonable only after enough consented delayed-outcome data exist and it beats the transparent rule policy plus a fixed Study bundle.
+The agent may explain or propose representation alternatives during discussion, but a substantial lesson change requires learner approval and creates a new version or child repair lesson. A learned sequencing policy becomes reasonable only after enough consented delayed-outcome data exist and it beats the transparent lesson policy plus the static Source Reader baseline.
 
 ## Cost controls
 

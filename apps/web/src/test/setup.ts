@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest'
 
-Object.defineProperty(window, 'matchMedia', {
+if (typeof HTMLDialogElement !== 'undefined') HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
+
+if (typeof window !== 'undefined') Object.defineProperty(window, 'matchMedia', {
   configurable: true,
   value: (query: string) => ({
     matches: false,
@@ -12,4 +14,9 @@ Object.defineProperty(window, 'matchMedia', {
     removeListener: () => undefined,
     dispatchEvent: () => false,
   }),
+})
+
+if (typeof HTMLCanvasElement !== 'undefined') Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+  configurable: true,
+  value: () => ({}),
 })

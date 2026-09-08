@@ -32,9 +32,6 @@ packages = ["src/prism_api"]
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]
-# Repo-local cache: keeps pytest state out of shared per-user locations whose
-# ownership sandboxed agent runs have corrupted before.
-cache_dir = "../../.pytest-cache"
 tmp_path_retention_count = 1
 
 [tool.ruff]

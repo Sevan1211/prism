@@ -1,10 +1,8 @@
 import type {
-  ImportJob,
-  ImportResponse,
-  LessonPackage,
-  ResearchEvent,
-  RightsStatus,
+  ReadingState,
+  SearchResponse,
   SourceReadiness,
+  SourceStructure,
   SourceSummary,
 } from './types'
 
@@ -26,24 +24,6 @@ export function listSources(): Promise<SourceSummary[]> {
   return request('/api/sources')
 }
 
-export function uploadSource(
-  file: File,
-  rightsStatus: RightsStatus,
-): Promise<ImportResponse> {
-  const body = new FormData()
-  body.append('file', file)
-  body.append('rights_status', rightsStatus)
-  return request('/api/sources', { method: 'POST', body })
-}
-
-export function importStatus(jobId: string): Promise<ImportJob> {
-  return request(`/api/imports/${encodeURIComponent(jobId)}`)
-}
-
-export function resumeImport(jobId: string): Promise<ImportJob> {
-  return request(`/api/imports/${encodeURIComponent(jobId)}/resume`, { method: 'POST' })
-}
-
 export function sourceReadiness(
   sourceId: string,
   pageStart?: number,
@@ -55,32 +35,40 @@ export function sourceReadiness(
   return request(`/api/sources/${encodeURIComponent(sourceId)}/readiness${search}`)
 }
 
-export function compileLesson(
-  sourceId: string,
-  pageStart: number,
-  pageEnd: number,
-  title?: string,
-): Promise<LessonPackage> {
-  return request(`/api/sources/${encodeURIComponent(sourceId)}/lessons`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ page_start: pageStart, page_end: pageEnd, title: title || null }),
-  })
+export function sourceStructure(sourceId: string): Promise<SourceStructure> {
+  return request(`/api/sources/${encodeURIComponent(sourceId)}/structure`)
 }
 
-export function recordEvent(event: ResearchEvent): Promise<void> {
-  return request('/api/events', {
-    method: 'POST',
+export function searchSource(
+  sourceId: string,
+  query: string,
+  limit = 40,
+): Promise<SearchResponse> {
+  const search = `?q=${encodeURIComponent(query)}&limit=${encodeURIComponent(limit)}`
+  return request(`/api/sources/${encodeURIComponent(sourceId)}/search${search}`)
+}
+
+export function readingState(sourceId: string): Promise<ReadingState> {
+  return request(`/api/sources/${encodeURIComponent(sourceId)}/reading-state`)
+}
+
+export function updateReadingState(
+  sourceId: string,
+  lastPage: number,
+  lastScrollRatio: number,
+): Promise<ReadingState> {
+  return request(`/api/sources/${encodeURIComponent(sourceId)}/reading-state`, {
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...event, payload: event.payload ?? {} }),
+    body: JSON.stringify({ last_page: lastPage, last_scroll_ratio: lastScrollRatio }),
     keepalive: true,
   })
 }
 
-export function sourceFileUrl(sourceId: string, pageNumber: number): string {
-  return `${API_BASE}/api/sources/${encodeURIComponent(sourceId)}/file#page=${pageNumber}`
+export function sourceCoverUrl(sourceId: string): string {
+  return `${API_BASE}/api/sources/${encodeURIComponent(sourceId)}/cover`
 }
 
-export function sourceVisualUrl(sourceId: string, visualId: string): string {
-  return `${API_BASE}/api/sources/${encodeURIComponent(sourceId)}/visuals/${encodeURIComponent(visualId)}`
+export function sourcePdfUrl(sourceId: string): string {
+  return `${API_BASE}/api/sources/${encodeURIComponent(sourceId)}/file`
 }
