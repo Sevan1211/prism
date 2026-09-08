@@ -46,20 +46,22 @@ The destination is named Library; existing `/sources` URLs remain valid. Desktop
 utility buttons share sizing, neutral icons, hover/pressed states, and focus rings.
 At narrow widths, one Workspace controls button reveals agent tools, help, storage,
 and appearance; Escape closes it and returns focus. Add PDF remains directly visible.
-The import dialog offers optional source-access consent beside rights and storage
-information, so an explicit grant can be saved during import. The checkbox starts
-unchecked and resets for a different selection. Agent tools ends with a short
-approval explanation and matching Retry connection, Agent guide, and ChatGPT setup
-actions; external links identify that they open a new tab.
-Library, source overview, and source lessons
-share the same folder rail, outer padding, and available window width. Opening a
-source replaces the working canvas without swapping navigation or adding another
-centered margin. Source titles use the same reading typeface at a compact scale.
-The rail highlights the source's folder; choosing a folder opens its source list.
-Returning from a source preserves the previous library filter, search, and sort.
-Readable rows show a book icon, title, page count, readiness, and an accessible
-folder selector. Book icons replace the small PDF glyphs in source navigation and
-import. The library remains neutral in both themes, with semantic status colors.
+The import dialog discloses that adding a PDF enables connected-agent access to
+selected text and page images automatically (owner decision, 2026-09-08). There is
+no additional checkbox. Source-level revocation remains visible. Plan approval and
+revision acceptance remain separate learner actions.
+
+Agent tools ends with a short approval explanation and matching Retry connection,
+Agent guide, and ChatGPT setup actions; external links identify new tabs.
+Library, source overview, and source lessons share the same folder rail, outer
+padding, and available window width. Opening a source replaces the working canvas
+without swapping navigation or adding another centered margin. Source titles use
+the same reading typeface at a compact scale. The rail highlights the source's
+folder; choosing a folder opens its source list. Returning from a source preserves
+the previous library filter, search, and sort. Readable rows show a book icon,
+title, page count, readiness, and an accessible folder selector. Book icons replace
+the small PDF glyphs in source navigation and import. The library remains neutral
+in both themes, with semantic status colors.
 
 All sources, Unfiled, and named folders are available on desktop and mobile. Folders
 support creation, rename, safe removal, and source moves. Import targets the selected

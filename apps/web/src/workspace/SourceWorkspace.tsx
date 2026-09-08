@@ -44,7 +44,7 @@ interface SourceWorkspaceProps {
   onEvidenceReturnComplete: () => void
   onIndex: (sourceId: string) => void
   onOpenEvidence: (sourceId: string, elementId: string, returnTargetId?: string) => Promise<void>
-  onUpload: (file: File, rightsStatus: RightsStatus, allowAgentAccess: boolean) => Promise<LibrarySource>
+  onUpload: (file: File, rightsStatus: RightsStatus) => Promise<LibrarySource>
   routeKind: PrismRoute['kind']
   selectedSource: LibrarySource | null
   sourcePlanId: string | null
@@ -171,8 +171,8 @@ export function SourceWorkspace({
           busy={busy}
           initialRights={importRights}
           onClose={closeImport}
-          onUpload={async (file, rights, allowAgentAccess) => {
-            const source = await onUpload(file, rights, allowAgentAccess)
+          onUpload={async (file, rights) => {
+            const source = await onUpload(file, rights)
             if (importFolder) {
               try { await moveSourceToFolder(source.id, importFolder) }
               catch { onError('Your PDF was imported, but could not be added to the folder. You can move it from Library.') }
@@ -408,7 +408,7 @@ function ImportDialog({
   busy: boolean
   initialRights: RightsStatus
   onClose: () => void
-  onUpload: (file: File, rights: RightsStatus, allowAgentAccess: boolean) => Promise<void>
+  onUpload: (file: File, rights: RightsStatus) => Promise<void>
 }) {
   const synced = useSyncStatus()
   const [file, setFile] = useState<File | null>(null)
@@ -418,7 +418,6 @@ function ImportDialog({
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const downloadRef = useRef<AbortController | null>(null)
   const [rights, setRights] = useState<RightsStatus>(initialRights)
-  const [allowAgentAccess, setAllowAgentAccess] = useState(false)
   const publicSource = ['open_license', 'public_domain'].includes(rights)
   const dialogRef = useRef<HTMLElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -432,7 +431,7 @@ function ImportDialog({
 
   async function importSelection() {
     if (file) {
-      try { await onUpload(file, rights, !publicSource && allowAgentAccess) }
+      try { await onUpload(file, rights) }
       catch (cause) { setDownloadError(cause instanceof Error ? cause.message : 'The PDF could not be imported.') }
       return
     }
@@ -441,7 +440,7 @@ function ImportDialog({
     setDownloading(true); setDownloadBytes(0); setDownloadError(null)
     try {
       const downloaded = await downloadPublicPdf(url, AbortSignal.any([controller.signal, AbortSignal.timeout(90_000)]), setDownloadBytes)
-      if (!controller.signal.aborted) await onUpload(downloaded, rights, !publicSource && allowAgentAccess)
+      if (!controller.signal.aborted) await onUpload(downloaded, rights)
     } catch (cause) {
       if (!controller.signal.aborted) setDownloadError(cause instanceof Error ? cause.message : 'The download failed. Choose a local PDF instead.')
     } finally { setDownloading(false); downloadRef.current = null }
@@ -502,7 +501,7 @@ function ImportDialog({
             accept="application/pdf,.pdf"
             disabled={busy || downloading}
             aria-label="Choose a PDF"
-            onChange={(event) => { setFile(event.currentTarget.files?.[0] ?? null); setAllowAgentAccess(false); setUrl(''); setDownloadError(null) }}
+            onChange={(event) => { setFile(event.currentTarget.files?.[0] ?? null); setUrl(''); setDownloadError(null) }}
           />
           <BookOpenText aria-hidden="true" weight="light" />
           <strong>{file?.name ?? 'Choose a textbook, paper, or technical PDF'}</strong>
@@ -511,27 +510,20 @@ function ImportDialog({
         <label className="import-rights">
           <span>Or paste a public PDF link</span>
           <input type="url" placeholder="https://…/paper.pdf" value={url} disabled={busy || downloading}
-            onChange={event => { setUrl(event.target.value); setAllowAgentAccess(false); setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; setDownloadError(null) }} />
+            onChange={event => { setUrl(event.target.value); setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; setDownloadError(null) }} />
         </label>
         <label className="import-rights">
           <span>Rights for this source</span>
-          <select value={rights} disabled={busy || downloading} onChange={(event) => { setRights(event.currentTarget.value as RightsStatus); setAllowAgentAccess(false) }}>
+          <select value={rights} disabled={busy || downloading} onChange={(event) => { setRights(event.currentTarget.value as RightsStatus) }}>
             <option value="private_authorized">My private, authorized copy</option>
             <option value="open_license">Open license</option>
             <option value="public_domain">Public domain</option>
             <option value="unknown">Unknown / unverified</option>
           </select>
         </label>
-        {!publicSource ? <label className="import-agent-access">
-          <input type="checkbox" checked={allowAgentAccess} disabled={busy || downloading}
-            onChange={event => setAllowAgentAccess(event.currentTarget.checked)} aria-labelledby="import-agent-access-label" aria-describedby="import-agent-access-detail" />
-          <span><strong id="import-agent-access-label">Allow my agent to read this PDF</strong>
-            <small id="import-agent-access-detail">Share selected text and page images with your chosen agent provider under its data controls. Optional; you can revoke access in the source overview.</small>
-          </span>
-        </label> : null}
         <div className="privacy-receipt">
           <LockKey aria-hidden="true" weight="bold" />
-          <p>{synced.connected ? 'This PDF will sync to your private cloud library, protected in transit and at rest. PRISM’s service can read stored files. ' : 'The file stays in this browser. '}{publicSource ? 'Agents can read selected text and page images from sources you identify as public or openly licensed.' : 'Your agent can access this source only with your permission. Lesson plans and revisions still need your approval.'}</p>
+          <p>{synced.connected ? 'This PDF will sync to your private cloud library, protected in transit and at rest. PRISM’s service can read stored files. ' : 'The file stays in this browser. '}Adding it enables your connected agent to read selected text and page images under its provider’s data controls.{!publicSource ? ' You can revoke access in the source overview.' : ''} Lesson plans and revisions still need your approval.</p>
         </div>
         {downloadError ? <p role="alert" className="import-feedback">{downloadError}</p> : null}
         {downloading ? <p role="status" className="import-feedback">Downloading · {formatBytes(downloadBytes)}</p> : null}

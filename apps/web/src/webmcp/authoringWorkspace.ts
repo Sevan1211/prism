@@ -1,5 +1,6 @@
 import { getLessonBrief, getLessonPlan, listLessonBriefs, listLessonPlans } from '../lesson/lessonPlans'
 import { getLessonDocumentByPlan } from '../lesson/lessonDocuments'
+import { coverageReviewProgress } from '../lesson/lessonCoverageReview'
 import type { LessonBrief, LessonPlan } from '../lesson/lessonPlanTypes'
 import type { LessonDocument } from '../lesson/lessonDocumentTypes'
 import { loadLibrarySources } from '../library/sourceLibrary'
@@ -128,7 +129,7 @@ export function buildAuthoringWorkspace(brief: LessonBrief, plan: LessonPlan | u
     review_cursor: Number(cursor), related_review_cursors: relatedReviewCursors.slice(0, 16), related_review_count: relatedReviewCursors.length,
     next_review_call: Number(cursor) + 1 < reviews.length ? { tool: 'get_authoring_workspace', arguments: { ...base, ...(args.section_id ? { section_id: args.section_id } : {}), review_cursor: Number(cursor) + 1 } } : null,
     plan: plan ? { plan_id: plan.plan_id, status: plan.status, title: plan.title, details_call: { tool: 'get_authoring_workspace', arguments: { view: 'plan', plan_id: plan.plan_id } } } : null,
-    draft: document ? { lesson_id: document.lesson_id, status: document.status, expected_version: document.document_version, sections: document.sections.map(section => ({ section_id: section.section_id, title: section.title, block_count: section.blocks.length })) } : null,
+    draft: document ? { lesson_id: document.lesson_id, status: document.status, expected_version: document.document_version, review_progress: coverageReviewProgress(document, plan), sections: document.sections.map(section => ({ section_id: section.section_id, title: section.title, block_count: section.blocks.length })) } : null,
     selected_section: selected ? { section_id: selected.section_id, title: selected.title, evidence_count: selected.source_element_ids.length, block_count: saved?.blocks.length ?? 0, last_block_id: saved?.blocks.at(-1)?.block_id ?? null, details_call: { tool: 'get_authoring_workspace', arguments: { view: 'plan', plan_id: plan!.plan_id, section_id: selected.section_id } } } : null,
     validation: document ? { error_count: document.validation.errors.length, errors: document.validation.errors.slice(0, 12), remaining_errors: Math.max(0, document.validation.errors.length - 12) } : null,
     next_calls: nextCalls,

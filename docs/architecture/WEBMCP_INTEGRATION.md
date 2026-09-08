@@ -70,20 +70,19 @@ failures remain visible. An overview never establishes unreadable numeric values
 
 Private and unknown-rights content is denied until the learner grants the relevant payload classes. A former text-only grant does not silently permit page images. Access revocation is checked again at content boundaries. Public/open-license status and private-source consent are distinct concepts.
 
-The visible PDF import dialog includes an optional, initially unchecked **Allow my
-agent to read this PDF** checkbox for private and unknown-rights sources. It grants
-structure, selected text, and page-image access to the imported source's fingerprint
-after the PDF is saved, before returning to the source overview. Replacing the file,
-editing its URL, or changing rights resets the checkbox. A failed grant retains the
-imported PDF and reports the access failure. Existing grants on duplicate imports
-are not revoked by leaving the checkbox unchecked. Public/open-license imports keep
-their existing rights-based access behavior.
+**Owner decision — 2026-09-08:** Adding a PDF through the visible import dialog
+now enables source access automatically after successful import. There is no extra
+checkbox. The import disclosure explains that connected agents can read selected
+text and page images under their provider's data controls. Private/unknown sources
+receive a fingerprint-bound grant on this browser; Revoke remains available in the
+source overview. A failed grant keeps the PDF and reports the failure. Reuploading
+a source grants access again; cancelling import does not change existing access.
+Existing sources are not retroactively granted access by an app update or cloud
+restore. Public/open-license sources keep their rights-based behavior.
 
-`prepare_source_import` opens this dialog without preselecting consent;
-`import_public_pdf` has no private-access grant parameter. The learner can grant
-access in the import dialog or change it later in the source overview. This choice
-does not approve a lesson plan, accept a revision, or authorize an agent to approve
-on the learner's behalf.
+`prepare_source_import` only opens the dialog; it cannot choose or submit a private
+file. `import_public_pdf` remains limited to public/open-license imports. Source
+access does not approve a lesson plan or accept a revision for the learner.
 
 ## Planning and long-source review
 
@@ -252,3 +251,28 @@ local tool names, timestamps, durations and outcomes. These timings exclude mode
 thinking, host delays, approval waits and reading time; they cannot establish an
 end-to-end speedup by themselves. A new same-scope authoring run and its host trace
 are required to attribute or compare the full creation time.
+
+## Incremental composition review — 2026-09-08
+
+Draft `apply_lesson_patch` accepts optional partial `coverage_review` entries.
+They are checked against actual candidate blocks and planned citation membership,
+then merged with unchanged saved entries. A review-only checkpoint uses empty
+`operations` and a nonempty map. Empty probes still fail. The request fingerprint
+includes the review: uncertain retries cannot duplicate or alter it silently.
+Editing, moving or reordering a mapped block invalidates its entry. Replacing an
+entry spanning several blocks requires reviewing that whole group again.
+
+Patch receipts and authoring resume expose bounded `review_progress`. Document
+reads accept `content_filter: all|unreviewed|visuals` and retain the filter and
+version in continuation calls. Content pages now allow 24,000 serialized block
+characters rather than 11,000, retaining whole blocks and the existing bounded
+response. No source text, lesson prose or precision is removed.
+
+`finalize_lesson` may omit `coverage_review` to validate the saved union. It still
+requires every retained planned anchor and every block, full structural validation,
+and an attributed semantic-review summary. No automatic semantic verdict is added.
+The agent checks each section against its source during composition, inspects the
+first rendered section early, batches later visual inspection, and finishes with
+a cross-section consistency/omission check. Reading all reviewed prose back through
+tools and regenerating an unchanged map are unnecessary. Every authored visual
+still needs actual inspection; checkpoints do not certify pixels or truth.

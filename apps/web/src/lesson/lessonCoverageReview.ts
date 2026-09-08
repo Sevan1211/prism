@@ -15,7 +15,7 @@ export const coverageReviewSchema = {
   },
 }
 
-export function validateCoverageReview(value: unknown, document: LessonDocument, plan: LessonPlan): LessonCoverageReview[] {
+export function validateCoverageReview(value: unknown, document: LessonDocument, plan: LessonPlan, complete = true): LessonCoverageReview[] {
   if (!Array.isArray(value) || !value.length || value.length > 256) throw new Error('Provide a coverage_review mapping source concepts to the passages that teach them.')
   const blocks = new Map(document.sections.flatMap(section => section.blocks.map(block => [block.block_id, block] as const)))
   const planned = new Set(plan.sections.flatMap(section => section.source_element_ids))
@@ -44,14 +44,39 @@ export function validateCoverageReview(value: unknown, document: LessonDocument,
     }
     return { concept: text(entry.concept, 'concept', 1, 240), source_element_ids: sourceIds, block_ids: blockIds, retained_details: text(entry.retained_details, 'retained details', 20, 2000) }
   })
-  for (const id of planned) if (!covered.has(id)) throw new Error(`Coverage review is missing planned evidence ${id}.`)
-  for (const id of blocks.keys()) if (!reviewedBlocks.has(id)) throw new Error(`Coverage review is missing lesson block ${id}. Review every explanation, example and visual.`)
+  if (complete) {
+    for (const id of planned) if (!covered.has(id)) throw new Error(`Coverage review is missing planned evidence ${id}.`)
+    for (const id of blocks.keys()) if (!reviewedBlocks.has(id)) throw new Error(`Coverage review is missing lesson block ${id}. Review every explanation, example and visual.`)
+  }
   return review
 }
 
+export function mergeCoverageReview(previous: LessonDocument | undefined, next: LessonDocument, plan: LessonPlan, incoming?: unknown): LessonCoverageReview[] {
+  const retained = unchangedCoverageReview(previous, next)
+  if (incoming === undefined) return retained
+  const additions = validateCoverageReview(incoming, next, plan, false)
+  const replaced = new Set(additions.flatMap(entry => entry.block_ids))
+  const merged = [...retained.filter(entry => !entry.block_ids.some(id => replaced.has(id))), ...additions]
+  return validateCoverageReview(merged, next, plan, false)
+}
+
+export function coverageReviewProgress(document: LessonDocument, plan?: LessonPlan) {
+  const entries = document.coverage_review ?? []
+  const reviewed = new Set(entries.flatMap(entry => entry.block_ids))
+  const evidence = new Set(entries.flatMap(entry => entry.source_element_ids))
+  const pending = document.sections.flatMap(section => section.blocks.filter(block => !reviewed.has(block.block_id)).map(block => ({ section_id: section.section_id, block_id: block.block_id })))
+  return {
+    reviewed_blocks: document.sections.flatMap(section => section.blocks).filter(block => reviewed.has(block.block_id)).length,
+    unreviewed_block_count: pending.length,
+    unreviewed_blocks: pending.slice(0, 24),
+    unmapped_evidence_count: plan ? new Set(plan.sections.flatMap(section => section.source_element_ids).filter(id => !evidence.has(id))).size : undefined,
+    note: 'Saved agent review checkpoints; rendered inspection and final semantic review are still required.',
+  }
+}
+
 export function unchangedCoverageReview(previous: LessonDocument | undefined, next: LessonDocument): LessonCoverageReview[] {
-  const before = new Map(previous?.sections.flatMap(section => section.blocks.map(block => [block.block_id, JSON.stringify(block)] as const)) ?? [])
-  const after = new Map(next.sections.flatMap(section => section.blocks.map(block => [block.block_id, JSON.stringify(block)] as const)))
+  const before = new Map(previous?.sections.flatMap(section => section.blocks.map((block, index) => [block.block_id, JSON.stringify([section.section_id, section.title, index, block])] as const)) ?? [])
+  const after = new Map(next.sections.flatMap(section => section.blocks.map((block, index) => [block.block_id, JSON.stringify([section.section_id, section.title, index, block])] as const)))
   return (previous?.coverage_review ?? []).filter(entry => entry.block_ids.every(id => before.get(id) === after.get(id) && after.has(id)))
 }
 

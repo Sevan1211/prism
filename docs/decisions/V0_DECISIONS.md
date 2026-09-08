@@ -89,7 +89,7 @@ This is the current source of truth for PRISM’s v0 product and research direct
 ## 6. AI and assessment policy
 
 - v0 may use paid cloud AI APIs under a monthly cap of **$25**.
-- Cloud transformation is approved separately for each private source. A PDF stays local unless the learner explicitly allows the disclosed source spans or page regions to be sent for that source; importing or indexing a file never grants cloud permission, and no blanket global approval substitutes for source-level consent. A usable local-only path remains available.
+- Updated by the owner on 2026-09-08: a successful visible PDF upload automatically enables fingerprint-bound agent access, with disclosure during import and revocation in the source overview. This changes the earlier separate-checkbox requirement. Cloud library storage, learner plan approval, and revision acceptance remain distinct decisions. Existing revoked sources are not reopened merely by loading the app.
 - Keep providers replaceable, cache safe reusable work, and expose cost during development.
 - Lessons, profiles, playback, and tests remain local; approved cloud AI may receive only the content necessary for generation.
 - Human review is acceptable before lesson records receive `approved` publication status for a study package.

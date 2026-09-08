@@ -22,7 +22,7 @@ import type {
 import type { LessonPlan } from './lessonPlanTypes'
 import { normalizeVisual, visualSceneWarnings } from './lessonVisuals'
 import { getLessonIllustration } from '../storage/lessonIllustrations'
-import { unchangedCoverageReview, validateCoverageReview } from './lessonCoverageReview'
+import { mergeCoverageReview, validateCoverageReview } from './lessonCoverageReview'
 
 const MAX_PATCH_OPERATIONS = 24
 const MAX_BLOCKS_PER_SECTION = 64
@@ -42,7 +42,7 @@ export async function applyLessonPatch(
   let fingerprint: string | undefined
   if (input.request_id !== undefined) {
     identifier(input.request_id, 'request_id')
-    const bytes = new TextEncoder().encode(JSON.stringify({ plan_id: input.plan_id, expected_version: input.expected_version, operations: input.operations }))
+    const bytes = new TextEncoder().encode(JSON.stringify({ plan_id: input.plan_id, expected_version: input.expected_version, operations: input.operations, ...(input.coverage_review === undefined ? {} : { coverage_review: input.coverage_review }) }))
     fingerprint = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), byte => byte.toString(16).padStart(2, '0')).join('')
     const previous = current && current.document_version > (input.expected_version ?? 0)
       ? await getLessonDocumentRevision(current.lesson_id, (input.expected_version ?? 0) + 1, dependencies.environment)
@@ -66,8 +66,8 @@ async function prepareLessonPatch(input: ApplyLessonPatchInput, dependencies: Le
   if (plan.status !== 'approved' || !plan.approval_hash) {
     throw new Error('The learner must approve this lesson plan before composition begins.')
   }
-  if (!Array.isArray(input.operations) || input.operations.length < 1) {
-    throw new Error('A lesson patch requires at least one typed operation.')
+  if (!Array.isArray(input.operations) || (!input.operations.length && !input.coverage_review?.length)) {
+    throw new Error('A lesson patch requires typed operations or a nonempty coverage_review checkpoint.')
   }
   if (input.operations.length > MAX_PATCH_OPERATIONS) {
     throw new Error(`A lesson patch supports at most ${MAX_PATCH_OPERATIONS} operations.`)
@@ -87,7 +87,7 @@ async function prepareLessonPatch(input: ApplyLessonPatchInput, dependencies: Le
   const candidate: LessonDocument = {
     ...draft,
     status: 'draft',
-    coverage_review: unchangedCoverageReview(current, draft),
+    coverage_review: mergeCoverageReview(current, draft, plan, input.coverage_review),
     semantic_review: undefined,
     document_version: nextVersion,
     updated_at: timestamp,
@@ -104,7 +104,7 @@ export async function finalizeLesson(lessonId: string, expectedVersion: number, 
   if (!validation.valid_for_ready) throw new Error('Resolve the structural validation errors before finishing the lesson.')
   const plan = await getLessonPlan(current.plan_id, dependencies.environment)
   if (!plan) throw new Error('Lesson plan not found.')
-  const coverageReview = validateCoverageReview(review.coverage_review, current, plan)
+  const coverageReview = validateCoverageReview(review.coverage_review ?? current.coverage_review, current, plan)
   const timestamp = (dependencies.now ?? currentTime)()
   const candidate: LessonDocument = { ...current, status: 'ready', document_version: expectedVersion + 1, updated_at: timestamp, validation, semantic_review: { summary: requiredText(review.summary, 'semantic review summary', 4000), reviewer: requiredText(review.reviewer, 'reviewer', 120), reviewed_at: timestamp } }
   candidate.coverage_review = coverageReview
