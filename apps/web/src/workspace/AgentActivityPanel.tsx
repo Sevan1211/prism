@@ -5,6 +5,7 @@ import {
   type AgentActivityRecord,
 } from '../storage/agentActivity'
 import { PRISM_VAULT_CHANGED_EVENT } from '../storage/browserVault'
+import { authoringTimings } from '../storage/authoringTimings'
 
 export function AgentActivityPanel({ sourceId }: { sourceId: string }) {
   const [records, setRecords] = useState<AgentActivityRecord[]>([])
@@ -42,6 +43,10 @@ export function AgentActivityPanel({ sourceId }: { sourceId: string }) {
         </div>
         <small>Receipts only · no prompts or source text stored</small>
       </header>
+      {records.length > 0 ? <details className="authoring-timings"><summary>Where local tool time went</summary>
+        <p>Recent receipts for this source, across lessons. Durations cover local tool execution only; model thinking, host delays, indexing after import, approval waits, and reading time are excluded. Overlapping calls are summed.</p>
+        <dl>{authoringTimings(records).map(stage => <div key={stage.stage}><dt>{stage.stage}</dt><dd>{stage.measuredCalls ? `${(stage.elapsedMs / 1000).toFixed(2)}s measured` : 'Not measured'} · {stage.measuredCalls}/{stage.calls} timed calls · {stage.failures} stopped</dd></div>)}</dl>
+      </details> : null}
 
       {!available ? (
         <p className="agent-activity-empty">Activity receipts are unavailable in this browser.</p>

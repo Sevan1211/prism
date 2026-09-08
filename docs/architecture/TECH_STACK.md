@@ -1,11 +1,21 @@
 # Technical stack
 
-**Status:** Python baseline proven; hosted browser-local challenge target adopted  
-**Reviewed:** 2026-08-29  
+**Status:** Cloudflare/account release stack accepted; implementation pending  
+**Reviewed:** 2026-09-07  
 **Decision rule:** choose the smallest stack that preserves source fidelity, supports large local PDFs, and can run controlled learning experiments.
-**Immediate implementation sequence:** [`../engineering/WEBMCP_CHALLENGE_PLAN.md`](../engineering/WEBMCP_CHALLENGE_PLAN.md)
+**Immediate implementation sequence:** [portfolio release plan](../engineering/FINAL_PORTFOLIO_RELEASE_PLAN.md); local product cleanup precedes hosting.
 
-## Challenge target amendment
+## Current release stack
+
+The [Cloudflare/account contract](CLOUDFLARE_HOSTING.md) supersedes earlier hosting
+recommendations: retain React, TypeScript, Vite, PDF.js, Web Workers, IndexedDB and
+OPFS; add Cloudflare Worker Static Assets/Worker, Better Auth Google/GitHub sessions,
+D1 metadata and private R2 files. Local reading needs no account or Python service.
+No preloaded corpus ships. Accounts, the native publishing migration and production
+bindings remain pending; deployment is on hold. The older baseline descriptions
+below document research/companion history, not an alternate public hosting plan.
+
+## Historical browser-local target amendment
 
 The current FastAPI/SQLite implementation proved important parsing, provenance, recovery, and generated-contract assumptions. The hosted WebMCP product now requires a different default runtime boundary:
 
@@ -24,7 +34,7 @@ optional, separately disclosed services
 
 The browser owns personal source bytes. The hosted origin serves code and open-license showcase assets; it does not silently become a personal-document store or transient upload processor. See [`DEVICE_LOCAL_WEB_ARCHITECTURE.md`](DEVICE_LOCAL_WEB_ARCHITECTURE.md).
 
-## Recommendation
+## Optional local research baseline
 
 The proven local research baseline is a two-process web application:
 

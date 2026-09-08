@@ -5,17 +5,18 @@ import { useSyncStatus } from './storage/useSyncStatus'
 import { SYNC_CHANGED, syncStatus } from './storage/syncedLibrary'
 vi.mock('./storage/useSyncStatus', () => ({ useSyncStatus: vi.fn() }))
 vi.mock('./storage/syncedLibrary', () => ({ SYNC_CHANGED: 'prism:sync-changed', syncStatus: vi.fn() }))
-vi.mock('./SyncStoragePanel', () => ({ SyncStoragePanel: () => <p>Encrypted library options</p> }))
+vi.mock('./account/AccountPanel', () => ({ AccountPanel: () => <p>Account library options</p> }))
 afterEach(cleanup)
 beforeEach(() => {
   const state = { connected: false, state: 'local' as const, detail: 'Saved in this browser', lastSynced: null, pending: 0 }
   vi.mocked(useSyncStatus).mockReturnValue(state)
   vi.mocked(syncStatus).mockReturnValue(state)
 })
-it('offers browser storage and encrypted sync without a folder picker', () => {
+it('offers account storage without recovery keys or a folder picker', () => {
   render(<LibraryStorage />)
   fireEvent.click(screen.getByRole('button', { name: 'Library storage' }))
-  expect(screen.getByRole('dialog')).toHaveTextContent('Encrypted library options')
+  expect(screen.getByRole('dialog')).toHaveTextContent('Account library options')
+  expect(screen.queryByText(/recovery.key/i)).not.toBeInTheDocument()
   expect(screen.queryByText('Choose destination')).not.toBeInTheDocument()
 })
 it('opens a visible dialog when sync needs a conflict decision', () => {

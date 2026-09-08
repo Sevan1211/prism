@@ -1,5 +1,293 @@
 # Submission readiness
 
+## First Cloudflare release candidate — 2026-09-07
+
+The owner authorized public deployment, domain/DNS configuration and merging the
+final version to GitHub `main`. Native Wrangler packaging now replaces the Sites
+adapter. The workflow includes a quality-dependent production job on `main`,
+serialized deployment, private-asset/development-key guards, migration application,
+release stamping and post-deploy checks. GitHub `main` protection requires the
+quality check and a PR and rejects force pushes/deletion. The previous PR is merged
+and this checkout already includes the latest `origin/main`.
+
+Clerk's production instance was created for `prism.sevanlewispayne.com`, with its
+authentication domain isolated under `clerk.prism.sevanlewispayne.com`. Its live
+public key is set as a GitHub variable; private credentials stay outside Git.
+Production signing-key discovery, a two-minute maximum token lifetime, coarse
+pre-authentication rate limiting and hourly deleted-account cleanup are implemented.
+Public privacy/beta-use notices and a [release runbook](CLOUDFLARE_RELEASE.md) are added.
+
+Local checks: full repository quality passed (23 Python tests, 228 web tests),
+25 Worker tests pass, Worker types and native dry-run pass, and documentation links
+pass. No production sign-in or cross-device claim follows from those results.
+
+Pending: expanded Cloudflare domain/certificate authorization, a dedicated GitHub
+deploy token, Clerk authentication/mail DNS verification, production OAuth
+credentials and hosted acceptance. At this record, no Worker/site has been published
+and no release has been merged to `main`. Automatic approval review requested
+explicit approval for expanded persistent Cloudflare login scopes; the prior
+Workers/D1 access remains available for unaffected work.
+
+## Popup regression and account switching — 2026-09-07
+
+Fixed account-specific layout rules leaking into Help and Agent tools. Shared dialogs
+now have a bounded reading width, padded scrolling body and stationary header;
+the account workspace alone reserves a wider, stable size. Import title typography
+matches the other dialogs. Background scrolling is locked while a modal is open.
+The reserved page scrollbar gutter is released during that lock, eliminating the
+white strip at the right of the backdrop. Signed-out accounts use a compact,
+content-sized dialog with a shorter introduction and tighter provider spacing.
+
+Storage and Account & security preserve their mounted panels, scroll positions and
+in-progress choices. The active account binding no longer reconnects merely because
+Clerk refreshes its token callback. ARIA tabs support arrow/Home/End navigation;
+hidden panels are excluded from keyboard navigation and reset when the owner changes.
+Clerk's internal `--accent` name collided with PRISM's appearance variable, leaving
+the sign-in Continue button transparent. Namespaced account tokens fix that cycle,
+and the remaining button gradient is removed without removing provider branding.
+
+Browser checks performed in the in-app browser and a separate Chrome test tab:
+
+- Help and Agent tools: desktop and 390 px layouts, body padding, readable wrapping,
+  reachable footer actions, light/dark rendering, Escape dismissal and focus return.
+- Account: identical measured dialog/tab geometry across Storage/Profile switches;
+  profile editor remains open when switching away/back; profile/security views,
+  mobile layout, isolated scrolling, close controls and no horizontal overflow.
+- Chrome signed-out account: real provider form in both themes, mobile rendering,
+  corrected solid Continue button contrast and no captured console errors.
+  The final compact form fits without scrolling at 1280 × 800 and 390 × 844;
+  at 390 × 600 the body scrolls safely while the close control stays visible.
+  The modal backdrop reaches the viewport edge, with no reserved page gutter.
+- Import: inspected layout and Escape/cancel focus return. Source confirmation:
+  inspected long title wrapping and cancellation without deleting the source.
+  Folder confirmation shares the tested component; cancellation/failure/pending
+  behavior also has automated coverage.
+- Viewport overrides and theme changes were reset, and the temporary Chrome tab closed.
+  Existing sources, account details and agent permissions were not changed.
+
+Regression tests cover panel persistence, owner-switch isolation, token-getter refresh
+without reconnect, tab keyboard navigation, and wrapping around visible dialog controls.
+The full web quality run passed 228 tests in 59 files; lint, TypeScript and the
+frontend build passed again after the final sign-in styling changes. Reader figure/evidence dialogs retain their
+independent layout rules and automated coverage; no new complete lesson rehearsal was
+performed in this popup pass.
+
+This verifies a local UI correction, not release completion. Production identity,
+account lifecycle/security/usage controls and deployed cross-device storage acceptance
+remain listed in the [account contract](../architecture/CLOUD_ACCOUNT_PROPOSAL.md).
+
+
+## Account storage and Cloudflare provisioning — 2026-09-07
+
+Supersedes the older documentation-only hosting entry below: Clerk username/password
+and Google, 1 GB/account, 50 active accounts and 50 GB globally are the accepted target.
+The account dialog is wider, separates profile/security from storage, removes the
+recovery-key workflow, and fixes collapsed mobile header controls hiding open dialogs.
+Desktop and 390 px profile layouts were inspected.
+
+The local account-owned API passes 19 Worker tests for session verification,
+ownership, immutable objects, quotas, concurrency, retries, deletion and re-enrollment.
+Web validation passes 223 tests plus the newly added offline restoration case, with
+lint, types and the frontend build. A synthetic PDF/folder client transfer into a
+fresh device cache excludes agent grants. The actual signed-in browser created an
+empty local account library, saved/synced a test folder, restored it after reload,
+and deleted that test library. The original browser PDFs remained available.
+
+With scoped owner approvals, Wrangler authenticated, private R2 `prism-library-files`
+was created and D1 `prism-library` was initialized through migration 0002. A synthetic
+remote R2 upload/download had matching SHA-256 hashes; the object was removed and
+public r2.dev access is disabled. No private source was uploaded remotely.
+
+The app still uses local D1/R2 emulation. No Worker/site/DNS deployment occurred.
+Production identity, key rotation/revocation/account cleanup, measured operation/CPU
+budgets and independent deployed-device acceptance remain gates. See the
+[current account contract](../architecture/CLOUD_ACCOUNT_PROPOSAL.md).
+
+
+## Hosting direction accepted — 2026-09-07, documentation only
+
+The owner accepted the [Cloudflare/account contract](../architecture/CLOUDFLARE_HOSTING.md):
+Worker Static Assets/Worker, Better Auth Google/GitHub login, D1, private R2, and
+`prism.sevanlewispayne.com`; initial beta 50 users, 100 MB each, 5 GB globally.
+Wrangler 4.129.0 is installed but unauthenticated. The owner is finishing local
+changes before hosting. No account implementation, login, provisioning, deployment,
+DNS change, or previous-host shutdown occurred in this documentation pass.
+Older hosting entries below are historical test evidence, not current instructions.
+
+## Release audit — 2026-09-07, local only
+
+[Current release readiness audit](RELEASE_READINESS_AUDIT_2026-09-07.md) records
+the tested checkout, live hosting status, remaining blockers, and current free-tier
+account/domain recommendation. Started the latest local development app on port
+5173 and rebuilt production app/Worker on 8787. Web checks pass (187 tests in 49
+files), as do 23 companion tests, Worker types, full build, 102-page PDF corpus,
+and local synthetic sync isolation/retry/revocation/deletion checks. Production
+npm dependencies have no reported advisories; development tooling has four moderate
+entries in one transitive chain.
+
+A fresh frontend preview on port 4173 started empty, imported the licensed 489-page
+regression PDF, rendered its contents destination, and restored page 305 after
+reload at phone width. This does not complete lesson/revision owner acceptance,
+account recovery, offline startup, security review, or public release. No learner
+approval, cloud enrollment, deployment, DNS change, commit, or push was performed.
+
+## Draft recovery and fresh-origin rehearsal — 2026-09-06, local only
+
+- New lesson requests recover across navigation and reload within the same tab;
+  explicit discard, save cleanup, and storage-unavailable feedback are implemented.
+- Plan lists have loading, local retry, missing-plan recovery and stale-response
+  protection. Agent progress reflects saved source-review checkpoints only.
+- A visibly empty local origin imported and indexed the original five-page open
+  fixture through the file chooser. Reload restored an unfinished request; visible
+  save, site-tool discovery, complete source review, live checkpoint progress and
+  opening the proposed four-section plan succeeded. Owner approval is pending.
+- Web lint, TypeScript, 174 tests in 47 files and production frontend build passed.
+  Main JavaScript is approximately 609 kB minified (173 kB gzip); the existing
+  bundle warning remains. No deployment or measured startup improvement is claimed.
+- This extends the [core product audit](CORE_PRODUCT_RELEASE_AUDIT.md). Full
+  composition, revision acceptance and subsequent citation/persistence checks
+  remain unverified; the rehearsal is not yet complete.
+
+## Core product UI and continuity — 2026-09-06, local only
+
+- [Browser audit, fixes, inspection matrix, and remaining release gates](CORE_PRODUCT_RELEASE_AUDIT.md).
+- Fixed PDF page loss on resizing, effective phone zoom, Reader shortcuts behind
+  dialogs, accessible library search/navigation, and stale or failed lesson loads.
+  Simplified source overview and lesson creation; tightened saved-lesson spacing.
+- Browser checks include desktop/phone Reader continuity and a saved synthetic
+  lesson's citations, original-PDF round-trip with focus restoration, step controls,
+  passage questions, and light/dark layout. No learner approvals were changed.
+- Validation passed: web lint, TypeScript, 166 tests across 44 files, production
+  frontend build, sync Worker type checking, and documentation checks (51 files).
+  The main frontend chunk remains approximately 605 kB minified and emits the
+  existing size warning; this is not a measured cold-start performance result.
+- Production release, a fresh import-to-finished-lesson owner rehearsal, substantive
+  revision acceptance, and the approved cloud login/recovery flow remain unverified.
+
+
+## Authoring speed improvements — 2026-09-04, local only
+
+- Added a lossless compact evidence format, saved-state continuation tool and
+  single-batch anchor validation for source review checkpoints. The
+  [implementation contract](LEARNING_EXPERIENCE_IMPROVEMENTS.md#latency-and-recovery)
+  records the exact synthetic transport benchmark and its limits.
+- Generic authoring guidance now emphasizes prerequisites, intermediate reasoning,
+  worked examples and an early rendered-section check. No reference-source content
+  or IDs were added to production code or discovery documents.
+- Web quality gate: lint, type checking, 157 tests in 43 files and production
+  frontend build passed. After the related-checkpoint selection refinement, all
+  19 workspace/App tests passed again and the complete client/server build passed.
+  Sync Worker types and all 46 documentation files passed their checks.
+- Empty-library behavior passes. Release preparation rejects PDFs, local database
+  files, symlinks and literal development source/lesson IDs. A temporary synthetic
+  identifier was rejected by the guard and removed; the clean release contains
+  276 client files and no bundled PDFs. A production-code scan found no reference
+  source IDs or reference-lesson content. Existing browser-local work is untouched.
+- The local preview responds on port 5174. No deployment was performed. Main
+  JavaScript remains about 599 kB minified and triggers the existing size warning.
+  End-to-end authoring latency and learning gains remain unmeasured after this
+  change; transport savings must not be reported as a total generation speedup.
+
+## Reading quality and owner-trial preparation — 2026-09-04, local only
+
+The [reading-quality contract](LEARNING_EXPERIENCE_IMPROVEMENTS.md) records the
+owner's approved scope. New requests default to preserving substantive content.
+Finalization and revision require a source-to-passage coverage map; the reader
+exposes that map and the plan's compression or omissions. Passage help now retains
+the selected text and exact version, provides a manual-copy fallback, and appears
+beside the passage. Background saves preserve the reader's position. Newcomer
+guidance and local authoring-stage timings clarify the external-agent workflow.
+
+**Verified locally:** `npm run quality:web` passes lint, TypeScript, 148 tests
+across 42 files, and the production frontend build. Sync Worker type checking and
+the complete frontend/Worker production build also pass. Markdown link checks
+pass. The existing large-bundle warning remains; this pass does not demonstrate an
+end-to-end generation-speed improvement. CI now includes Worker type checking and
+the complete production build.
+
+**Browser acceptance:** a fresh local library imported the public RLM v3 PDF and
+indexed all 43 pages. The complete-paper request was saved with full explanations
+and a flexible reading-time preference. The empty-library guidance, source page,
+and saved request were inspected at desktop and 390-pixel widths; the saved request
+survived reload. This is import, indexing and request-flow evidence, not approval
+of a generated lesson or a complete accessibility audit. The publisher's official
+geology chapter download failed through browser import and direct download; its
+reference lesson remains pending source availability.
+
+The subsequent [RLM authoring receipt](../experiments/REFERENCE_LESSONS.md#rlm-composition-receipt--2026-09-04)
+records complete source review, owner-authorized composition and a ready saved
+lesson: eight sections, 51 blocks, 96 mapped anchors, version 10 and successful
+reopen. A real passage revision, human fidelity review and the geology rehearsal
+remain pending. The [owner learning trial](../experiments/OWNER_LEARNING_TRIAL.md)
+is prepared but has not started; no immediate, 24-hour or 7-day learning outcome
+has been measured. Coverage-map validation checks references and completeness of
+the map, not the truth of an explanation. No release was deployed, no remote
+library was migrated, and the existing local changes were not committed or pushed.
+
+## WebMCP discovery and authoring pass — 2026-09-04, local only
+
+The owner explicitly withheld deployment. These changes are in the local checkout;
+they have not been published to the hosted release described below.
+
+- Registration now recovers from late browser API availability, exposes failures,
+  and supports explicit retry. One bounded discovery loop serves all tools.
+  App-level registrations survive route changes; React Strict Mode cleanup and
+  stale asynchronous rejection are covered by regression tests.
+- Agent tools shows browser availability, tools offered, and the last real tool
+  call separately. It provides setup and recovery guidance without claiming an
+  agent discovered tools just because the API exists.
+- Startup context identifies source access, indexing, current work and next calls.
+  Copied starter, brief and revision prompts explicitly use WebMCP. Public
+  `llms.txt` and Markdown agent guidance derive from the runtime authoring guide.
+- Full requested ranges are accepted by `read_source_packet`, with at most eight
+  pages loaded per call and an exact `next_call`. Tests reconstruct dense/escaped
+  text across continuations, preserve scans and image anchors, reject missing
+  pages/corrupt cursors, and transport a 24-page fixture in three calls. This is
+  a transport result, not a measured improvement in complete lesson generation.
+- Error responses expose `isError`. Missing single-page evidence returns recovery
+  guidance. Packet activity labels the requested scope, not all pages as read.
+- `inspect_source_visual` accepts 1–4 selected views in a single contact sheet. It
+  preserves single-page detail inspection and reports partial rendering failures.
+  A native-browser check exposed premature completion before visible paint;
+  completion now waits for React visibility and a paint opportunity.
+- `get_source_visual_catalog` detects candidate raster/vector regions on demand,
+  associates nearby caption previews and returns suggested crops. Caption
+  continuation and adjacent body-text boundaries receive conservative handling.
+  Bounds remain heuristic, with explicit warnings and full-page fallback. No
+  native runtime, source upload, OCR or numerical chart extraction was added.
+
+**Verified locally:** 139 web tests across 37 files, lint, TypeScript and production
+web build pass. Generated agent documentation matches its runtime contract; local
+Markdown links pass. The existing production bundle-size warning remains.
+
+**Native-browser acceptance:** a fresh page at `localhost:5173` exposed the tool
+registry, including the newly added catalog (31 tools in the final registry).
+Calls used the actual browser host. `get_active_lesson_context`
+worked on the library and after navigation to the 43-page Recursive Language
+Models source. A request for pages 1–43 returned bounded evidence with exact
+continuation arguments; invoking that continuation succeeded. The first two
+packet calls took approximately 5.4 and 3.1 seconds through the host. The visible
+application receipts recorded roughly 0.03 seconds for each local evidence
+operation; host timing includes additional overhead and is not a model-generation
+benchmark. The status dialog was visually inspected and correctly named the last
+successful `read_source_packet` call. Existing source/lesson content was preserved.
+
+A four-view render of RLM pages 2–5 completed in approximately 3.7 seconds through
+the host, with all images visible in the immediate screenshot after the paint fix.
+Cataloging those four pages took approximately 4.7 seconds and returned both raster
+and vector candidates. Subsequent original-pixel inspection checked the detected
+Figure 1 vector chart and Figure 2 raster diagram. The latter exposed a truncated
+caption crop, which was corrected to include contiguous caption lines. Chart panels,
+axes and the complete caption were visible in the checked Figure 1 crop. This is
+specific acceptance evidence, not a universal segmentation or figure-quality result.
+
+The local sync service was not running during this read-only browser-vault check;
+this pass does not revalidate encrypted transport. No fresh end-to-end lesson was
+generated, and no claim is made that every model automatically selects these
+tools. Host support, host permissions and agent behavior remain prerequisites.
+See [the integration contract](../architecture/WEBMCP_INTEGRATION.md) for primary
+guidance and the distinction between registration, discovery and actual use.
+
 ## Final UI and recovery pass — 2026-09-03
 
 The owner requested this pass before recording or submitting. Folder mode is
@@ -44,8 +332,8 @@ pending write chain, retained progress, ciphertext-cache invalidation, and refus
 to auto-merge deletions or lesson content. This is a correction to the final pass,
 not evidence that arbitrary concurrent edits can be merged safely.
 
-**Hosted verification:** Sites v10 deployed successfully at
-`2026-09-04T04:36:36Z` to [public PRISM](https://prism-reading.sevan4355.chatgpt.site).
+**Historical hosted verification:** Prototype v10 deployed successfully at
+`2026-09-04T04:36:36Z` to the previous public preview.
 The native browser remembered the existing encrypted library, automatically
 cleared the reading-progress conflict, returned to Synced, and rendered the
 489-page textbook after exit and immediate reopen. Its numbered, nested contents
@@ -56,7 +344,7 @@ and received the available sync-service response. Local mobile acceptance also
 used a separate real non-CS PDF; no lesson or source was preinstalled.
 
 Runtime changes are pushed to canonical `sevan-dev` through `fe0a3f6` in seven
-focused commits. Sites source: `e189a11a4542af96dbb97dde5f796ec271648e2a`.
+focused commits. Historical publishing source: `e189a11a4542af96dbb97dde5f796ec271648e2a`.
 Deployment: `appgdep_6a9a4aca12988191b4737f6e6c93d41f`. Build archives contain no
 PDFs, keys or local state. Git contains one explicitly licensed public textbook
 fixture solely for repeatable parser tests, not a learner-library seed.
@@ -132,7 +420,7 @@ no account; external agent access and inference follow the user's provider terms
 - Original figure rendering now responds to display size and zoom, with memory limits, fit-width and uncropped-page context. The existing saved lesson opens at its own `/lessons/:id` URL. Public PDF imports use the same local import pipeline, bounded HTTPS downloads and local-file fallback for browser access restrictions. AI-generated PNG/JPEG attachments have an unconditional visible label and explanatory provenance; actual generation depends on the external agent's image capability.
 - Earlier approval failure: automatic review correctly rejected agent self-approval during testing. Subsequent owner approval authorized the full-paper composition above. Agents still cannot approve new plans or accept revisions on the learner's behalf.
 - Browser rendering check: the original page-2 figure rendered at 933 x 586 pixels at fit width and 1866 x 1172 pixels at 200% zoom, both reaching a stable ready state. Full-page context rendered successfully. Escape closed the viewer and restored focus to its trigger. Selecting the full-paper lesson from the source collection resolved to that exact dedicated lesson URL.
-- Hosting: the owner-only Sites deployment succeeded at [PRISM](https://prism-reading.sevan4355.chatgpt.site) on 2026-09-04 at 00:45 UTC. The initial browser response is the expected ChatGPT sign-in gate; application behavior behind that gate remains to be verified. This private preview is not yet the no-login public submission. The static archive contains 274 files, excludes PDFs/local state, and carries same-origin PDF.js resources. Its source snapshot is limited to the web application. The first broad-source upload was blocked by automatic approval review; a smaller payload and connector-verified owner-only destination passed the subsequent review. Canonical GitHub release and public access remain outstanding.
+- Hosting: the owner-only deployment succeeded on the previous preview origin on 2026-09-04 at 00:45 UTC. The initial browser response is the preview host's expected sign-in gate; application behavior behind that gate remains to be verified. This private preview is not yet the no-login public submission. The static archive contains 274 files, excludes PDFs/local state, and carries same-origin PDF.js resources. Its source snapshot is limited to the web application. The first broad-source upload was blocked by automatic approval review; a smaller payload and connector-verified owner-only destination passed the subsequent review. Canonical GitHub release and public access remain outstanding.
 - New non-CS rehearsal: the 78-page carbon assessment exposed an indexing-worker startup failure. The explicit PDF.js worker-port/resource-fetch repair allowed the original import to finish all 78 pages. Full packet retrieval and an approximately 3,800-word draft are complete; the seven-section plan awaits learner approval. About 20 minutes to this point fails the speed target. See the [execution record](READING_RELEASE_EXECUTION.md#judge-rehearsal---2026-09-03) for evidence and exclusions. No completed-generation or accepted-revision claim yet.
 
 Outstanding release evidence: fresh hosted-origin persistence and source inspection;
@@ -143,9 +431,9 @@ requirements, not completion claims.
 
 ### Public access and storage correction — 2026-09-03
 
-At the owner's request, the existing Sites audience is now public. A fresh HTTP
+At the owner's request, the previous preview's audience became public. A fresh HTTP
 request with no cookies or authorization returned status 200 at
-`https://prism-reading.sevan4355.chatgpt.site/sources`, with the PRISM application
+the previous preview's `/sources` route, with the PRISM application
 shell/assets and no sign-in gate or redirect. Public access is verified; this does
 not publish browser-vault sources or establish every application acceptance gate.
 
@@ -268,7 +556,7 @@ copies; implementation and measured results are recorded below.
 
 ### Encrypted independent-browser sync — September 3
 
-Implemented a Sites Worker with D1 authorization/revision metadata and private R2
+Implemented a prototype Worker with D1 authorization/revision metadata and private R2
 encrypted chunks, browser Web Crypto, atomic local outbox, resumable uploads,
 idempotent commit retries, per-record conflict detection, revocation and deletion.
 Recovery-key enrollment replaces folder permissions in the main sync workflow.
@@ -289,7 +577,7 @@ The earlier full suite passed 124 tests across 33 files; final App/storage-dialo
 regressions passed 13 tests. Lint, web and Worker types, build and 38 documentation
 checks passed. Anonymous public access was verified without cookies or sign-in.
 
-Live testing found that Workers require an explicit SPA asset fallback on Sites;
+Live testing found that Workers require an explicit SPA asset fallback on the previous host;
 using `/index.html` then caused a redirect to `/`. The final fallback serves `/`
 internally so the user's exact source/lesson route is preserved. Final deployment
 and manual-redirect checks are recorded in the sync architecture document.

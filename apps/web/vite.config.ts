@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     host: '127.0.0.1',
     port: 5173,
-    proxy: { '/api/sync': 'http://127.0.0.1:8787' },
+    proxy: { '/api/cloud': 'http://127.0.0.1:8787', '/api/account': 'http://127.0.0.1:8787' },
   },
   preview: {
     host: '127.0.0.1',

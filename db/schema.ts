@@ -19,3 +19,20 @@ export const commits = sqliteTable('sync_commits', {
 export const limits = sqliteTable('sync_limits', {
   key: text().primaryKey(), count: integer().notNull(), expires: integer().notNull(),
 })
+
+// Legacy tables above are retained to avoid discarding existing encrypted data.
+export const cloudLibraries = sqliteTable('cloud_libraries', {
+  id: text().primaryKey(), owner: text().notNull().unique(),
+  head: integer().notNull().default(0), lastMutation: text('last_mutation'),
+  created: integer().notNull(), deleted: integer().notNull().default(0),
+})
+export const cloudObjects = sqliteTable('cloud_objects', {
+  library: text().notNull(), id: text().notNull(), bytes: integer().notNull(),
+}, t => [primaryKey({ columns: [t.library, t.id] })])
+export const cloudCommits = sqliteTable('cloud_commits', {
+  library: text().notNull(), revision: integer().notNull(), mutation: text().notNull(),
+  objects: text().notNull(), created: integer().notNull(),
+}, t => [primaryKey({ columns: [t.library, t.revision] }), uniqueIndex('cloud_mutation').on(t.library, t.mutation)])
+export const cloudLimits = sqliteTable('cloud_limits', {
+  key: text().primaryKey(), count: integer().notNull(), expires: integer().notNull(),
+})

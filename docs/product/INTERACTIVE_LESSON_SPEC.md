@@ -36,8 +36,9 @@ scripts, or arbitrary embedded applications. PRISM continues to own rendering an
 interactions. Exact source quotations remain verbatim; generated prose and added
 examples remain distinguishable from source-authored material.
 
-The current renderer does not yet implement this full rich-text experience. The
-implementation audit, proposed redesign, and acceptance gates are recorded in
+The current renderer supports constrained Markdown, source figures and typed visuals.
+Human acceptance of complete reference lessons remains open. The original
+implementation audit and quality requirements are recorded in
 [`../engineering/LESSON_QUALITY_RESET.md`](../engineering/LESSON_QUALITY_RESET.md).
 
 ## Lesson library
@@ -70,7 +71,7 @@ budget, intended depth, and prior knowledge. It is attached to the source in Ind
 it does not copy source text or grant new source access.
 
 A compatible external agent resumes that brief through the read-only
-`get_lesson_brief` tool, inventories the full range through the scope manifest, and
+`get_authoring_workspace` brief view, reads the full range through source packets and uses the scope manifest when a compact inventory is needed, and
 proposes coverage. This makes the browser page the durable coordination surface while
 leaving model choice, account cost, and conversation history with the learner's agent.
 The browser remains useful without an agent, but it does not pretend to compose a lesson
@@ -204,7 +205,7 @@ A lesson may contain:
 - an end-of-lesson question set;
 - source and coverage receipts.
 
-The visual design follows the scholarly-instrument direction: warm paper and neutral editorial surfaces, a compact graphite navigation rail, reading-centered typography, and one restrained vermilion accent for action and focus. It should resemble a carefully designed interactive textbook, not a generic AI dashboard, chat transcript, slide deck, or cinematic presentation.
+The visual design follows the [current design direction](DESIGN_DIRECTION.md): neutral editorial surfaces, a quiet application shell, reading-centered typography, and monochrome action and focus colors. It should resemble a carefully designed interactive textbook, not a generic AI dashboard, chat transcript, slide deck, or cinematic presentation.
 
 ### Semantic frames
 
@@ -348,3 +349,11 @@ The challenge lesson should demonstrate:
 - end questions answered through the agent;
 - a completion or repair decision;
 - local persistence and reopen behavior.
+
+## Source-to-passage review — 2026-09-04
+
+Default scope preserves substantive definitions, reasoning, examples, qualifications,
+relevant figures and connections. The [reading-quality contract](../engineering/LEARNING_EXPERIENCE_IMPROVEMENTS.md)
+defines the additive coverage review map and revision invalidation rules. The reading
+surface discloses compression/exclusions and links reviewed concepts to their teaching
+passages. Agent review and structural checks never stand in for learner acceptance.

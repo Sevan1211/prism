@@ -1,4 +1,4 @@
-import { completeContents } from './reader/contentsTree'
+import { completeContents, sectionAtPosition } from './reader/contentsTree'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import {
   ArrowLeft,
@@ -92,6 +92,7 @@ export function Reader({
   const [pageLabels, setPageLabels] = useState<string[] | null>(null)
   const [documentDetails, setDocumentDetails] = useState<PdfDocumentDetails>(EMPTY_DOCUMENT_DETAILS)
   const [currentPage, setCurrentPage] = useState(1)
+  const [positionSectionId, setPositionSectionId] = useState<string | undefined>(undefined)
   const [furthestPage, setFurthestPage] = useState(1)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState('')
@@ -114,30 +115,16 @@ export function Reader({
   const saveTimer = useRef<number | null>(null)
   const scrollFrame = useRef<number | null>(null)
   const currentPageRef = useRef(1)
+  const readingAnchor = useRef({ page: 1, ratio: 0 })
+  const layoutSize = useRef('')
+  const contentsRequest = useRef(0)
 
   const sections = useMemo(() => structure?.sections ?? [], [structure])
-  const pageGroups = useMemo<SourceSection[]>(() => {
-    if (sections.length > 0) return []
-    const groups: SourceSection[] = []
-    for (let start = 1; start <= pageCount; start += 20) {
-      const end = Math.min(pageCount, start + 19)
-      groups.push({
-        id: `pages-${start}`,
-        parent_id: null,
-        title: `Pages ${start}-${end}`,
-        level: 1,
-        page_start: start,
-        page_end: end,
-        origin: 'computed',
-        confidence: 0,
-      })
-    }
-    return groups
-  }, [pageCount, sections.length])
   const authoredSections = pdfSections.length ? pdfSections : structure?.origin === 'outline' ? sections : EMPTY_SECTIONS
   const computedSections = structure?.origin === 'computed' ? sections : EMPTY_SECTIONS
-  const railSections = useMemo(() => authoredSections.length || computedSections.length
-    ? completeContents(authoredSections, computedSections) : pageGroups, [authoredSections, computedSections, pageGroups])
+  const railSections = useMemo(() => completeContents(authoredSections, computedSections), [authoredSections, computedSections])
+  const railSectionsRef = useRef(railSections)
+  useEffect(() => { railSectionsRef.current = railSections }, [railSections])
   const railOrigin = authoredSections.length > 0
     ? 'outline'
     : computedSections.length > 0
@@ -200,6 +187,7 @@ export function Reader({
     history: NavigationHistory = 'push',
   ) => {
     const page = Math.min(pageCount, Math.max(1, Math.round(requestedPage)))
+    readingAnchor.current = { page, ratio }
     const container = scrollRef.current
     const target = container?.querySelector<HTMLElement>(`[data-page="${page}"]`)
     if (container && target) {
@@ -207,6 +195,7 @@ export function Reader({
       container.scrollTop = target.offsetTop - paddingTop + ratio * target.clientHeight
     }
     setPage(page)
+    setPositionSectionId(sectionAtPosition(railSectionsRef.current, page, ratio)?.id)
     if (history !== 'silent') onNavigatePage?.(page, history === 'replace')
   }, [onNavigatePage, pageCount, setPage])
 
@@ -257,7 +246,39 @@ export function Reader({
     }, 700)
   }, [access])
 
+  // Preserve a page-relative position when rails, zoom, or the viewport resize.
+  // Check before processing scroll events too: layout can dispatch scroll first.
+  const preserveLayoutPosition = useCallback(() => {
+    const container = scrollRef.current
+    const first = container?.querySelector<HTMLElement>('[data-page="1"]')
+    if (!container || !first) return false
+    const size = `${container.clientWidth}:${container.clientHeight}:${first.clientWidth}:${first.clientHeight}`
+    const changed = layoutSize.current !== '' && layoutSize.current !== size
+    layoutSize.current = size
+    if (changed) {
+      const { page, ratio } = readingAnchor.current
+      const target = container.querySelector<HTMLElement>(`[data-page="${page}"]`)
+      if (target) {
+        const padding = Number.parseFloat(getComputedStyle(container).paddingTop) || 0
+        container.scrollTop = target.offsetTop - padding + ratio * target.clientHeight
+      }
+    }
+    return changed
+  }, [])
+
+  useEffect(() => {
+    const container = scrollRef.current
+    const first = container?.querySelector<HTMLElement>('[data-page="1"]')
+    if (!container || !first || typeof ResizeObserver === 'undefined') return
+    preserveLayoutPosition()
+    const observer = new ResizeObserver(preserveLayoutPosition)
+    observer.observe(container)
+    observer.observe(first)
+    return () => observer.disconnect()
+  }, [hasGeometry, preserveLayoutPosition])
+
   const updateScrollPosition = useCallback(() => {
+    if (preserveLayoutPosition()) return
     const container = scrollRef.current
     if (!container) return
     const paddingTop = Number.parseFloat(getComputedStyle(container).paddingTop) || 0
@@ -272,12 +293,14 @@ export function Reader({
     const height = Math.max(1, selected.clientHeight)
     const page = Math.min(pageCount, Math.max(1, Number(selected.dataset.page) || 1))
     const ratio = Math.min(1, Math.max(0, (readingLine - selected.offsetTop) / height))
+    readingAnchor.current = { page, ratio }
     if (page !== currentPageRef.current) {
       setPage(page)
       onNavigatePage?.(page, true)
     }
+    setPositionSectionId(sectionAtPosition(railSectionsRef.current, page, ratio)?.id)
     persistPosition(page, ratio)
-  }, [onNavigatePage, pageCount, persistPosition, setPage])
+  }, [onNavigatePage, pageCount, persistPosition, preserveLayoutPosition, setPage])
 
   const handleScroll = useCallback(() => {
     if (scrollFrame.current !== null) return
@@ -296,8 +319,9 @@ export function Reader({
 
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {
-      const target = event.target as HTMLElement | null
-      const isInput = target?.matches('input, select, textarea, [contenteditable="true"]')
+      if (event.defaultPrevented || document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')) return
+      const target = event.target
+      const isInput = target instanceof Element && target.matches('input, select, textarea, [contenteditable="true"]')
       if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === 'f') {
         event.preventDefault()
         setSearchOpen(true)
@@ -351,9 +375,8 @@ export function Reader({
     }
   }
 
-  const activeSection = railSections
-    .filter((section) => section.page_start <= currentPage && currentPage <= section.page_end)
-    .sort((left, right) => right.level - left.level || right.page_start - left.page_start)[0]
+  const activeSection = railSections.find(section => section.id === positionSectionId)
+    ?? sectionAtPosition(railSections, currentPage, 0)
   const printedPage = pageLabels?.[currentPage - 1]
   const documentTitle = documentDetails.title && documentDetails.title !== source.original_name
     ? documentDetails.title
@@ -539,7 +562,7 @@ export function Reader({
           {searchError ? <p className="search-error" role="alert">{searchError}</p> : null}
           {uniqueHits !== null ? (
             <div className="search-results-panel">
-              <p>{uniqueHits.length} result{uniqueHits.length === 1 ? '' : 's'}</p>
+              <p role="status">{uniqueHits.length === 0 ? 'No matches. Try a shorter phrase or a different word from the source.' : `${uniqueHits.length} result${uniqueHits.length === 1 ? '' : 's'}`}</p>
               <ul className="search-results">
                 {uniqueHits.slice(0, 20).map((hit) => (
                   <li key={hit.element_id}>
@@ -565,16 +588,21 @@ export function Reader({
           <nav className="reader-rail" aria-label="Document structure">
             <header className="reader-panel-heading">
               <div>
-                <strong>{railOrigin === 'none' ? 'Page index' : 'Contents'}</strong>
+                <strong>{railOrigin === 'computed' ? 'Suggested contents' : 'Contents'}</strong>
                 <span>
                   {railOrigin === 'outline'
                     ? `${railSections.length} document ${railSections.some(section => section.origin === 'computed') ? 'headings & bookmarks' : 'bookmarks'}`
                     : railOrigin === 'computed'
                       ? `${railSections.length} detected headings`
-                      : 'No recoverable contents found'}
+                      : 'No reliable outline found'}
                 </span>
               </div>
             </header>
+            {structure === null && !authoredSections.length ? <p className="contents-note" role="status">Checking document contents…</p> : null}
+            {structure?.navigation_warnings?.length ? <details className="contents-note">
+              <summary>About these contents</summary>
+              {structure.navigation_warnings.map(warning => <p key={warning}>{warning}</p>)}
+            </details> : null}
             {railSections.length > 14 ? (
               <label className="contents-filter">
                 <MagnifyingGlass aria-hidden="true" />
@@ -587,8 +615,22 @@ export function Reader({
                 />
               </label>
             ) : null}
+            {!railSections.length && structure !== null ? <div className="contents-fallback">
+              <p>This PDF has no reliable outline. Search its text or browse with the page controls.</p>
+              <button className="button-secondary" type="button" onClick={() => setSearchOpen(true)}><MagnifyingGlass aria-hidden="true" />Search document</button>
+              <p className="contents-fallback-note">Image-only PDFs need OCR for text navigation.</p>
+            </div> : null}
             <ReaderContents sections={railSections} query={contentsFilter} activeId={activeSection?.id}
-              pageLabels={pageLabels} onNavigate={jumpToPage} />
+              onNavigate={(section) => {
+                const request = ++contentsRequest.current
+                jumpToPage(section.page_start, section.page_y ?? 0)
+                if (doc && section.pdf_top !== undefined) void doc.getPage(section.page_start).then(page => {
+                  if (request !== contentsRequest.current || currentPageRef.current !== section.page_start) return
+                  const viewport = page.getViewport({ scale: 1 })
+                  const [, y] = viewport.convertToViewportPoint(0, section.pdf_top!)
+                  jumpToPage(section.page_start, Math.max(0, Math.min(1, y / viewport.height - .035)), 'silent')
+                }).catch(() => undefined)
+              }} />
           </nav>
         ) : null}
 
@@ -629,12 +671,8 @@ export function Reader({
             </header>
             <div className="context-block">
               <p className="page-kicker">Current section</p>
-              <h2>{activeSection?.title ?? 'Untitled region'}</h2>
+              <h2>{activeSection?.title ?? 'Original PDF'}</h2>
               <dl className="document-details">
-                <Detail label="PDF page" value={`${currentPage} of ${pageCount}`} />
-                {printedPage && printedPage !== String(currentPage)
-                  ? <Detail label="Printed page" value={printedPage} />
-                  : null}
                 <Detail label="Author" value={documentDetails.author} />
                 <Detail label="Subject" value={documentDetails.subject} />
                 <Detail label="PDF format" value={documentDetails.format} />
@@ -643,9 +681,6 @@ export function Reader({
                 <Detail label="Storage" value={access.storageLabel} />
               </dl>
             </div>
-            <p className="reader-progress-note">
-              Reached page {Math.max(furthestPage, currentPage)}. This records exposure, not demonstrated learning.
-            </p>
           </aside>
         ) : null}
       </div>
@@ -759,8 +794,8 @@ function ReaderPage({
   const dimensions = pageGeometry ?? geometry
   const aspect = dimensions ? `${dimensions.width} / ${dimensions.height}` : '3 / 4'
   const width = fitMode === 'page'
-    ? `min(calc(100% - 48px), calc((100vh - 152px) * ${dimensions ? dimensions.width / dimensions.height : 0.77} * ${zoom}))`
-    : `min(calc(100% - 48px), calc(816px * ${zoom}))`
+    ? `calc(min(calc(100% - 48px), calc((100vh - 152px) * ${dimensions ? dimensions.width / dimensions.height : 0.77})) * ${zoom})`
+    : `calc(min(calc(100% - 48px), 816px) * ${zoom})`
   return (
     <div
       ref={pageRef}
@@ -773,7 +808,6 @@ function ReaderPage({
       {renderError && visible ? <div className="page-render-error" role="status"><p>Page {page} could not be rendered.</p><button type="button" onClick={() => setRetry((value) => value + 1)}>Retry this page</button></div> : !rendered || !visible ? (
         <div className="page-placeholder" aria-hidden="true"><span>{page}</span></div>
       ) : null}
-      <span className="page-label" aria-hidden="true">{page}</span>
       {highlight ? (
         <span
           className="reader-highlight"

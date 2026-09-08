@@ -1,8 +1,58 @@
 # Open technical questions
 
-**Last updated:** 2026-09-03
+**Last updated:** 2026-09-07
+
+## Resolved: account provider and 1 GB beta; open: production setup and measured cost
+
+The owner now requires username/password and Google sign-in. The
+[account plan](../architecture/CLOUD_ACCOUNT_PROPOSAL.md) now uses Clerk Hobby
+while retaining Cloudflare hosting, D1 and private R2. The owner accepted 1 GB per
+user, 50 users initially, and small minimized operating costs. Exact zero is no
+longer required. The owner's Clerk development application is now linked and its
+real sign-in controls render locally. The owner's login, local Worker verification
+and session restoration in a new tab succeeded. Prove each login method, password recovery,
+embedded-browser OAuth, account linking/isolation, quotas and two-device persistence
+before release. An all-service monthly budget and operational cutoff remain to be
+set from measured usage before deployment. No paid subscription has been activated.
+
+Account-owned sync, explicit copying, owner-isolated caches and quota enforcement are
+implemented and tested locally. Remaining high-impact gates: production key rotation,
+provider account-deletion cleanup and revocation latency; measured global operation
+budgets; history/abandoned-object reclamation; independent deployed-device acceptance.
+The dialog's desktop and 390 px profile layouts were inspected; the narrow-screen
+header no longer hides an open dialog when its controls collapse. [Current evidence](../architecture/CLOUD_ACCOUNT_PROPOSAL.md).
+
+## Resolved on 2026-09-07: Cloudflare hosting and cloud accounts
+
+The owner accepted Cloudflare Worker Static Assets/Worker, D1 and private R2 at
+`prism.sevanlewispayne.com`. The later account decision above replaces the earlier
+Better Auth/100 MB proposal with Clerk and a 50-user, 1 GB-per-user, 50 GB-global beta. The
+[hosting/account contract](../architecture/CLOUDFLARE_HOSTING.md) is authoritative.
+The current scope includes local account integration and Clerk development setup;
+hosting and DNS work wait until the owner resumes them. Wrangler is now authenticated with scoped owner approval. The new PRISM D1 database
+and private R2 bucket are provisioned and tested. No hosted API, website or DNS deployment was begun.
+
+Remaining implementation decisions: verify the account ownership mapping and session
+integration, migration/deletion wording, cloud recovery, and measured operation/CPU
+budgets. Storage caps alone do not bound polling or object operations. If a paid
+plan is needed, present its concrete cost rather than automatically using the older
+roughly $25/month planning ceiling. Public cutover remains a later owner decision.
 
 The owner discovery interview and initial implementation-policy interview are complete. Confirmed choices are recorded in `V0_DECISIONS.md`; the original question inventory and rationale remain in `OWNER_DISCOVERY_QUESTIONNAIRE.md`. This file now tracks only choices that can be resolved through implementation evidence or a later owner decision.
+
+## Current authority and 2026-09-04 reading decisions
+
+The [portfolio release plan](../engineering/FINAL_PORTFOLIO_RELEASE_PLAN.md) is the
+current release authority; earlier challenge, folder and recovery-key choices below
+are historical where superseded. The owner approved full substantive coverage by
+default, RLM and geology reference sources, design judgment within the reading
+instrument, owner-first usability with newcomer onboarding, and a small learning
+trial. See the [implementation contract](../engineering/LEARNING_EXPERIENCE_IMPROVEMENTS.md).
+
+Remaining acceptance choices are source-derived lesson-plan approval and actual
+lesson quality review, trial passage/rubric freezing before study, and the cloud
+implementation/privacy/cutover checkpoints already named in the release plan.
+No learning dates or public deployment have been approved by this clarification.
 
 ## Resolved on 2026-08-19
 
@@ -106,6 +156,32 @@ The owner approved [`../product/DESIGN_DIRECTION.md`](../product/DESIGN_DIRECTIO
 - Use original source crops, safe typed scenes, and data plots across subjects. Agent-authored executable code is not accepted.
 - Use Recursive Language Models and a Physical Geology chapter as proposed demo sources. Reference sources are not the parser's entire support claim.
 
+## Resolved on 2026-09-04: public domain target
+
+- The planned canonical public URL is
+  [`https://prism.sevanlewispayne.com`](https://prism.sevanlewispayne.com).
+- The previous public preview remains unchanged until a
+  Cloudflare-native build, private deployment, and recovery checks are complete.
+  Do not point the new hostname at an unvalidated build or treat this naming decision
+  as deployment evidence.
+- The domain keeps PRISM identifiable as the owner's project while avoiding a rushed
+  purchase of a crowded standalone PRISM variant. It does not alter the local-first,
+  learner-consent, or source-fidelity product boundaries.
+
+## Resolved on 2026-09-04: final portfolio release direction
+
+- The next release is a resume-quality v1 with a controlled public beta, not a
+  retroactive challenge submission or an unbounded consumer launch.
+- The Reader remains free and local-first. Creating or revising lessons uses a
+  learner's compatible agent; PRISM does not silently fund inference.
+- Cloud storage becomes an optional, account-backed private-library experience with
+  ordinary recovery. The account-free recovery-key implementation remains an
+  experimental reference rather than the default public storage claim.
+- The owner-selected operating ceiling is about $25/month. Application quotas and a
+  global intake cutoff must enforce it; billing alerts alone are insufficient.
+- The authoritative execution sequence is
+  [`FINAL_PORTFOLIO_RELEASE_PLAN.md`](../engineering/FINAL_PORTFOLIO_RELEASE_PLAN.md).
+
 ## Current acceptance gate
 
 The implementation and open acceptance checks are tracked in
@@ -131,7 +207,7 @@ Open choices for that reset:
 - Choose the first reusable visual model from that source's instructional needs.
   A network-delay model is a design-study proposal, not an adopted general simulator.
 
-The challenge sequence is authoritative in [`../engineering/WEBMCP_CHALLENGE_PLAN.md`](../engineering/WEBMCP_CHALLENGE_PLAN.md): stabilize WebMCP registration, establish browser-local persistence, complete the Reader and exact source navigation, ship the typed lesson composer and end-question/repair loop, then deploy and validate the public submission. The longer research sequence remains in [`../engineering/IMPLEMENTATION_PLAN.md`](../engineering/IMPLEMENTATION_PLAN.md).
+The historical challenge sequence is retained in [`../engineering/WEBMCP_CHALLENGE_PLAN.md`](../engineering/WEBMCP_CHALLENGE_PLAN.md): stabilize WebMCP registration, establish browser-local persistence, complete the Reader and exact source navigation, ship the typed lesson composer and end-question/repair loop, then deploy and validate the public submission. The longer research sequence remains in [`../engineering/IMPLEMENTATION_PLAN.md`](../engineering/IMPLEMENTATION_PLAN.md).
 
 ## Open: browser document pipeline selection
 
@@ -236,3 +312,10 @@ the prior device-only contract; permission must not be inferred from an existing
 agent-disclosure permission. See [the researched design and acceptance gates](../architecture/SYNCED_LIBRARY.md).
 Browser caches and optional folder backups remain useful, but are not substitutes
 for independent synchronization. No remote library migration has occurred.
+
+## Open: replacement landing visual
+
+The owner rejected the previous hero direction and requested a clean removal before
+selecting a replacement. Keep the root landing text-only until the owner provides
+that direction. Do not infer a new illustration, animation, or interaction from the
+PRISM name alone.

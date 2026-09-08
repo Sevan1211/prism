@@ -259,9 +259,9 @@ describe('browser-local sources', () => {
 
     expect(structure.origin).toBe('computed')
     expect(structure.sections.map((section) => section.title)).toEqual([
-      'CHAPTER 1 FOUNDATIONS',
+      'Chapter 1 FOUNDATIONS',
       '1.1 ARCHITECTURE',
-      'CHAPTER 2 DIRECT LINKS',
+      'Chapter 2 DIRECT LINKS',
     ])
     expect(structure.sections[1].parent_id).toBe(structure.sections[0].id)
     expect(structure.sections[0].page_end).toBe(2)

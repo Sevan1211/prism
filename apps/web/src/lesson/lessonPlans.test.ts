@@ -94,6 +94,20 @@ function environment(): BrowserVaultEnvironment {
 }
 
 describe('coverage-aware lesson plans', () => {
+  it('validates review anchors against the loaded pages, including original images, and rejects stale or out-of-range anchors', async () => {
+    const env = environment()
+    const source = await importBrowserSource(new File(['%PDF-review-fixture'], 'review.pdf'), 'open_license', { environment: env, inspectPdf: async () => 2 })
+    const first = indexedPage(source.id)
+    const second = { ...indexedPage(source.id), page_number: 2, elements: [] }
+    await indexBrowserSource(source.id, { environment: env, extractor: async (_file, _sourceId, _start, options) => { await options.onBatch([first, second]) } })
+    const brief = await createLessonBrief({ ...briefFixture(), source_id: source.id, page_end: 2 }, { environment: env })
+    const input = { brief_id: brief.brief_id, page_start: 1, page_end: 1, summary: 'Preserved definitions, mechanisms and qualifications.', essential_element_ids: [first.elements[0].element_id, pageImageElement(first).element_id], visual_review: 'inspected' as const, visual_notes: 'Original pixels checked in this synthetic contract fixture.' }
+    await expect(recordScopeReview(input, env)).resolves.toMatchObject({ essential_element_ids: input.essential_element_ids })
+    for (const id of [pageImageElement(second).element_id, `${first.elements[0].element_id}-stale`, 'other-source:page:1:image:unknown']) {
+      await expect(recordScopeReview({ ...input, essential_element_ids: [id] }, env)).rejects.toThrow('within the reviewed pages')
+    }
+    expect((await getLessonBrief(brief.brief_id, env))?.scope_reviews).toHaveLength(1)
+  })
   it('plans a 100-page synthesis from saved checkpoints and treats length as a soft target', async () => {
     const env = environment()
     const source = await importBrowserSource(new File(['%PDF-long-fixture'], 'long-source.pdf'), 'open_license', { environment: env, inspectPdf: async () => 100 })
@@ -376,17 +390,24 @@ describe('coverage-aware lesson plans', () => {
     await expect(getLessonDocumentRevision(document.lesson_id, 2, env)).resolves.toEqual(revised)
     await expect(restoreLessonRevision(document.lesson_id, 1, 2, { environment: env })).rejects.toThrow('changed before the patch')
 
-    const ready = await finalizeLesson(document.lesson_id, 3, { summary: 'Synthetic fixture reviewed for this transaction test.', reviewer: 'Test agent' }, { environment: env })
+    const coverageReview = [{ concept: 'Protocol relation', source_element_ids: [elementId], block_ids: ['block-excerpt', 'block-diagram'], retained_details: 'The excerpt and diagram preserve the governing communication relation.' }]
+    await expect(finalizeLesson(document.lesson_id, 3, { summary: 'Review without mapping.', reviewer: 'Test agent' }, { environment: env })).rejects.toThrow('coverage_review')
+    const ready = await finalizeLesson(document.lesson_id, 3, { summary: 'Synthetic fixture reviewed for this transaction test.', reviewer: 'Test agent', coverage_review: coverageReview }, { environment: env })
     expect(ready.status).toBe('ready')
+    expect((await getLessonDocument(document.lesson_id, env))?.coverage_review).toEqual(coverageReview)
     const revisionInput = { plan_id: plan.plan_id, expected_version: 4, summary: 'Add a clearer explanation while preserving the original diagram.', operations: [{ operation: 'insert_block' as const, section_id: 'section-1', after_block_id: 'block-diagram', block: { block_id: 'clarification', provenance: 'source_grounded' as const, source_element_ids: [elementId], content: { kind: 'rich_text' as const, markdown: 'A more detailed explanation of the source relation.' } } }] }
     await expect(applyLessonPatch(revisionInput, { environment: env })).rejects.toThrow('propose_lesson_revision')
-    const edit = await proposeLessonRevision(revisionInput, { environment: env })
+    await expect(proposeLessonRevision(revisionInput, { environment: env })).rejects.toThrow('missing lesson block clarification')
+    const reviewedRevision = { ...revisionInput, coverage_review: [{ ...coverageReview[0], block_ids: ['block-excerpt', 'block-diagram', 'clarification'] }] }
+    const edit = await proposeLessonRevision(reviewedRevision, { environment: env })
     expect((await getLessonDocument(document.lesson_id, env))?.document_version).toBe(4)
-    await expect(proposeLessonRevision(revisionInput, { environment: env })).rejects.toThrow('awaiting review')
+    await expect(proposeLessonRevision(reviewedRevision, { environment: env })).rejects.toThrow('awaiting review')
     await resolveLessonRevision(document.lesson_id, edit.proposal_id, true, env)
+    expect((await getLessonDocument(document.lesson_id, env))?.coverage_review).toEqual(reviewedRevision.coverage_review)
+    expect((await getLessonDocumentRevision(document.lesson_id, 4, env))?.coverage_review).toEqual(coverageReview)
     expect((await getLessonDocument(document.lesson_id, env))?.sections[0].blocks.at(-1)?.block_id).toBe('clarification')
     expect((await getLessonDocumentRevision(document.lesson_id, 4, env))?.sections[0].blocks).toHaveLength(2)
-    const stale = await proposeLessonRevision({ ...revisionInput, expected_version: 5, operations: [{ operation: 'remove_block', block_id: 'clarification' }] }, { environment: env })
+    const stale = await proposeLessonRevision({ ...revisionInput, coverage_review: coverageReview, expected_version: 5, operations: [{ operation: 'remove_block', block_id: 'clarification' }] }, { environment: env })
     await restoreLessonRevision(document.lesson_id, 1, 5, { environment: env })
     await expect(resolveLessonRevision(document.lesson_id, stale.proposal_id, true, env)).rejects.toThrow('lesson changed')
     await resolveLessonRevision(document.lesson_id, stale.proposal_id, false, env)

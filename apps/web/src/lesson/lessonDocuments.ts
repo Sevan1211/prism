@@ -22,6 +22,7 @@ import type {
 import type { LessonPlan } from './lessonPlanTypes'
 import { normalizeVisual } from './lessonVisuals'
 import { getLessonIllustration } from '../storage/lessonIllustrations'
+import { unchangedCoverageReview, validateCoverageReview } from './lessonCoverageReview'
 
 const MAX_PATCH_OPERATIONS = 24
 const MAX_BLOCKS_PER_SECTION = 64
@@ -86,6 +87,7 @@ async function prepareLessonPatch(input: ApplyLessonPatchInput, dependencies: Le
   const candidate: LessonDocument = {
     ...draft,
     status: 'draft',
+    coverage_review: unchangedCoverageReview(current, draft),
     semantic_review: undefined,
     document_version: nextVersion,
     updated_at: timestamp,
@@ -94,23 +96,30 @@ async function prepareLessonPatch(input: ApplyLessonPatchInput, dependencies: Le
   return candidate
 }
 
-export async function finalizeLesson(lessonId: string, expectedVersion: number, review: { summary: string; reviewer: string }, dependencies: LessonDocumentDependencies = {}): Promise<LessonDocument> {
+export async function finalizeLesson(lessonId: string, expectedVersion: number, review: { summary: string; reviewer: string; coverage_review?: unknown }, dependencies: LessonDocumentDependencies = {}): Promise<LessonDocument> {
   const current = await getLessonDocument(lessonId, dependencies.environment)
   assertExpectedVersion(current, expectedVersion)
   if (!current) throw new Error('Lesson not found.')
   const validation = await validateLesson(lessonId, dependencies)
   if (!validation.valid_for_ready) throw new Error('Resolve the structural validation errors before finishing the lesson.')
+  const plan = await getLessonPlan(current.plan_id, dependencies.environment)
+  if (!plan) throw new Error('Lesson plan not found.')
+  const coverageReview = validateCoverageReview(review.coverage_review, current, plan)
   const timestamp = (dependencies.now ?? currentTime)()
   const candidate: LessonDocument = { ...current, status: 'ready', document_version: expectedVersion + 1, updated_at: timestamp, validation, semantic_review: { summary: requiredText(review.summary, 'semantic review summary', 4000), reviewer: requiredText(review.reviewer, 'reviewer', 120), reviewed_at: timestamp } }
+  candidate.coverage_review = coverageReview
   await saveLessonDocument(candidate, expectedVersion, dependencies.environment)
   notifyVaultChanged()
   return candidate
 }
 
-export async function proposeLessonRevision(input: ApplyLessonPatchInput & { summary: string }, dependencies: LessonDocumentDependencies = {}): Promise<LessonEditProposal> {
+export async function proposeLessonRevision(input: ApplyLessonPatchInput & { summary: string; coverage_review?: unknown }, dependencies: LessonDocumentDependencies = {}): Promise<LessonEditProposal> {
   const candidate = await prepareLessonPatch(input, dependencies)
   if (input.expected_version === null) throw new Error('Create the initial lesson before proposing a revision.')
   if (!candidate.validation.valid_for_ready) throw new Error('The proposed revision must preserve required evidence, representations, and complete sections.')
+  const plan = await getLessonPlan(candidate.plan_id, dependencies.environment)
+  if (!plan) throw new Error('Lesson plan not found.')
+  candidate.coverage_review = validateCoverageReview(input.coverage_review ?? candidate.coverage_review, candidate, plan)
   const proposal: LessonEditProposal = { proposal_id: `edit_${(dependencies.randomUUID ?? randomUUID)()}`, lesson_id: candidate.lesson_id, source_id: candidate.source_id, plan_id: candidate.plan_id, base_version: input.expected_version, candidate, summary: requiredText(input.summary, 'revision summary', 2000), created_at: candidate.updated_at }
   await accessBrowserVault((database) => new Promise<void>((resolve, reject) => {
     const tx = database.transaction([PRISM_VAULT_LESSON_EDIT_STORE, PRISM_VAULT_LESSON_DOCUMENT_STORE], 'readwrite')

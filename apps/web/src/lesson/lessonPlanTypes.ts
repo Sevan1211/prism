@@ -52,6 +52,7 @@ export type LessonQuestionKind =
   | 'interpretation'
 
 export interface LessonBrief {
+  coverage_expectation?: 'preserve_substance'
   output_kind?: LessonOutputKind
   target_words?: number | null
   include_questions?: boolean

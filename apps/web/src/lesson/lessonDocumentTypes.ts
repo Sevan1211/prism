@@ -65,6 +65,7 @@ export interface LessonValidationReport {
 }
 
 export interface LessonDocument {
+  coverage_review?: LessonCoverageReview[]
   patch_receipt?: { request_id: string; fingerprint: string }
   approval_hash: string
   created_at: string
@@ -82,6 +83,14 @@ export interface LessonDocument {
   title: string
   updated_at: string
   validation: LessonValidationReport
+}
+
+// An attributable agent judgment, not a machine-verified semantic accuracy score.
+export interface LessonCoverageReview {
+  concept: string
+  source_element_ids: string[]
+  block_ids: string[]
+  retained_details: string
 }
 
 export type LessonPatchOperation =

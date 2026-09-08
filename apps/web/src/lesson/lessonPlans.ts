@@ -57,6 +57,7 @@ export async function createLessonBrief(
   const timestamp = (dependencies.now ?? currentTime)()
   const brief: LessonBrief = {
     ...normalized,
+    coverage_expectation: 'preserve_substance',
     brief_id: `brief_${(dependencies.randomUUID ?? randomUUID)()}`,
     brief_kind: 'assignment',
     created_at: timestamp,

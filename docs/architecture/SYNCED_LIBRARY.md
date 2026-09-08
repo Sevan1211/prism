@@ -1,12 +1,22 @@
-# A library shared by independent browsers
+# Encrypted sync prototype: protocol and historical evidence
 
 **Reviewed:** 2026-09-03  
-**Status:** deployed prototype with a verified public source/brief sync slice.
+**Status:** retired protocol and historical evidence. Recovery-key UI and active API handlers were removed on 2026-09-07. See [current account storage](CLOUD_ACCOUNT_PROPOSAL.md).
 The owner approved encrypted cloud copies and account-free recovery-key enrollment
 on 2026-09-03. Remaining acceptance gates are listed below; the approval does not
 turn existing source-agent grants into global grants.
 
-## Required outcome
+## Release authority
+
+**2026-09-07:** This document describes the retired experimental recovery-key
+implementation and historical acceptance, including requirements written for that
+prototype. The accepted [Cloudflare/account contract](CLOUDFLARE_HOSTING.md) and
+[portfolio release plan](../engineering/FINAL_PORTFOLIO_RELEASE_PLAN.md) govern the
+next release: Clerk username/password and Google login, D1, private R2, and bounded quotas.
+Account storage is now implemented locally; deployed acceptance remains pending. Do not present this retired prototype as an available user flow.
+Local reading remains available without sign-in. No remote migration is implied.
+
+## Prototype required outcome
 
 The owner requires one library of sources, extracted structure, lessons, revisions,
 and reading progress across regular browsers and ChatGPT's native browser. Each
@@ -52,7 +62,7 @@ selecting its desktop folder. It requires OAuth authorization; it is not an
 account-free route. A provider integration would also need testing in the embedded
 browser. [Google Drive application data](https://developers.google.com/workspace/drive/api/guides/appdata).
 
-## Recommended experience
+## Existing prototype experience
 
 1. A first visitor starts with an empty library and chooses **Enable encrypted
    sync**. The dialog explains that encrypted copies leave the device and names
@@ -74,9 +84,10 @@ an account, or a pairing step. Do not use IP addresses, machine fingerprints, or
 public library ID as identity. The one-time recovery-key flow replaces folder
 permissions; it does not pretend recognition happens automatically on first use.
 
-Start with recovery-key enrollment. A shorter, expiring pairing-code experience
-can follow only with a reviewed key-transfer protocol. A short code alone must
-never be the encryption key or permanent authorization secret.
+This prototype uses recovery-key enrollment. The accepted public account mode uses
+ordinary OAuth sessions and recovery instead. If a later experimental privacy mode
+adds short pairing codes, it needs a reviewed key-transfer protocol; a short code
+must never be the encryption key or permanent authorization secret.
 
 ## Storage and trust boundary
 
@@ -88,12 +99,11 @@ ChatGPT browser     <-- authenticated HTTPS -->    | R2: encrypted library objec
 Other linked browser <-- authenticated HTTPS -->--+
 ```
 
-**Verified hosting state:** The existing PRISM Site is public. Releases 6 onward
+**Historical hosting evidence:** Prototype releases 6 onward
 add a Worker, D1 authorization/revision metadata and R2 encrypted files to the
 previous static SPA. Anonymous visitors can open the application; library API
 access still requires its credential. Public site access does not grant library
-access.
-[Sites capabilities](https://learn.chatgpt.com/docs/sites).
+access. These receipts do not authorize another release on the previous host.
 
 The implemented division is:
 
@@ -191,13 +201,13 @@ can verify a learner-supplied key locally before exporting it. The connection st
 a non-extractable derived encryption key, not the original recovery secret. A lost
 secret cannot be displayed or regenerated. Downloading a key is not proof of backup.
 
-## Delivery and acceptance gates
+## Historical prototype delivery and acceptance gates
 
 1. **Storage boundary decision:** approve encrypted remote copies and publish
-   accurate local/synced descriptions. Check account-specific Sites capacity and
+   accurate local/synced descriptions. Check provider-account capacity and
    set enforceable upload/storage/rate limits. Public-beta inclusion is not a
    guarantee of unlimited free hosting. No personal data is uploaded during this
-   research. [Sites limits](https://help.openai.com/en/articles/20001339).
+   research. The next release uses the budget rules in [Cloudflare hosting](CLOUDFLARE_HOSTING.md).
 2. **One full vertical slice:** implement backend authorization, encrypted chunk
    storage, recovery-key enrollment, durable outbox, and revision checks for one
    real source and its lesson. Use generated synthetic bytes for transport and
@@ -229,7 +239,9 @@ The UI supports recovery-key creation/enrollment, remembered connections, sync
 status, conflict decisions, browser revocation and cloud-library deletion. Source
 agent grants and local audit receipts remain browser-specific. Conflict recovery
 records are retained locally; a browsable recovery archive is still outstanding.
-App limits are 512 MiB per library, 5 GiB total ciphertext, 100 active libraries,
+The original prototype limits were 512 MiB per library, 5 GiB total ciphertext and
+100 active libraries. On September 7 the shared cloud policy changed the local
+Worker to 1 GB per library, 50 GB total and 50 active libraries, preserving the
 20 connected browsers per library, and bounded creation/request rates. These are
 enforced application limits, not verified account-level hosting entitlements.
 
@@ -259,9 +271,9 @@ security review is still required before describing this protocol as independent
 audited encryption. The local Wrangler process exited intermittently during build
 work; hosted operation has no dependency on that local process.
 
-Release 8 deployed successfully at 2026-09-04 03:46 UTC to
-<https://prism-reading.sevan4355.chatgpt.site>. Source commit:
-`0c03480c20187812fc22e0cb790ae195821818ec` in the separate Sites source repository.
+Historical prototype release 8 deployed successfully at 2026-09-04 03:46 UTC
+to the previous public preview. Source commit:
+`0c03480c20187812fc22e0cb790ae195821818ec` in the previous publishing source repository.
 Saved version: `appgprj_6a99edb4862c8191a88846a5f2a29a6a~appgver_c5449471eba48191b1a3590aeebe0281`.
 Deployment: `appgdep_6a9a3edb8a888191ba0acb32b832c648`.
 Anonymous requests to `/sources`, a source's `/lessons` route, and a `/lessons/:id`

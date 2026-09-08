@@ -1,5 +1,5 @@
 import { accessBrowserVault, PRISM_VAULT_CHANGED_EVENT, PRISM_VAULT_LESSON_BRIEF_STORE, type BrowserVaultEnvironment } from '../storage/browserVault'
-import { getBrowserSourcePages, readBrowserSourceBundle } from '../storage/browserSources'
+import { getBrowserSourcePages, pageImageElement } from '../storage/browserSources'
 import type { LessonBrief, LessonCoverageRange, ScopeReview } from './lessonPlanTypes'
 
 export interface ScopeReviewInput extends Omit<ScopeReview, 'updated_at'> { brief_id: string }
@@ -17,11 +17,9 @@ export async function recordScopeReview(input: ScopeReviewInput, environment?: B
   if (!['inspected', 'not_needed', 'unresolved'].includes(input.visual_review)) throw new Error('Record whether the original visuals were inspected, unnecessary, or unresolved.')
   if (typeof input.visual_notes !== 'string' || input.visual_notes.trim().length < 5 || input.visual_notes.length > 2000) throw new Error('Explain the visual review, including unreadable regions or why inspection was unnecessary.')
   if (!Array.isArray(input.essential_element_ids) || input.essential_element_ids.length > 64 || new Set(input.essential_element_ids).size !== input.essential_element_ids.length) throw new Error('Select up to 64 unique essential evidence anchors.')
-  for (let start = 0; start < input.essential_element_ids.length; start += 4) {
-    const bundle = await readBrowserSourceBundle(brief.source_id, input.essential_element_ids.slice(start, start + 4), 0, environment)
-    if (!bundle.bundle_complete || bundle.elements.some((item) => item.anchor.pdf_page_index < input.page_start || item.anchor.pdf_page_index > input.page_end)) throw new Error('Essential anchors must resolve within the reviewed pages.')
-  }
   const pages = await getBrowserSourcePages(brief.source_id, input.page_start, input.page_end, environment)
+  const anchors = new Set(pages.flatMap(page => [...page.elements.map(element => element.element_id), pageImageElement(page).element_id]))
+  if (input.essential_element_ids.some(id => !anchors.has(id))) throw new Error('Essential anchors must resolve within the reviewed pages.')
   if (input.visual_review === 'not_needed' && pages.some((page) => page.profile.layout_state !== 'linear_candidate')) throw new Error('These pages contain uncertain text or layout. Inspect the original page images, or mark their visuals unresolved.')
   const review: ScopeReview = { page_start: input.page_start, page_end: input.page_end, summary: input.summary.trim(), essential_element_ids: input.essential_element_ids, visual_review: input.visual_review, visual_notes: input.visual_notes.trim(), updated_at: new Date().toISOString() }
   await accessBrowserVault((db) => new Promise<void>((resolve, reject) => {

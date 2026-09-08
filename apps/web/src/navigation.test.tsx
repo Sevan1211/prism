@@ -14,6 +14,7 @@ describe('PRISM navigation', () => {
   beforeEach(() => window.history.replaceState({}, '', '/sources'))
 
   it('parses stable library, source, lesson, and Reader URLs', () => {
+    expect(parsePrismRoute('/')).toEqual({ kind: 'landing' })
     expect(parsePrismRoute('/sources')).toEqual({ kind: 'library' })
     expect(parsePrismRoute('/lessons/lesson%20one#section-2')).toEqual({ kind: 'lesson', lessonId: 'lesson one' })
     expect(parsePrismRoute('/sources/local_abc')).toEqual({

@@ -2,7 +2,9 @@ import { withSyncedLibrary } from './syncedLibrary'
 import { SYNC_STORES } from './syncDatabase'
 export const PRISM_VAULT_DATABASE = 'prism-browser-vault'
 export const PRISM_VAULT_DIRECTORY = 'prism-browser-vault'
-export const PRISM_VAULT_SCHEMA_VERSION = 12
+export const PRISM_VAULT_SCHEMA_VERSION = 13
+export const PRISM_VAULT_FOLDER_STORE = 'library_folders'
+export const PRISM_VAULT_SOURCE_FOLDER_STORE = 'source_folders'
 export const PRISM_VAULT_ILLUSTRATION_STORE = 'lesson_illustrations'
 export const PRISM_VAULT_LESSON_EDIT_STORE = 'lesson_edit_proposals'
 export const PRISM_VAULT_SOURCE_STORE = 'sources'
@@ -273,6 +275,13 @@ export function openVaultDatabase(
         throw new Error('The browser vault migration did not start a transaction.')
       }
       for (const name of SYNC_STORES) if (!database.objectStoreNames.contains(name)) database.createObjectStore(name)
+      if (!database.objectStoreNames.contains(PRISM_VAULT_FOLDER_STORE)) {
+        database.createObjectStore(PRISM_VAULT_FOLDER_STORE, { keyPath: 'id' })
+      }
+      if (!database.objectStoreNames.contains(PRISM_VAULT_SOURCE_FOLDER_STORE)) {
+        const memberships = database.createObjectStore(PRISM_VAULT_SOURCE_FOLDER_STORE, { keyPath: 'source_id' })
+        memberships.createIndex('folder_id', 'folder_id')
+      }
 
       let metadataStore: IDBObjectStore
       if (database.objectStoreNames.contains(META_STORE)) {

@@ -1,17 +1,17 @@
-import { LibraryStorage } from '../LibraryStorage'
-import { PrismHelp } from '../PrismHelp'
+import { AGENT_STARTUP_PROMPT } from '../webmcp/authoringGuide'
+import { SourceLibrary } from './SourceLibrary'
+import { ConfirmationDialog } from './ConfirmationDialog'
+import { cleanTitle, sourceStatus, statusTone } from './sourcePresentation'
+import { moveSourceToFolder } from '../storage/sourceFolders'
 import { LoadingState } from '../LoadingState'
 import { useSyncStatus } from '../storage/useSyncStatus'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   LockKey,
   ArrowRight,
   BookOpenText,
   CheckCircle,
-  FilePdf,
-  MagnifyingGlass,
   PlugsConnected,
-  Plus,
   Trash,
   X,
 } from '@phosphor-icons/react'
@@ -28,7 +28,6 @@ import {
 import { PrismLink } from '../PrismLink'
 import type { LibrarySource } from '../storage/browserSources'
 import { downloadPublicPdf } from '../storage/publicPdfImport'
-import { ThemeToggle } from '../ThemeToggle'
 import type { RightsStatus } from '../types'
 import { AgentActivityPanel } from './AgentActivityPanel'
 
@@ -39,12 +38,12 @@ interface SourceWorkspaceProps {
   error: string | null
   importRequest: { requestId: number; rightsStatus: RightsStatus } | null
   onAgentAccessChange: (source: LibrarySource, granted: boolean) => void
-  onDelete: (source: LibrarySource) => void
+  onDelete: (source: LibrarySource) => Promise<void>
   onError: (message: string) => void
   onEvidenceReturnComplete: () => void
   onIndex: (sourceId: string) => void
   onOpenEvidence: (sourceId: string, elementId: string, returnTargetId?: string) => Promise<void>
-  onUpload: (file: File, rightsStatus: RightsStatus) => Promise<void>
+  onUpload: (file: File, rightsStatus: RightsStatus, allowAgentAccess: boolean) => Promise<LibrarySource>
   routeKind: PrismRoute['kind']
   selectedSource: LibrarySource | null
   sourcePlanId: string | null
@@ -73,19 +72,15 @@ export function SourceWorkspace({
   sources,
   sourcesReady,
 }: SourceWorkspaceProps) {
-  const [filter, setFilter] = useState('')
+  const [pendingDelete, setPendingDelete] = useState<LibrarySource | null>(null)
+  const synced = useSyncStatus()
+  const [importFolder, setImportFolder] = useState<string | null>(null)
   const [importOpen, setImportOpen] = useState(importRequest !== null)
   const [importRights, setImportRights] = useState<RightsStatus>(
     importRequest?.rightsStatus ?? 'private_authorized',
   )
-  const visibleSources = useMemo(() => {
-    const query = filter.trim().toLocaleLowerCase()
-    return query
-      ? sources.filter((source) => cleanTitle(source.original_name).toLocaleLowerCase().includes(query))
-      : sources
-  }, [filter, sources])
 
-  const closeImport = useCallback(() => setImportOpen(false), [])
+  const closeImport = useCallback(() => { setImportOpen(false); setImportFolder(null) }, [])
 
   useEffect(() => {
     if (!evidenceReturnTargetId) return undefined
@@ -129,245 +124,63 @@ export function SourceWorkspace({
   return (
     <div className="workspace-shell">
       <a className="skip-link" href="#workspace-main" aria-hidden={importOpen} inert={importOpen}>Skip to content</a>
-      <div className="workspace-header-surface" aria-hidden={importOpen} inert={importOpen}>
-        <AppHeader />
+      <div className="workspace-surface" aria-hidden={importOpen} inert={importOpen}>
+        <SourceLibrary
+          onImport={(folderId) => { setImportFolder(folderId); openImport() }}
+          sources={sources}
+          sourcesReady={sourcesReady}
+          selectedSource={selectedSource}
+        >
+        {routeKind === 'library' ? null : <>
+        {routeKind === 'source' && !sourcesReady && !selectedSource ? <LoadingState title="Opening your library" detail="Checking your saved sources and library connection." /> : null}
+        {routeKind === 'source' && selectedSource ? (
+          <SourceViewPage
+            activeIndex={activeIndexIds.has(selectedSource.id)}
+            onAgentAccessChange={(granted) => onAgentAccessChange(selectedSource, granted)}
+            onDelete={selectedSource.storage_location === 'browser_vault'
+              ? () => setPendingDelete(selectedSource)
+              : undefined}
+            onError={onError}
+            onIndex={() => onIndex(selectedSource.id)}
+            onOpenEvidence={(elementId, returnTargetId) => (
+              onOpenEvidence(selectedSource.id, elementId, returnTargetId)
+            )}
+            planId={sourcePlanId}
+            source={selectedSource}
+            view={sourceView ?? 'overview'}
+          />
+        ) : null}
+
+        {missingSource || routeKind === 'not_found' ? <NotFoundView /> : null}
+        </>}
+        </SourceLibrary>
+        {error ? <p className="workspace-error" role="alert">{error}</p> : null}
       </div>
 
-      <div className="workspace-body" aria-hidden={importOpen} inert={importOpen}>
-        <SourceSidebar
-          activeIndexIds={activeIndexIds}
-          filter={filter}
-          onFilter={setFilter}
-          onImport={() => openImport()}
-          onIndex={onIndex}
-          selectedSourceId={selectedSource?.id ?? null}
-          sources={visibleSources}
-        />
-
-        <main className="workspace-main" id="workspace-main">
-          {routeKind === 'source' && !sourcesReady && !selectedSource ? <LoadingState title="Opening your library" detail="Checking your saved sources and library connection." /> : null}
-          {routeKind === 'library' ? (
-            <LibraryView
-              onImport={() => openImport()}
-              sources={sources}
-              sourcesReady={sourcesReady}
-            />
-          ) : null}
-
-          {routeKind === 'source' && selectedSource ? (
-            <SourceViewPage
-              activeIndex={activeIndexIds.has(selectedSource.id)}
-              onAgentAccessChange={(granted) => onAgentAccessChange(selectedSource, granted)}
-              onDelete={selectedSource.storage_location === 'browser_vault'
-                ? () => onDelete(selectedSource)
-                : undefined}
-              onError={onError}
-              onIndex={() => onIndex(selectedSource.id)}
-              onOpenEvidence={(elementId, returnTargetId) => (
-                onOpenEvidence(selectedSource.id, elementId, returnTargetId)
-              )}
-              planId={sourcePlanId}
-              source={selectedSource}
-              view={sourceView ?? 'overview'}
-            />
-          ) : null}
-
-          {missingSource || routeKind === 'not_found' ? <NotFoundView /> : null}
-          {error ? <p className="workspace-error" role="alert">{error}</p> : null}
-        </main>
-      </div>
+      {pendingDelete ? <ConfirmationDialog
+        title="Remove this source?" itemName={cleanTitle(pendingDelete.original_name)} kind="source" confirmLabel="Remove source"
+        onConfirm={() => onDelete(pendingDelete)} onClose={() => setPendingDelete(null)}
+        focusAfterSuccess={() => document.getElementById('workspace-main')}>
+        <p>This removes the PDF, its lessons, and its reading history from your library.</p>
+        <p className="confirmation-note">{synced.connected ? 'This removal also syncs to your connected browsers. ' : ''}This cannot be undone. Your original file outside PRISM is unaffected.</p>
+      </ConfirmationDialog> : null}
 
       {importOpen ? (
         <ImportDialog
           busy={busy}
           initialRights={importRights}
           onClose={closeImport}
-          onUpload={async (file, rights) => {
-            await onUpload(file, rights)
+          onUpload={async (file, rights, allowAgentAccess) => {
+            const source = await onUpload(file, rights, allowAgentAccess)
+            if (importFolder) {
+              try { await moveSourceToFolder(source.id, importFolder) }
+              catch { onError('Your PDF was imported, but could not be added to the folder. You can move it from Library.') }
+            }
             closeImport()
           }}
         />
       ) : null}
     </div>
-  )
-}
-
-export function AppHeader() {
-  const agentAvailable = typeof document.modelContext?.registerTool === 'function'
-  return (
-    <header className="app-header">
-      <PrismLink className="app-brand" href={libraryPath()} aria-label="PRISM sources">
-        <span className="brand-wordmark">prism</span>
-      </PrismLink>
-      <nav className="app-nav" aria-label="Primary navigation">
-        <PrismLink href={libraryPath()}>Sources</PrismLink>
-      </nav>
-      <div className="app-header-status" aria-label="Workspace status">
-        <span title={agentAvailable ? 'This browser supports the agent interface' : 'Open in a WebMCP-enabled browser to compose lessons with your agent'}>
-          <PlugsConnected aria-hidden="true" weight="bold" />
-          {agentAvailable ? 'WebMCP ready' : 'Reading mode'}
-        </span>
-        <PrismHelp />
-        <LibraryStorage />
-      </div>
-      <ThemeToggle />
-    </header>
-  )
-}
-
-function SourceSidebar({
-  activeIndexIds,
-  filter,
-  onFilter,
-  onImport,
-  onIndex,
-  selectedSourceId,
-  sources,
-}: {
-  activeIndexIds: Set<string>
-  filter: string
-  onFilter: (value: string) => void
-  onImport: () => void
-  onIndex: (sourceId: string) => void
-  selectedSourceId: string | null
-  sources: LibrarySource[]
-}) {
-  return (
-    <aside className="source-sidebar" aria-label="Source library">
-      <div className="source-sidebar-heading">
-        <span>Your library</span>
-        <button className="icon-button" type="button" onClick={onImport} aria-label="Add a source">
-          <Plus aria-hidden="true" weight="bold" />
-        </button>
-      </div>
-      <label className="source-filter">
-        <MagnifyingGlass aria-hidden="true" />
-        <span className="sr-only">Filter sources</span>
-        <input
-          type="search"
-          value={filter}
-          onChange={(event) => onFilter(event.currentTarget.value)}
-          placeholder="Filter sources"
-        />
-      </label>
-      <div className="source-list">
-        {sources.map((source) => (
-          <SourceNavRow
-            active={selectedSourceId === source.id}
-            indexBusy={activeIndexIds.has(source.id)}
-            key={source.id}
-            onIndex={() => onIndex(source.id)}
-            source={source}
-          />
-        ))}
-        {sources.length === 0 ? (
-          <p className="source-list-empty">{filter.trim() ? 'No matching sources.' : 'Your first source will appear here.'}</p>
-        ) : null}
-      </div>
-      <button className="source-add" type="button" onClick={onImport}>
-        <Plus aria-hidden="true" weight="bold" />
-        Add PDF
-      </button>
-    </aside>
-  )
-}
-
-function SourceNavRow({
-  active,
-  indexBusy,
-  onIndex,
-  source,
-}: {
-  active: boolean
-  indexBusy: boolean
-  onIndex: () => void
-  source: LibrarySource
-}) {
-  const needsIndex = source.storage_location === 'browser_vault'
-    && source.browser_index?.state !== 'ready'
-  return (
-    <div className={`source-nav-row ${active ? 'is-active' : ''}`}>
-      <PrismLink href={sourcePath(source.id)} aria-current={active ? 'page' : undefined}>
-        <FilePdf aria-hidden="true" weight={active ? 'fill' : 'regular'} />
-        <span>
-          <strong>{cleanTitle(source.original_name)}</strong>
-          <small>{source.page_count?.toLocaleString() ?? 'Unknown'} pages</small>
-        </span>
-      </PrismLink>
-      {needsIndex ? (
-        <button type="button" disabled={indexBusy} onClick={onIndex}>
-          {indexBusy ? 'Indexing' : 'Index source'}
-        </button>
-      ) : null}
-    </div>
-  )
-}
-
-function LibraryView({
-  onImport,
-  sources,
-  sourcesReady,
-}: {
-  onImport: () => void
-  sources: LibrarySource[]
-  sourcesReady: boolean
-}) {
-  const synced = useSyncStatus()
-  return (
-    <section className="library-view" aria-labelledby="library-title">
-      <header className="page-heading">
-        <div>
-          <p className="page-kicker">Workspace</p>
-          <h1 id="library-title">Sources</h1>
-          <p>Read the original, map its evidence, and build source-grounded lessons.</p>
-        </div>
-        <button className="button-primary" type="button" onClick={onImport}>
-          <Plus aria-hidden="true" weight="bold" />
-          Add PDF
-        </button>
-      </header>
-
-      {!sourcesReady ? <p className="library-loading">Loading your local library…</p> : null}
-      {sourcesReady && sources.length === 0 ? (
-        <div className="library-empty">
-          <FilePdf aria-hidden="true" />
-          <h2>Start with a document.</h2>
-          <p>A paper, a chapter, a whole textbook. Start with the material that matters to you.</p>
-          <div className="library-empty-actions">
-            <button className="button-primary" type="button" onClick={onImport}><Plus aria-hidden="true" /> Choose your PDF</button>
-          </div>
-          <small>
-            {synced.connected ? 'Your encrypted library syncs across connected browsers. No account required.' : 'Start locally, or enable encrypted sync across browsers. No account required.'}
-          </small>
-        </div>
-      ) : null}
-      {sourcesReady && sources.length === 0 ? <ol className="library-start-steps" aria-label="How PRISM works">
-        <li><span>01</span><strong>Bring your source</strong><p>Read and search the original. PDF processing happens in your browser.</p></li>
-        <li><span>02</span><strong>Give your agent a goal</strong><p>A focused lesson or a detailed synthesis. You choose the scope and depth.</p></li>
-        <li><span>03</span><strong>Keep making it clearer</strong><p>Explore figures, follow references, and ask for a better explanation in the same lesson.</p></li>
-      </ol> : null}
-      {sources.length > 0 ? (
-        <div className="library-table" role="list">
-          <div className="library-table-head" aria-hidden="true">
-            <span>Source</span><span>Readiness</span><span>Storage</span><span />
-          </div>
-          {sources.map((source) => (
-            <PrismLink className="library-source" href={sourcePath(source.id)} key={source.id} role="listitem">
-              <span className="library-source-title">
-                <FilePdf aria-hidden="true" />
-                <span>
-                  <strong>{cleanTitle(source.original_name)}</strong>
-                  <small>{source.page_count?.toLocaleString() ?? 'Unknown'} pages</small>
-                </span>
-              </span>
-              <span className="source-readiness" data-tone={statusTone(source)}>{sourceStatus(source)}</span>
-              <span>{source.storage_location === 'browser_vault' ? (synced.connected ? 'Encrypted sync' : 'This browser only') : 'Local companion'}</span>
-              <ArrowRight aria-hidden="true" />
-            </PrismLink>
-          ))}
-        </div>
-      ) : null}
-    </section>
   )
 }
 
@@ -396,11 +209,11 @@ function SourceViewPage({
     <article className="source-view" data-view={view}>
       <header className="source-page-heading">
         <div className="source-heading-copy">
-          <PrismLink className="back-link" href={libraryPath()}>Sources</PrismLink>
+          <PrismLink className="back-link" href={libraryPath()}>← Back to library</PrismLink>
           <h1>{cleanTitle(source.original_name)}</h1>
           <div className="source-meta">
             <span className="source-readiness" data-tone={statusTone(source)}>{sourceStatus(source)}</span>
-            <span>{source.page_count?.toLocaleString() ?? 'Unknown'} pages</span>
+            <span>{source.page_count?.toLocaleString() ?? 'Unknown'} {source.page_count === 1 ? 'page' : 'pages'}</span>
             <span>{rightsLabel(source.rights_status)}</span>
           </div>
         </div>
@@ -412,7 +225,7 @@ function SourceViewPage({
           {onDelete ? (
             <button className="button-quiet button-danger" type="button" onClick={onDelete}>
               <Trash aria-hidden="true" />
-              Remove
+              Remove source
             </button>
           ) : null}
         </div>
@@ -482,9 +295,8 @@ function SourceOverview({
       <div className="source-primary-column">
         <section className="continue-section" aria-labelledby="continue-title">
           <div>
-            <p className="page-kicker">Continue</p>
-            <h2 id="continue-title">Work from the source, then reconstruct it.</h2>
-            <p>Use the original for exact context or move into planning when the assigned scope is clear.</p>
+            <h2 id="continue-title">Continue reading</h2>
+            <p>Open the original at your saved place, or explore its lessons.</p>
           </div>
           <div className="continue-actions">
             <PrismLink className="button-primary" href={readerPath(source.id)}>
@@ -496,10 +308,8 @@ function SourceOverview({
           </div>
         </section>
 
-        <section className="source-information" aria-labelledby="source-information-title">
-          <header>
-            <h2 id="source-information-title">Source information</h2>
-          </header>
+        <details className="source-information" open={!indexed}>
+          <summary>Source information <span>Evidence, storage, and rights</span></summary>
           <dl>
             <InfoRow label="Evidence map" value={indexed ? 'Ready' : 'Not ready'} tone={indexed ? 'good' : 'warn'} />
             <InfoRow label="Pages" value={(source.page_count ?? 0).toLocaleString()} />
@@ -512,7 +322,7 @@ function SourceOverview({
               {activeIndex ? 'Building evidence map…' : 'Build evidence map'}
             </button>
           ) : null}
-        </section>
+        </details>
 
         <AgentActivityPanel sourceId={source.id} />
       </div>
@@ -584,7 +394,8 @@ function InfoRow({
 
 function AgentPrompt({ source }: { source: LibrarySource }) {
   const [copied, setCopied] = useState(false)
-  const prompt = `Build a 20-minute lesson from ${cleanTitle(source.original_name)}. First ask for my assigned scope and learning goal. Inspect the full scope, disclose omissions, and propose the coverage plan before composing.`
+  const request = `Build a lesson from ${cleanTitle(source.original_name)}. Use my saved request if available; ask only for missing scope or learning goals. Preserve essential details and propose a plan for my approval.`
+  const prompt = `${AGENT_STARTUP_PROMPT}\n\n${request} Source id: ${source.id}.`
 
   async function copyPrompt() {
     try {
@@ -598,7 +409,8 @@ function AgentPrompt({ source }: { source: LibrarySource }) {
 
   return (
     <div className="agent-prompt">
-      <p>{prompt}</p>
+      <p>{request}</p>
+      <details className="brief-request"><summary>View WebMCP prompt</summary><p>{prompt}</p></details>
       <button type="button" onClick={copyPrompt}>{copied ? 'Copied' : 'Copy starter prompt'}</button>
     </div>
   )
@@ -613,7 +425,7 @@ function ImportDialog({
   busy: boolean
   initialRights: RightsStatus
   onClose: () => void
-  onUpload: (file: File, rights: RightsStatus) => Promise<void>
+  onUpload: (file: File, rights: RightsStatus, allowAgentAccess: boolean) => Promise<void>
 }) {
   const synced = useSyncStatus()
   const [file, setFile] = useState<File | null>(null)
@@ -623,6 +435,8 @@ function ImportDialog({
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const downloadRef = useRef<AbortController | null>(null)
   const [rights, setRights] = useState<RightsStatus>(initialRights)
+  const [allowAgentAccess, setAllowAgentAccess] = useState(false)
+  const publicSource = ['open_license', 'public_domain'].includes(rights)
   const dialogRef = useRef<HTMLElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
@@ -635,7 +449,7 @@ function ImportDialog({
 
   async function importSelection() {
     if (file) {
-      try { await onUpload(file, rights) }
+      try { await onUpload(file, rights, !publicSource && allowAgentAccess) }
       catch (cause) { setDownloadError(cause instanceof Error ? cause.message : 'The PDF could not be imported.') }
       return
     }
@@ -644,7 +458,7 @@ function ImportDialog({
     setDownloading(true); setDownloadBytes(0); setDownloadError(null)
     try {
       const downloaded = await downloadPublicPdf(url, AbortSignal.any([controller.signal, AbortSignal.timeout(90_000)]), setDownloadBytes)
-      if (!controller.signal.aborted) await onUpload(downloaded, rights)
+      if (!controller.signal.aborted) await onUpload(downloaded, rights, !publicSource && allowAgentAccess)
     } catch (cause) {
       if (!controller.signal.aborted) setDownloadError(cause instanceof Error ? cause.message : 'The download failed. Choose a local PDF instead.')
     } finally { setDownloading(false); downloadRef.current = null }
@@ -698,36 +512,43 @@ function ImportDialog({
             <X aria-hidden="true" weight="bold" />
           </button>
         </header>
-        <label className="import-drop">
+        <label className="import-drop" data-selected={file !== null}>
           <input
             ref={fileInputRef}
             type="file"
             accept="application/pdf,.pdf"
             disabled={busy || downloading}
             aria-label="Choose a PDF"
-            onChange={(event) => { setFile(event.currentTarget.files?.[0] ?? null); setUrl(''); setDownloadError(null) }}
+            onChange={(event) => { setFile(event.currentTarget.files?.[0] ?? null); setAllowAgentAccess(false); setUrl(''); setDownloadError(null) }}
           />
-          <FilePdf aria-hidden="true" weight="light" />
+          <BookOpenText aria-hidden="true" weight="light" />
           <strong>{file?.name ?? 'Choose a textbook, paper, or technical PDF'}</strong>
           <small>{file ? formatBytes(file.size) : 'PDF, up to 128 MB, saved to your selected library'}</small>
         </label>
         <label className="import-rights">
           <span>Or paste a public PDF link</span>
           <input type="url" placeholder="https://…/paper.pdf" value={url} disabled={busy || downloading}
-            onChange={event => { setUrl(event.target.value); setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; setDownloadError(null) }} />
+            onChange={event => { setUrl(event.target.value); setAllowAgentAccess(false); setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; setDownloadError(null) }} />
         </label>
         <label className="import-rights">
           <span>Rights for this source</span>
-          <select value={rights} disabled={busy || downloading} onChange={(event) => setRights(event.currentTarget.value as RightsStatus)}>
+          <select value={rights} disabled={busy || downloading} onChange={(event) => { setRights(event.currentTarget.value as RightsStatus); setAllowAgentAccess(false) }}>
             <option value="private_authorized">My private, authorized copy</option>
             <option value="open_license">Open license</option>
             <option value="public_domain">Public domain</option>
-            <option value="unknown">Unknown, local inspection only</option>
+            <option value="unknown">Unknown / unverified</option>
           </select>
         </label>
+        {!publicSource ? <label className="import-agent-access">
+          <input type="checkbox" checked={allowAgentAccess} disabled={busy || downloading}
+            onChange={event => setAllowAgentAccess(event.currentTarget.checked)} aria-labelledby="import-agent-access-label" aria-describedby="import-agent-access-detail" />
+          <span><strong id="import-agent-access-label">Allow my agent to read this PDF</strong>
+            <small id="import-agent-access-detail">Share selected text and page images with your chosen agent provider under its data controls. Optional; you can revoke access in the source overview.</small>
+          </span>
+        </label> : null}
         <div className="privacy-receipt">
           <LockKey aria-hidden="true" weight="bold" />
-          <p>{synced.connected ? 'This PDF will be encrypted in your browser and synced to your private cloud library. ' : 'The file stays in this browser. '}{['open_license', 'public_domain'].includes(rights) ? 'Agents can read selected text and page images from sources you identify as public or openly licensed.' : 'Agent source access remains off unless you grant it.'}</p>
+          <p>{synced.connected ? 'This PDF will be encrypted in your browser and synced to your private cloud library. ' : 'The file stays in this browser. '}{publicSource ? 'Agents can read selected text and page images from sources you identify as public or openly licensed.' : 'Your agent can access this source only with your permission. Lesson plans and revisions still need your approval.'}</p>
         </div>
         {downloadError ? <p role="alert" className="import-feedback">{downloadError}</p> : null}
         {downloading ? <p role="status" className="import-feedback">Downloading · {formatBytes(downloadBytes)}</p> : null}
@@ -753,28 +574,9 @@ function NotFoundView() {
       <p className="page-kicker">Not found</p>
       <h1>This PRISM page does not exist.</h1>
       <p>The source may have been removed from this browser.</p>
-      <PrismLink className="button-primary" href={libraryPath()}>Return to sources</PrismLink>
+      <PrismLink className="button-primary" href={libraryPath()}>Return to library</PrismLink>
     </section>
   )
-}
-
-function sourceStatus(source: LibrarySource): string {
-  if (source.storage_location === 'browser_vault') {
-    if (source.browser_index?.state === 'ready') return 'Evidence ready'
-    if (source.browser_index?.state === 'indexing') return 'Indexing'
-    if (source.browser_index?.state === 'failed') return 'Needs attention'
-    return 'Reader ready'
-  }
-  if (source.status === 'structure_ready') return 'Evidence ready'
-  if (source.status === 'needs_review' || source.status === 'failed') return 'Needs attention'
-  return 'Preparing'
-}
-
-function statusTone(source: LibrarySource): 'good' | 'warn' | 'active' {
-  const status = sourceStatus(source)
-  if (status === 'Evidence ready') return 'good'
-  if (status === 'Needs attention') return 'warn'
-  return 'active'
 }
 
 function rightsLabel(rights: RightsStatus): string {
@@ -785,10 +587,6 @@ function rightsLabel(rights: RightsStatus): string {
     unknown: 'Rights unverified',
   }
   return labels[rights]
-}
-
-function cleanTitle(value: string): string {
-  return value.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
 function formatBytes(value: number): string {

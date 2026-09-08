@@ -1,18 +1,20 @@
 import { openVaultDatabase, accessBrowserVault, type DirectoryHandleLike } from './browserVault'
 import { snapshotVaultRecords, writeVaultFile } from './vaultTransfer'
 import { allRecords, getRecord, isPortable, putRecord, recordKey, trackSyncWrites, transactionDone, type PendingCommit, type SyncChange } from './syncDatabase'
-import { hex, randomHex, recoveryKeys, seal, SYNC_CHUNK_BYTES, unseal } from './syncCrypto'
+import { hex, packObject, SYNC_CHUNK_BYTES, verifyObject } from './cloudObjects'
 import { mergeReadingProgress } from './syncReadingProgress'
 
 export const SYNC_CHANGED = 'prism:sync-changed'
-interface Connection { library: string; encryption: CryptoKey; token: string; device: string }
-interface BlobReference { kind: 'prism-sync-blob-v1'; chunks: string[]; size: number; type: string }
+interface Connection { library: string; owner: string }
+interface Identity { owner: string; getToken: () => Promise<string | null>; controller: AbortController }
+let identity: Identity | null = null
+export interface CloudLibraryInfo { library: { id: string; head: number; deleted: number } | null; usedBytes: number; quotaBytes: number; mode: 'local' | 'remote' }
+interface BlobReference { kind: 'prism-cloud-blob-v1'; chunks: string[]; size: number; type: string }
 interface UploadPlan extends BlobReference { sent: number }
 interface RemoteCommit { revision: number; mutation: string; objects: string[] }
 interface CommitBody { format: 1; parent: number; entries: PendingCommit[]; files: Record<string, BlobReference> }
 export interface SyncStatus { connected: boolean; state: 'local' | 'syncing' | 'synced' | 'offline' | 'conflict' | 'error'; detail: string; lastSynced: number | null; pending: number; conflict?: string }
 let connection: Connection | null | undefined
-let restoring: Promise<void> | undefined
 let sequence: Promise<unknown> = Promise.resolve()
 let running: Promise<void> | undefined
 let timer: ReturnType<typeof setTimeout> | undefined
@@ -24,41 +26,53 @@ function serialized<T>(work: () => Promise<T>): Promise<T> { const result = sequ
 async function locked<T>(work: () => Promise<T>) {
   return serialized(async () => navigator.locks ? await navigator.locks.request('prism-sync-library', work) : await work())
 }
-async function settings(value?: Connection | null): Promise<Connection | null> {
-  const db = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open('prism-sync-connection', 1)
-    request.onupgradeneeded = () => request.result.createObjectStore('settings')
-    request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error)
-  })
-  try {
-    if (value !== undefined) { const tx = db.transaction('settings', 'readwrite'); if (value) tx.objectStore('settings').put(value, 'current'); else tx.objectStore('settings').delete('current'); await transactionDone(tx) }
-    return await getRecord<Connection>(db, 'settings', 'current') ?? null
-  } finally { db.close() }
+// Tokens are never persisted. Cached library pointers are scoped to the restored owner.
+export function bindCloudIdentity(owner: string, getToken: () => Promise<string | null>) {
+  identity?.controller.abort()
+  const selected = { owner, getToken, controller: new AbortController() }
+  identity = selected; connection = null
+  announce({ connected: false, state: 'local', detail: 'Your browser library is available.', pending: 0, conflict: undefined })
+  changed()
+  if (localStorage.getItem(`prism-cloud-enabled:${owner}`) === 'true') {
+    const library = localStorage.getItem(`prism-cloud-library:${owner}`)
+    if (library && /^[a-f0-9]{64}$/.test(library)) {
+      connection = { library, owner }
+      announce({ connected: true, state: 'offline', detail: 'Opening your saved account library. Checking the connection…' })
+      changed()
+      void syncNow()
+    } else void connectCloudLibrary(false, false).catch(error => {
+      if (identity === selected) announce({ state: 'error', detail: error instanceof Error ? error.message : 'Reopen storage to reconnect your account.' })
+    })
+  }
+  return () => {
+    selected.controller.abort()
+    if (identity !== selected) return
+    identity = null; connection = null
+    if (timer) clearTimeout(timer); timer = undefined
+    announce({ connected: false, state: 'local', detail: 'Signed out of cloud storage. Your original browser library is available.', pending: 0, conflict: undefined })
+    changed()
+  }
 }
-export async function restoreSyncedLibrary() {
-  if (typeof indexedDB === 'undefined') return
-  if (restoring) return restoring
-  if (connection !== undefined) return
-  restoring = (async () => {
-    connection = await settings()
-    if (connection) { announce({ connected: true, state: 'syncing', detail: 'Checking for library changes…' }); schedule() }
-  })()
-  try { await restoring } finally { restoring = undefined }
-}
-function current() { if (!connection) throw new Error('Connect a synced library first.'); return connection }
-async function cache() { return openVaultDatabase(indexedDB, () => new Date().toISOString(), `prism-sync-${current().library}`) }
-async function directory() { return (await navigator.storage.getDirectory()).getDirectoryHandle(`prism-sync-${current().library}`, { create: true }) }
-class SyncHttpError extends Error { constructor(readonly code: number, message: string) { super(message) } }
-async function api(path: string, init: RequestInit = {}, auth = current().token, library = current().library): Promise<Response> {
+function selectedIdentity() { if (!identity) throw new Error('Sign in to use cloud storage.'); return identity }
+export async function cloudRequest(path: string, init: RequestInit = {}) {
+  const selected = selectedIdentity(), token = await selected.getToken()
+  if (!token || identity !== selected || selected.controller.signal.aborted) throw new Error('Sign in again to continue.')
   let response: Response
-  try { response = await fetch(`/api/sync/libraries/${library}${path}`, { ...init, headers: { ...init.headers, Authorization: `Bearer ${auth}` }, cache: 'no-store', signal: AbortSignal.timeout(45_000) }) }
-  catch { throw new SyncHttpError(0, 'Offline or unable to reach sync. Changes are saved on this browser and will retry.') }
-  if (!response.ok) { const result = await response.json().catch(() => ({})); throw new SyncHttpError(response.status, result.error ?? 'The sync request failed. Your local changes are retained.') }
+  try { response = await fetch(`/api/cloud${path}`, { ...init, headers: { ...init.headers, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, cache: 'no-store', signal: AbortSignal.any([selected.controller.signal, AbortSignal.timeout(45000)]) }) }
+  catch { throw new SyncHttpError(0, 'Unable to reach cloud storage. Your changes are saved on this browser.') }
+  if (identity !== selected) throw new Error('Account changed. No data was applied.')
+  if (!response.ok) { const data = await response.json().catch(() => ({})); throw new SyncHttpError(response.status, data.error ?? 'Cloud storage could not finish this request.') }
   return response
 }
-export async function syncAvailable() {
-  try { const response = await fetch('/api/sync/status', { cache: 'no-store' }); return response.ok && (await response.json()).available === true }
-  catch { return false }
+export async function cloudLibraryInfo(): Promise<CloudLibraryInfo> { return (await cloudRequest('/library')).json() }
+function current() { if (!connection) throw new Error('Connect a synced library first.'); return connection }
+async function cache() { return openVaultDatabase(indexedDB, () => new Date().toISOString(), `prism-cloud-${current().library}`) }
+async function directory() { return (await navigator.storage.getDirectory()).getDirectoryHandle(`prism-cloud-${current().library}`, { create: true }) }
+class SyncHttpError extends Error { constructor(readonly code: number, message: string) { super(message) } }
+async function api(path: string, init: RequestInit = {}): Promise<Response> {
+  const selected = current()
+  if (selected.owner !== selectedIdentity().owner) throw new Error('Account changed. Reopen your cloud library.')
+  return cloudRequest(`/libraries/${selected.library}${path}`, init)
 }
 function schedule() {
   if (timer || !connection) return
@@ -66,27 +80,27 @@ function schedule() {
 }
 export function startSyncWatching() {
   const refresh = () => { if (document.visibilityState === 'visible') void syncNow() }
-  const interval = setInterval(refresh, 5000)
+  const interval = setInterval(refresh, 120000)
   window.addEventListener('online', refresh); window.addEventListener('focus', refresh)
   return () => { clearInterval(interval); window.removeEventListener('online', refresh); window.removeEventListener('focus', refresh) }
 }
 
 async function uploadBlob(db: IDBDatabase, blob: Blob, cacheKey: string): Promise<BlobReference> {
-  const c = current(), root = await directory(), ciphertexts = await root.getDirectoryHandle('encrypted', { create: true })
+  const root = await directory(), objectFiles = await root.getDirectoryHandle('objects', { create: true })
   let plan = await getRecord<UploadPlan>(db, 'sync_meta', `upload:${cacheKey}`)
-  if (!plan) { plan = { kind: 'prism-sync-blob-v1', chunks: [], size: blob.size, type: blob.type, sent: 0 }; await putRecord(db, 'sync_meta', `upload:${cacheKey}`, plan) }
+  if (!plan) { plan = { kind: 'prism-cloud-blob-v1', chunks: [], size: blob.size, type: blob.type, sent: 0 }; await putRecord(db, 'sync_meta', `upload:${cacheKey}`, plan) }
   if (plan.size !== blob.size || plan.type !== blob.type) throw new Error('A cached upload does not match its source.')
   const count = Math.max(1, Math.ceil(blob.size / SYNC_CHUNK_BYTES))
   for (let index = plan.sent; index < count; index++) {
     let id = plan.chunks[index]
     if (!id) {
-      const encrypted = await seal(c.encryption, c.library, new Uint8Array(await blob.slice(index * SYNC_CHUNK_BYTES, (index + 1) * SYNC_CHUNK_BYTES).arrayBuffer()))
-      id = encrypted.id
-      await writeVaultFile(ciphertexts, id, new Blob([encrypted.ciphertext as Uint8Array<ArrayBuffer>]))
+      const packed = await packObject(new Uint8Array(await blob.slice(index * SYNC_CHUNK_BYTES, (index + 1) * SYNC_CHUNK_BYTES).arrayBuffer()))
+      id = packed.id
+      await writeVaultFile(objectFiles, id, new Blob([packed.bytes as Uint8Array<ArrayBuffer>]))
       plan.chunks[index] = id
       await putRecord(db, 'sync_meta', `upload:${cacheKey}`, plan)
     }
-    await api(`/objects/${id}`, { method: 'PUT', body: await (await ciphertexts.getFileHandle(id)).getFile() })
+    await api(`/objects/${id}`, { method: 'PUT', body: await (await objectFiles.getFileHandle(id)).getFile() })
     plan.sent = index + 1
     await putRecord(db, 'sync_meta', `upload:${cacheKey}`, plan)
   }
@@ -94,21 +108,20 @@ async function uploadBlob(db: IDBDatabase, blob: Blob, cacheKey: string): Promis
 }
 function validateReference(value: unknown): asserts value is BlobReference {
   const ref = value as BlobReference
-  if (!ref || ref.kind !== 'prism-sync-blob-v1' || !Array.isArray(ref.chunks) || !ref.chunks.length || ref.chunks.length > 1024 || !ref.chunks.every(id => typeof id === 'string' && /^[a-f0-9]{64}$/.test(id)) || !Number.isSafeInteger(ref.size) || ref.size < 0 || ref.size > 512 * 1024 * 1024 || typeof ref.type !== 'string') throw new Error('Invalid encrypted file reference.')
+  if (!ref || ref.kind !== 'prism-cloud-blob-v1' || !Array.isArray(ref.chunks) || !ref.chunks.length || ref.chunks.length > 1024 || !ref.chunks.every(id => typeof id === 'string' && /^[a-f0-9]{64}$/.test(id)) || !Number.isSafeInteger(ref.size) || ref.size < 0 || ref.size > 512 * 1024 * 1024 || typeof ref.type !== 'string') throw new Error('Invalid cloud file reference.')
 }
 async function plaintext(id: string) {
-  const c = current()
-  const encrypted = await (await directory()).getDirectoryHandle('encrypted', { create: true })
-  try { return await unseal(c.encryption, c.library, id, await (await (await encrypted.getFileHandle(id)).getFile()).arrayBuffer()) }
+  const packed = await (await directory()).getDirectoryHandle('objects', { create: true })
+  try { return await verifyObject(id, await (await (await packed.getFileHandle(id)).getFile()).arrayBuffer()) }
   catch (error) { if (!(error instanceof DOMException && error.name === 'NotFoundError')) throw error }
-  return unseal(c.encryption, c.library, id, await (await api(`/objects/${id}`)).arrayBuffer())
+  return verifyObject(id, await (await api(`/objects/${id}`)).arrayBuffer())
 }
 async function downloadBlob(reference: BlobReference): Promise<Blob> {
   validateReference(reference)
   const parts: ArrayBuffer[] = []
   for (const id of reference.chunks) parts.push((await plaintext(id)).buffer as ArrayBuffer)
   const blob = new Blob(parts, { type: reference.type })
-  if (blob.size !== reference.size) throw new Error('An encrypted file is incomplete. Retry before continuing.')
+  if (blob.size !== reference.size) throw new Error('A cloud file is incomplete. Retry before continuing.')
   return blob
 }
 async function encode(db: IDBDatabase, value: unknown): Promise<unknown> {
@@ -121,7 +134,7 @@ async function encode(db: IDBDatabase, value: unknown): Promise<unknown> {
   return value
 }
 async function decode(value: unknown): Promise<unknown> {
-  if (value && typeof value === 'object' && 'kind' in value && value.kind === 'prism-sync-blob-v1') { validateReference(value); return downloadBlob(value) }
+  if (value && typeof value === 'object' && 'kind' in value && value.kind === 'prism-cloud-blob-v1') { validateReference(value); return downloadBlob(value) }
   if (Array.isArray(value)) return Promise.all(value.map(decode))
   if (value && typeof value === 'object') return Object.fromEntries(await Promise.all(Object.entries(value).map(async ([key, item]) => [key, await decode(item)])))
   return value
@@ -153,9 +166,10 @@ async function cachedDirectory(db: IDBDatabase): Promise<DirectoryHandleLike> {
   }
 }
 export async function withSyncedLibrary<T>(work: (db: IDBDatabase, directory: DirectoryHandleLike) => Promise<T>): Promise<{ value: T } | null> {
-  await restoreSyncedLibrary()
   if (!connection) return null
+  const selected = connection
   return locked(async () => {
+    if (connection !== selected) throw new Error('The active library changed. Please retry.')
     const db = await cache()
     try { return { value: await work(trackSyncWrites(db, () => { announce({ state: 'syncing', detail: 'Changes saved here. Syncing…' }); schedule() }), await cachedDirectory(db)) } }
     finally { db.close() }
@@ -163,6 +177,7 @@ export async function withSyncedLibrary<T>(work: (db: IDBDatabase, directory: Di
 }
 
 async function pull(db: IDBDatabase) {
+  const selected = current()
   let head = await getRecord<number>(db, 'sync_meta', 'head') ?? 0
   while (true) {
     const response: { head: number; commits: RemoteCommit[] } = await (await api(`/commits?after=${head}`)).json()
@@ -181,6 +196,7 @@ async function pull(db: IDBDatabase) {
         for (const change of entry.changes) if (!names.includes(change.store) || !isPortable(change.store) || change.key === undefined) throw new Error('This library requires a newer PRISM version.')
       }
       for (const reference of Object.values(document.files)) validateReference(reference)
+      if (connection !== selected) throw new Error('Account changed. No downloaded data was applied.')
       const tx = db.transaction(names, 'readwrite')
       for (const entry of entries) {
         tx.objectStore('sync_outbox').delete(entry.id)
@@ -244,68 +260,62 @@ async function flush(db: IDBDatabase) {
   }
 }
 export async function syncNow() {
-  await restoreSyncedLibrary()
   if (!connection) return
   if (running) return running
+  const selected = connection
   running = locked(async () => {
+    if (connection !== selected) return
     const db = await cache()
     try { await flush(db) }
-    catch (error) { announce({ state: error instanceof SyncHttpError && error.code === 0 ? 'offline' : 'error', detail: error instanceof Error ? error.message : 'Sync could not finish. Local changes are retained.' }) }
+    catch (error) { if (connection === selected) announce({ state: error instanceof SyncHttpError && error.code === 0 ? 'offline' : 'error', detail: error instanceof Error ? error.message : 'Sync could not finish. Local changes are retained.' }) }
     finally { db.close() }
   })
   try { await running } finally { running = undefined }
 }
-export async function connectSyncedLibrary(recovery: string) {
-  const keys = await recoveryKeys(recovery)
-  const response = await api('/devices', { method: 'POST' }, keys.authorization, keys.library)
-  const device: { id: string; token: string } = await response.json()
+export async function connectCloudLibrary(create: boolean, copyExisting: boolean) {
+  const selected = selectedIdentity()
+  const info: CloudLibraryInfo = create
+    ? await (await cloudRequest('/library', { method: 'POST', body: JSON.stringify({ consent: true }) })).json()
+    : await cloudLibraryInfo()
+  if (!info.library || info.library.deleted) throw new Error(info.library?.deleted ? 'This cloud library was deleted. Your original local library remains available.' : 'Create your cloud library first.')
+  const library = info.library.id
+  if (copyExisting && info.library.head !== 0) throw new Error('Open the existing cloud library first. Import additional PDFs from inside it.')
+  // Only the explicit create/copy action snapshots the original browser library.
+  const original = copyExisting && !connection ? await accessBrowserVault(async (db, directory) => ({ records: await snapshotVaultRecords(db), directory })) : null
   await locked(async () => {
-    const next = { library: keys.library, encryption: keys.encryption, token: device.token, device: device.id }
-    await settings(next); connection = next
-    announce({ connected: true, state: 'syncing', detail: 'Opening your encrypted library…', pending: 0, conflict: undefined })
+    if (identity !== selected) throw new Error('Account changed. Please retry.')
+    if (original) {
+      const db = await openVaultDatabase(indexedDB, () => new Date().toISOString(), `prism-cloud-${library}`)
+      try {
+        const root = await (await navigator.storage.getDirectory()).getDirectoryHandle(`prism-cloud-${library}`, { create: true })
+        const destination = await root.getDirectoryHandle('sources', { create: true })
+        if (!await getRecord(db, 'sync_meta', 'migrationPrepared')) {
+          for (const record of original.records.filter(record => record.store === 'sources')) {
+            const name = (record.value as { file_name: string }).file_name
+            await writeVaultFile(destination, name, await (await (await original.directory.getDirectoryHandle('sources')).getFileHandle(name)).getFile())
+          }
+          for (let offset = 0; offset < original.records.length; offset += 64) {
+            const batch = original.records.slice(offset, offset + 64)
+            const tx = trackSyncWrites(db, schedule).transaction(Array.from(new Set(batch.map(record => record.store))), 'readwrite')
+            for (const record of batch) tx.objectStore(record.store).put(record.value)
+            await transactionDone(tx)
+          }
+          await putRecord(db, 'sync_meta', 'migrationPrepared', true)
+        }
+      } finally { db.close() }
+    }
+    if (identity !== selected) throw new Error('Account changed. Local files were retained.')
+    connection = { library, owner: selected.owner }
+    localStorage.setItem(`prism-cloud-enabled:${selected.owner}`, 'true')
+    localStorage.setItem(`prism-cloud-library:${selected.owner}`, library)
+    announce({ connected: true, state: 'syncing', detail: 'Opening your account library…', pending: 0, conflict: undefined })
   })
-  await syncNow(); changed()
-}
-export function newRecoveryKey() { return `prism1.${randomHex()}.${randomHex()}` }
-export async function verifyConnectedRecoveryKey(recovery: string) {
-  const selected = current(), keys = await recoveryKeys(recovery)
-  if (keys.library !== selected.library) throw new Error('This key belongs to a different library.')
-  const challenge = await seal(selected.encryption, selected.library, crypto.getRandomValues(new Uint8Array(32)))
-  try { await unseal(keys.encryption, keys.library, challenge.id, challenge.ciphertext.buffer as ArrayBuffer) }
-  catch { throw new Error('This key does not unlock the connected library. Check your saved key.') }
-}
-export async function createSyncedLibrary(recovery: string, copyExisting: boolean) {
-  // Capture the browser library before changing the active connection.
-  const original = copyExisting ? await accessBrowserVault(async (db, directory) => ({ records: await snapshotVaultRecords(db), directory })) : null
-  const keys = await recoveryKeys(recovery)
-  if (original) await locked(async () => {
-    const db = await openVaultDatabase(indexedDB, () => new Date().toISOString(), `prism-sync-${keys.library}`)
-    try {
-      const root = await (await navigator.storage.getDirectory()).getDirectoryHandle(`prism-sync-${keys.library}`, { create: true })
-      const destination = await root.getDirectoryHandle('sources', { create: true })
-      for (const record of original.records.filter(record => record.store === 'sources')) {
-        const name = (record.value as { file_name: string }).file_name
-        await writeVaultFile(destination, name, await (await (await original.directory.getDirectoryHandle('sources')).getFileHandle(name)).getFile())
-      }
-      // A failed first setup can be retried with the same recovery key without
-      // duplicating imported records or replacing the selected original library.
-      if (await getRecord(db, 'sync_meta', 'migrationPrepared')) return
-      for (let offset = 0; offset < original.records.length; offset += 64) {
-        const batch = original.records.slice(offset, offset + 64)
-        const tx = trackSyncWrites(db, schedule).transaction(Array.from(new Set(batch.map(record => record.store))), 'readwrite')
-        for (const record of batch) tx.objectStore(record.store).put(record.value)
-        await transactionDone(tx)
-      }
-      await putRecord(db, 'sync_meta', 'migrationPrepared', true)
-    } finally { db.close() }
-  })
-  const response = await fetch('/api/sync/libraries', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: keys.library, recovery: keys.authorization }) })
-  if (!response.ok && response.status !== 409) { const result = await response.json().catch(() => ({})); throw new Error(result.error ?? 'The encrypted library could not be created.') }
-  await connectSyncedLibrary(recovery)
-  changed(); schedule()
+  changed(); await syncNow()
 }
 export async function disconnectSyncedLibrary() {
-  await locked(async () => { await settings(null); connection = null; announce({ connected: false, state: 'local', detail: 'Using your original local library. Synced data and cached drafts are retained.', pending: 0, conflict: undefined }) })
+  const owner = identity?.owner
+  if (owner) localStorage.removeItem(`prism-cloud-enabled:${owner}`)
+  await locked(async () => { connection = null; announce({ connected: false, state: 'local', detail: 'Using your original browser library. Cloud files and cached drafts are retained.', pending: 0, conflict: undefined }) })
   changed()
 }
 export async function resolveSyncConflict(choice: 'local' | 'remote') {
@@ -342,10 +352,9 @@ export async function resolveSyncConflict(choice: 'local' | 'remote') {
   })
   changed(); await syncNow()
 }
-export async function connectedBrowsers(): Promise<{ current: string; devices: Array<{ id: string; created: number; revoked: number }> }> { return (await api('/devices')).json() }
-export async function revokeBrowser(id: string) { await api(`/devices/${id}`, { method: 'DELETE' }); if (id === current().device) await disconnectSyncedLibrary() }
 export async function deleteSyncedLibrary() {
   let result: { deleted: boolean }
-  do { result = await (await api('', { method: 'DELETE' })).json() } while (!result.deleted)
+  let attempts = 0
+  do { if (attempts++ >= 10) throw new Error('Deletion is still in progress. Retry to finish removing cloud files.'); result = await (await api('', { method: 'DELETE' })).json() } while (!result.deleted)
   await disconnectSyncedLibrary()
 }

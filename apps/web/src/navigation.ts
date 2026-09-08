@@ -3,6 +3,7 @@ import { useSyncExternalStore } from 'react'
 export type SourceView = 'overview' | 'lessons'
 
 export type PrismRoute =
+  | { kind: 'landing' }
   | { kind: 'library' }
   | { kind: 'lesson'; lessonId: string }
   | { kind: 'reader'; page: number | null; sourceId: string }
@@ -18,7 +19,8 @@ export function usePrismRoute(): PrismRoute {
 export function parsePrismRoute(href: string): PrismRoute {
   const url = new URL(href, 'http://prism.local')
   const segments = url.pathname.split('/').filter(Boolean)
-  if (segments.length === 0 || (segments.length === 1 && segments[0] === 'sources')) {
+  if (segments.length === 0) return { kind: 'landing' }
+  if (segments.length === 1 && segments[0] === 'sources') {
     return { kind: 'library' }
   }
   if (segments.length === 2 && segments[0] === 'lessons') {
@@ -94,7 +96,7 @@ function currentLocation(): string {
 }
 
 function serverLocation(): string {
-  return '/sources'
+  return '/'
 }
 
 function safeDecode(value: string): string | null {

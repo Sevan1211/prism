@@ -1,4 +1,6 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useState } from 'react'
+import { lessonPassageRequest } from './lessonPassageRequest'
+import { LessonCoveragePanel } from './LessonCoveragePanel'
 import { ArrowSquareOut, CaretLeft, CaretRight } from '@phosphor-icons/react'
 import { PRISM_VAULT_CHANGED_EVENT } from '../storage/browserVault'
 import type { LessonContentBlock, LessonDocument } from './lessonDocumentTypes'
@@ -21,6 +23,7 @@ import './lessonReading.css'
 import { LessonRevisionHistory } from './LessonRevisionHistory'
 import { LessonRevisionProposal } from './LessonRevisionProposal'
 import { LessonEvidencePanel } from './LessonEvidencePanel'
+import { LoadingState } from '../LoadingState'
 
 const LessonRichText = lazy(() => import('./LessonRichText'))
 const LessonVisual = lazy(() => import('./LessonVisual').then((module) => ({ default: module.LessonVisual })))
@@ -31,8 +34,15 @@ interface LessonDraftPreviewProps {
   plan: LessonPlan
 }
 
-export function LessonDraftPreview({ onError, onOpenEvidence, plan }: LessonDraftPreviewProps) {
+export function LessonDraftPreview(props: LessonDraftPreviewProps) {
+  return <LessonDraftSession key={props.plan.plan_id} {...props} />
+}
+
+function LessonDraftSession({ onError, onOpenEvidence, plan }: LessonDraftPreviewProps) {
   const [document, setDocument] = useState<LessonDocument | null>(null)
+  const [loaded, setLoaded] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retry, setRetry] = useState(0)
   const [analyses, setAnalyses] = useState<LessonAnswerAnalysis[]>([])
   const [outcome, setOutcome] = useState<LessonOutcomeProposal | null>(null)
   const [decisionPending, setDecisionPending] = useState(false)
@@ -43,22 +53,27 @@ export function LessonDraftPreview({ onError, onOpenEvidence, plan }: LessonDraf
 
   useEffect(() => {
     let cancelled = false
+    let request = 0
     const load = () => {
+      const current = ++request
       void Promise.all([
         getLessonDocumentByPlan(plan.plan_id),
         listLatestLessonAnswerAnalysesForPlan(plan.plan_id),
         getLatestLessonOutcomeProposalForPlan(plan.plan_id),
       ])
         .then(([nextDocument, nextAnalyses, nextOutcome]) => {
-          if (!cancelled) {
+          if (!cancelled && current === request) {
+            setLoaded(true)
+            setLoadError(null)
             setDocument(nextDocument ?? null)
             setAnalyses(nextAnalyses)
             setOutcome(nextOutcome ?? null)
           }
         })
         .catch((cause: unknown) => {
-          if (!cancelled) {
-            onError(cause instanceof Error ? cause.message : 'The lesson draft could not be opened.')
+          if (!cancelled && current === request) {
+            setLoaded(true)
+            setLoadError(cause instanceof Error ? cause.message : 'The lesson draft could not be opened.')
           }
         })
     }
@@ -68,7 +83,9 @@ export function LessonDraftPreview({ onError, onOpenEvidence, plan }: LessonDraf
       cancelled = true
       window.removeEventListener(PRISM_VAULT_CHANGED_EVENT, load)
     }
-  }, [onError, plan.plan_id])
+  }, [plan.plan_id, retry])
+
+  if (!loaded || loadError) return <LoadingState title="Opening your lesson" detail="Loading saved sections and source references." error={loadError} onRetry={() => { setLoaded(false); setLoadError(null); setRetry(value => value + 1) }} />
 
   if (!document) {
     return (
@@ -128,11 +145,23 @@ export function LessonDraftPreview({ onError, onOpenEvidence, plan }: LessonDraf
     }
   }
   const copyRequest = async () => {
+    if (!activeFocus) return
     try {
-      await navigator.clipboard.writeText(`In PRISM, use get_active_lesson_context to read my selected passage in lesson ${document.lesson_id}, version ${document.document_version}, block ${activeFocus?.blockId}. ${question} Inspect its cited source with read_source_bundle before changing anything. Keep the approved scope and preserve substantive details. Use propose_lesson_revision with rich_text and purposeful typed visuals, preserving the approved scope. Summarize the change and open the lesson for my review. Keep the current lesson intact until I accept.`)
+      await navigator.clipboard.writeText(lessonPassageRequest(document.lesson_id, document.document_version, activeFocus.blockId, activeFocus.text, question))
       setCopied(true)
     } catch { onError('Clipboard access was unavailable. You can select and copy the request text below.') }
   }
+
+  const passageHelp = activeFocus ? <aside className="lesson-agent-request" aria-label="Selected passage for your agent">
+    <div className="lesson-agent-request-header"><strong>Understand this passage</strong><button type="button" onClick={() => { setFocus(null); setCopied(false) }} aria-label="Clear selected passage">×</button></div>
+    {activeFocus.text ? <blockquote data-selected-excerpt>{activeFocus.text}</blockquote> : <p>Your agent will read this block and its source references.</p>}
+    <label htmlFor="lesson-agent-question">What would help you understand it?</label>
+    <textarea id="lesson-agent-question" data-learner-request value={question} maxLength={800} onChange={(event) => { setQuestion(event.target.value); setCopied(false) }} />
+    <div className="passage-help-options">{['Explain why this follows.', 'Walk through a worked example.', 'Explain the missing prerequisite.', 'Clarify the limitations.'].map(prompt => <button className="quiet-button" type="button" key={prompt} onClick={() => { setQuestion(prompt); setCopied(false) }}>{prompt}</button>)}</div>
+    <p>Paste the request into your connected agent conversation. Review its proposed change here before accepting it.</p>
+    <button className="quiet-button" type="button" onClick={() => { void copyRequest() }}>{copied ? 'Request copied' : 'Copy request for agent'}</button>
+    <details><summary>View or manually copy the request</summary><textarea aria-label="Full request for your agent" readOnly rows={8} value={lessonPassageRequest(document.lesson_id, document.document_version, activeFocus.blockId, activeFocus.text, question)} /></details>
+  </aside> : null
 
   return (
     <article className="lesson-draft" aria-labelledby={`lesson-draft-${document.lesson_id}`} data-lesson-id={document.lesson_id} data-document-version={document.document_version} data-focus-block-id={activeFocus?.blockId} onPointerUp={captureSelection} onKeyUp={captureSelection}>
@@ -148,15 +177,8 @@ export function LessonDraftPreview({ onError, onOpenEvidence, plan }: LessonDraf
       </header>
       <LessonRevisionHistory key={`${document.lesson_id}-${document.document_version}`} document={document} onError={onError} />
       <LessonRevisionProposal document={document} onError={onError} onOpenEvidence={onOpenEvidence} />
-      {document.semantic_review ? <details className="lesson-semantic-review"><summary>Agent review & limitations</summary><p>{document.semantic_review.summary}</p><small>Agent-authored review. This is separate from automated structure checks and your own assessment.</small></details> : null}
-      {activeFocus ? <aside className="lesson-agent-request" aria-label="Selected passage for your agent">
-        <div><strong>Bring this passage to your agent</strong><button type="button" onClick={() => { setFocus(null); setCopied(false) }} aria-label="Clear selected passage">×</button></div>
-        {activeFocus.text ? <blockquote data-selected-excerpt>{activeFocus.text}</blockquote> : <p>This block is selected. Your agent can inspect its text and source references.</p>}
-        <label htmlFor="lesson-agent-question">What would help you understand it?</label>
-        <textarea id="lesson-agent-question" data-learner-request value={question} maxLength={800} onChange={(event) => { setQuestion(event.target.value); setCopied(false) }} />
-        <p>Copy this request into your connected agent conversation. The selection stays available while you remain in this lesson.</p>
-        <button className="quiet-button" type="button" onClick={() => { void copyRequest() }}>{copied ? 'Request copied' : 'Copy request for agent'}</button>
-      </aside> : null}
+      <LessonCoveragePanel document={document} plan={plan} />
+      {document.status === 'draft' ? <p className="lesson-progress" role="status">Work in progress · {document.sections.filter(section => section.blocks.length > 0).length} of {document.sections.length} sections have saved content. You can read them now; content review is still pending.</p> : null}
 
       {document.validation.errors.length > 0 || document.validation.warnings.length > 0 ? (
         <details className="lesson-validation">
@@ -189,13 +211,12 @@ export function LessonDraftPreview({ onError, onOpenEvidence, plan }: LessonDraf
               <p className="lesson-section-empty">This approved section has not been composed yet.</p>
             ) : (
               section.blocks.map((block) => (
-                <LessonBlock
-                  key={block.block_id}
+                <Fragment key={block.block_id}><LessonBlock
                   block={block}
                   sourceId={plan.source_id}
                   onAsk={() => { setFocus((current) => ({ blockId: block.block_id, text: current?.blockId === block.block_id ? current.text : '', version: document.document_version })); setCopied(false) }}
                   onOpenEvidence={(elementId, returnTargetId) => setEvidencePreview({ elementId, referenceIds: block.source_element_ids, returnTargetId })}
-                />
+                />{activeFocus?.blockId === block.block_id ? passageHelp : null}</Fragment>
               ))
             )}
           </section>
@@ -362,7 +383,7 @@ function LessonBlock({
   onAsk: () => void
 }) {
   return (
-    <section className={`lesson-block lesson-block-${block.content.kind}`} data-provenance={block.provenance} data-block-id={block.block_id}>
+    <section id={`block-${block.block_id}`} tabIndex={-1} className={`lesson-block lesson-block-${block.content.kind}`} data-provenance={block.provenance} data-block-id={block.block_id}>
       <LessonBlockBody block={block} sourceId={sourceId} />
       <div className="lesson-block-proof">
         <span>{block.provenance === 'source_authored' ? 'Original source' : block.provenance === 'added_explanation' ? 'Added explanation' : 'Source references'}</span>

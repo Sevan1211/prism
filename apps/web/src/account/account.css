@@ -1,0 +1,105 @@
+.account-panel {
+  /* Resolve our tokens before entering Clerk's own --accent variable scope. */
+  --prism-account-primary: var(--accent);
+  --prism-account-on-primary: var(--accent-contrast);
+  --prism-account-surface: var(--surface);
+  --prism-account-ink: var(--ink);
+  --prism-account-muted: var(--ink-soft);
+  --prism-account-input: var(--ground);
+  --prism-account-font: var(--font-ui);
+  display: grid; gap: 20px;
+}
+.account-intro { display: flex; align-items: flex-start; gap: 14px; }
+.account-intro > svg { flex: 0 0 26px; height: 26px; margin-top: 3px; }
+.account-intro h3 { margin: 0 0 8px; font-family: var(--font-reading, Georgia, serif); font-size: 26px; font-weight: 500; }
+.account-panel p { margin: 0; color: var(--ink-soft); line-height: 1.65; }
+.account-privacy { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; }
+.account-privacy svg { flex: 0 0 18px; height: 18px; margin-top: 3px; }
+.account-notice { padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.account-notice strong { display: block; margin-bottom: 6px; }
+.account-notice button { margin-top: 12px; }
+.account-session,.account-auth { display: grid; gap: 18px; min-width: 0; }
+.account-panel .cl-rootBox { max-width: 100%; }
+.account-panel .cl-cardBox { max-width: 100%; }
+.account-panel { padding: 0; min-width: 0; }
+.account-panel * { box-sizing: border-box; }
+.account-panel p { white-space: normal; overflow-wrap: anywhere; }
+.account-session { gap: 24px; }
+.account-identity,.account-identity > div { display: flex; align-items: center; gap: 12px; }
+.account-identity { justify-content: space-between; }
+.account-identity p { font-size: 12px; }
+.account-avatar { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 50%; font-family: var(--font-reading); font-size: 24px; }
+.account-tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--line); }
+.account-tabs button { color: var(--ink-soft); padding: 8px 0 14px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; }
+.account-auth { max-width: 480px; margin-inline: auto; gap: 20px; padding-block: 12px; }
+.account-auth h3,.cloud-storage h3 { font-family: var(--font-reading); font-size: clamp(25px, 3vw, 34px); font-weight: 500; margin: 0 0 8px; }
+.account-profile { min-width: 0; }
+.account-profile .cl-rootBox,.account-profile .cl-cardBox { width: 100%; min-width: 0; max-width: 100%; }
+.account-profile .cl-cardBox,.account-profile .cl-scrollBox,.account-profile .cl-pageScrollBox { height: auto; max-height: none; overflow: visible; }
+.account-profile .cl-navbar { flex: 0 0 190px; width: 190px; min-width: 0; }
+.account-profile .cl-pageScrollBox { min-width: 0; padding: 24px; }
+.account-profile .cl-scrollBox { min-width: 0; border-radius: 8px; }
+.account-profile .cl-profileSectionContent { min-width: 0; overflow-wrap: anywhere; }
+.account-panel .cl-footer,.account-panel .cl-formButtonPrimary { background-image: none; }
+.account-panel .cl-formButtonPrimary::after { background-image: none; box-shadow: none; }
+.account-panel .cl-formButtonPrimary:disabled { background: var(--line); color: var(--prism-account-muted); opacity: 1; }
+.cloud-storage { display: grid; gap: 24px; max-width: 780px; margin-inline: auto; width: 100%; }
+.cloud-storage-heading { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+.cloud-storage-heading > svg { width: 52px; height: 52px; flex-shrink: 0; color: var(--ink-soft); }
+.cloud-allowance { padding: 22px; background: var(--ground); border: 1px solid var(--line); border-radius: 10px; }
+.cloud-allowance > div { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.cloud-allowance strong { font-family: var(--font-reading); font-size: 30px; font-weight: 500; }
+.cloud-allowance span { color: var(--ink-soft); font-size: 13px; }
+.cloud-allowance progress { display: block; width: 100%; height: 5px; margin-top: 18px; accent-color: var(--ink); }
+.cloud-start { display: grid; gap: 14px; }
+.cloud-start h4 { margin: 0; font-size: 18px; }
+.cloud-start > button { justify-self: start; }
+.cloud-delete { border-top: 1px solid var(--line); padding-top: 18px; font-size: 13px; }
+.cloud-delete > summary { cursor: pointer; color: var(--ink-soft); }
+.cloud-delete label { display: grid; gap: 8px; margin-block: 16px; max-width: 280px; }
+.cloud-delete input { padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--ground); color: var(--ink); }
+@media (max-width: 640px) {
+  .account-storage-dialog .account-dialog-body { padding: 18px 16px; }
+  .account-profile .cl-navbar { width: 100%; flex-basis: auto; }
+  .account-profile .cl-cardBox { display: flex; flex-direction: column; }
+  .account-profile .cl-navbarMobileMenuRow { width: 100%; }
+  .account-profile .cl-pageScrollBox { padding: 16px 8px; }
+  .cloud-storage-heading > svg { display: none; }
+  .account-identity { align-items: flex-start; }
+  .account-identity strong { overflow-wrap: anywhere; }
+}
+
+/* Reserve the account workspace once; provider loading and tab contents cannot
+   move the dialog or the tab controls. Only the selected panel scrolls. */
+.storage-dialog.account-storage-dialog { width: min(980px, calc(100vw - 40px)); height: min(820px, calc(100dvh - 40px)); }
+.account-storage-dialog .account-dialog-body { display: flex; flex: 1; overflow: hidden; padding: 22px 28px 24px; }
+.account-dialog-body > .account-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.account-session { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 18px; }
+.account-identity,.account-tabs { flex-shrink: 0; }
+.account-views { flex: 1; min-height: 0; display: grid; }
+.account-view { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 4px 8px 8px 0; }
+.account-view[hidden] { display: none; }
+.account-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.account-dialog-body .account-auth { width: 100%; min-height: 0; }
+.account-profile .cl-navbar { background: var(--ground); border-right: 1px solid var(--line); }
+.account-profile .cl-cardBox { border: 1px solid var(--line); border-radius: 8px; }
+.account-profile .cl-userPreviewTextContainer { min-width: 0; }
+.account-profile .cl-userPreviewMainIdentifier { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .storage-dialog.account-storage-dialog { width: calc(100vw - 24px); height: calc(100dvh - 24px); }
+  .account-storage-dialog .account-dialog-body { padding: 18px 16px; }
+  .account-tabs { gap: 20px; }
+  .account-view { padding-right: 4px; }
+}
+
+/* The signed-out form is a compact dialog, not the full account workspace. */
+.storage-dialog.account-storage-dialog:has(.account-auth) { width: min(560px, calc(100vw - 24px)); height: fit-content; }
+.account-storage-dialog:has(.account-auth) .account-dialog-body { display: block; flex: 0 1 auto; overflow-y: auto; scrollbar-gutter: auto; }
+.account-dialog-body .account-auth { display: flex; flex-direction: column; max-width: 420px; gap: 16px; padding: 0; overflow: visible; }
+.account-auth-caption { text-align: center; }
+.account-auth .cl-card { padding: 12px 8px; gap: 20px; }
+.account-auth .cl-main { gap: 20px; }
+.account-auth .cl-header { gap: 8px; }
+.account-auth .cl-form { gap: 16px; }
+.account-auth .cl-footer { padding: 12px 8px; }
+.account-auth > .account-privacy { text-align: center; font-size: 12px; }

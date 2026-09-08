@@ -1,8 +1,27 @@
 # Validation plan
 
-**Reviewed:** 2026-08-23  
+**Reviewed:** 2026-09-04 (current reading-document trial); historical TSR design retained  
 **Research integration:** [`../research/DOSSIER_INTEGRATION_REVIEW.md`](../research/DOSSIER_INTEGRATION_REVIEW.md)  
-**Experimental mechanism:** Traceable Semantic Relay (TSR)
+**Current experimental product:** detailed reading documents with source inspection and learner-approved revision.
+
+## Current evaluation
+
+The [owner reading trial](OWNER_LEARNING_TRIAL.md) is the immediate evaluation plan.
+Compare original-source reading with the current reading-document workflow. Record
+learning time, immediate literal/inferential comprehension, application, 24-hour and
+seven-day outcomes, control events, workload/fatigue/usability and fidelity errors.
+Report generation/setup costs and assistance explicitly. The owner has agreed to
+participate; no learning observations have been collected by this change.
+
+The [reference lessons](REFERENCE_LESSONS.md) are product and fidelity rehearsals,
+not learning-gain evidence. Source-specific human review precedes trial interpretation.
+
+## Retained TSR research protocol
+
+The remainder is the earlier Experimental Traceable Semantic Relay study design.
+Its hypotheses, conditions and progression gates apply only to that alternate
+renderer. They do not define the current reading-document release or imply that
+the owner trial is powered to establish noninferiority.
 
 ## Purpose
 

@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SourceStructure, SourceSummary } from './types'
@@ -126,6 +126,42 @@ const structure: SourceStructure = {
 }
 
 describe('Reader', () => {
+  it('keeps the same page and relative position after page dimensions change', async () => {
+    const callbacks: ResizeObserverCallback[] = []
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: ResizeObserverCallback) { callbacks.push(callback) }
+      observe() {}
+      disconnect() {}
+    })
+    try {
+      const { container } = render(<Reader access={access} source={source} structure={structure} onExit={vi.fn()} />)
+      await waitFor(() => expect(screen.getByRole('textbox', { name: 'PDF page' })).toHaveValue('6'))
+      const pages = container.querySelector<HTMLElement>('.reader-pages')!
+      const first = container.querySelector<HTMLElement>('[data-page="1"]')!
+      const sixth = container.querySelector<HTMLElement>('[data-page="6"]')!
+      Object.defineProperty(first, 'clientWidth', { configurable: true, value: 700 })
+      Object.defineProperty(sixth, 'offsetTop', { configurable: true, value: 5000 })
+      act(() => callbacks.forEach(callback => callback([], {} as ResizeObserver)))
+      expect(pages.scrollTop).toBe(5000)
+      Object.defineProperty(first, 'clientWidth', { configurable: true, value: 320 })
+      Object.defineProperty(sixth, 'offsetTop', { configurable: true, value: 2200 })
+      act(() => callbacks.forEach(callback => callback([], {} as ResizeObserver)))
+      expect(pages.scrollTop).toBe(2200)
+      expect(screen.getByRole('textbox', { name: 'PDF page' })).toHaveValue('6')
+    } finally { vi.unstubAllGlobals() }
+  })
+
+  it('does not exit the reader when Escape belongs to an open dialog', async () => {
+    const onExit = vi.fn()
+    render(<Reader access={access} source={source} structure={structure} onExit={onExit} />)
+    const dialog = document.querySelector('dialog')!
+    dialog.setAttribute('open', '')
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(onExit).not.toHaveBeenCalled()
+    dialog.removeAttribute('open')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onExit).toHaveBeenCalledOnce()
+  })
   it('uses the application return callback from the Reader back link', async () => {
     const user = userEvent.setup()
     const onExit = vi.fn()
@@ -250,7 +286,7 @@ describe('Reader', () => {
     expect(highlight.style.width).toBe('80%')
   })
 
-  it('falls back to page groups when a source has no recoverable structure', () => {
+  it('offers search without inventing sections when a source has no recoverable structure', () => {
     render(
       <Reader
         access={access}
@@ -259,9 +295,10 @@ describe('Reader', () => {
         onExit={() => undefined}
       />,
     )
-    expect(screen.getByRole('button', { name: /pages 1-20/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /pages 21-40/i })).toBeInTheDocument()
-    expect(screen.getByText(/no recoverable contents found/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /pages 1-20/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Search document' })).toBeInTheDocument()
+    expect(screen.getByText(/no reliable outline found/i)).toBeInTheDocument()
+    expect(document.querySelector('.page-label')).toBeNull()
   })
 
   it('uses the embedded PDF contents, hierarchy, page labels, and metadata', async () => {

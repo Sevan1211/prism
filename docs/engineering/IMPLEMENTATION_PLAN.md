@@ -1,6 +1,6 @@
 # PRISM post-challenge research implementation plan
 
-> **Superseded for immediate delivery on 2026-08-29.** This document retains the rigorous research, recovery, fidelity, and experimental sequence after the WebMCP Challenge. The authoritative short-horizon plan is [`WEBMCP_CHALLENGE_PLAN.md`](WEBMCP_CHALLENGE_PLAN.md), and the primary product contract is now a saved, multi-section interactive lesson rather than TSR playback.
+> **Superseded for immediate delivery on 2026-08-29.** This document retains the rigorous research, recovery, fidelity, and experimental sequence after the WebMCP Challenge. The current authority is the [portfolio release plan](FINAL_PORTFOLIO_RELEASE_PLAN.md) and [Cloudflare/account contract](../architecture/CLOUDFLARE_HOSTING.md), and the primary product contract is now a saved, multi-section interactive lesson rather than TSR playback.
 
 **Created:** 2026-08-23  
 **Planning horizon:** next 12 focused weeks at approximately 5–10 hours per week  
@@ -31,7 +31,7 @@
 - Repository hardening landed the same day: CI quality workflow, portable docs gate, installable dependency lock, API logging, upload sweep, duplicate-upload race fix, event index, error boundary, and session/study research-event fixes.
 - Corpus: Erickson's *Algorithms* (CC BY 4.0) added as the parser-generalization fixture after every current OpenStax title was found to be CC BY-NC-SA.
 - The WebMCP sprint precedes the remaining M1 work in calendar order; M1–M7 sequencing below is otherwise unchanged, and the sprint must not weaken any M1 security-envelope requirement. The hosted demo preloads open-licensed corpus content. **Superseded 2026-08-29:** visitor PDF bytes no longer use transient server processing; personal imports stay in the browser vault described in [`../architecture/DEVICE_LOCAL_WEB_ARCHITECTURE.md`](../architecture/DEVICE_LOCAL_WEB_ARCHITECTURE.md). Browser-local import, reopen, Reader access, progress, and source deletion are now wired; the FastAPI upload endpoint remains only a loopback engineering baseline and is no longer called by the web interface. Local indexing and lesson persistence are the remaining end-to-end migration boundary.
-- Decisions recorded 2026-08-26 (later same day): design direction approved as proposed; hosting is Render (API) plus Cloudflare Pages (web); PR #3 merged with CI green.
+- Decisions recorded 2026-08-26 (later same day): design direction approved as proposed; the then-selected hosting split has since been superseded by the Cloudflare/account contract; PR #3 merged with CI green.
 
 ## Outcome
 

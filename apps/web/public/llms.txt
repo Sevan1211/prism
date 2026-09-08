@@ -1,0 +1,13 @@
+# PRISM
+
+> A source-grounded reading workspace. Work with the user's PDFs through this page's WebMCP tools.
+
+## Agent documentation
+
+- [Agent guide](/agent-guide.md): startup, lossless batch evidence, visuals, composition and revision.
+
+## Start
+
+Discover the top-level page's registered WebMCP tools through your browser host. Call get_active_lesson_context, then get_authoring_guide once. Use read_source_packet for indexed text and browser vision for relevant original images. If the host cannot discover tools, report that limitation before substituting manual Reader scans.
+
+This file documents the interface; it does not enable WebMCP or grant permission. Do not fetch private sources, account tokens or library data through undocumented endpoints.

@@ -13,13 +13,31 @@ The approved [reading release execution plan](engineering/READING_RELEASE_EXECUT
 prioritizes authoring latency, original figure quality, dedicated reading routes, and
 purposeful domain-neutral visuals, including explicitly labeled AI illustrations.
 
-The owner's latest storage requirement is independent access to one synchronized
-library across browsers, including ChatGPT's native browser, without a companion.
-The [synced-library implementation](architecture/SYNCED_LIBRARY.md) now uses
-encrypted cloud copies with account-free recovery keys. The owner removed folder
-mode from the release: storage is either this browser's local vault or an explicitly
-connected encrypted library. Browser acceptance and remaining limits are recorded
-in the submission readiness document; cross-browser source/brief sync is verified.
+The current implementation offers local storage and the experimental
+[encrypted recovery-key library](architecture/SYNCED_LIBRARY.md). The latest
+[portfolio release plan](engineering/FINAL_PORTFOLIO_RELEASE_PLAN.md) supersedes that
+prototype as the default public cloud direction: optional account-backed private
+sync with ordinary recovery, bounded quotas and local reading without sign-in.
+This is the next release target, not a claim that account migration is complete.
+
+**Owner decision — 2026-09-07:** Use Cloudflare Worker Static Assets/Worker, Better
+Auth Google/GitHub login, D1, and private R2 at `prism.sevanlewispayne.com`. Start
+with a free beta capped at 50 cloud users, 100 MB each, and 5 GB globally. See the
+[hosting/account contract](architecture/CLOUDFLARE_HOSTING.md). Document the change
+first; finish the owner's remaining local changes before hosting or DNS work.
+
+**Owner clarification — 2026-09-04:** Preserve all substantive content by default.
+Use RLM v3 and a complete geology chapter as reference lessons; optimize the owner's
+workflow while making first use clear to newcomers. The owner agreed to an
+individual learning trial. The [implementation contract](engineering/LEARNING_EXPERIENCE_IMPROVEMENTS.md)
+and [trial protocol](experiments/OWNER_LEARNING_TRIAL.md) distinguish completed
+software checks from pending source-grounded lessons and delayed outcomes.
+
+**Owner priority — 2026-09-04:** Shorten upload-to-solid-lesson waiting while
+preserving substantive coverage and improving teaching. Production behavior must
+work from arbitrary user-uploaded sources; new installations ship with an empty
+library and no hardcoded source or lesson IDs. Reference lessons are evaluation
+material only. Transport benchmarks do not establish end-to-end authoring speed.
 
 ## Name
 

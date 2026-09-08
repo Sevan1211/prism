@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LessonDocument } from './lessonDocumentTypes'
 import { getLessonDocumentByPlan } from './lessonDocuments'
 import {
@@ -27,6 +27,12 @@ vi.mock('./lessonLearning', () => ({
 }))
 
 describe('LessonDraftPreview', () => {
+  const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+  afterEach(() => {
+    cleanup()
+    if (originalClipboard) Object.defineProperty(navigator, 'clipboard', originalClipboard)
+    else Reflect.deleteProperty(navigator, 'clipboard')
+  })
   beforeEach(() => {
     vi.mocked(getLessonDocumentByPlan).mockResolvedValue(documentFixture())
     vi.mocked(listLatestLessonAnswerAnalysesForPlan).mockResolvedValue([])
@@ -64,6 +70,29 @@ describe('LessonDraftPreview', () => {
     expect(onOpenEvidence).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Clear selected passage' }))
     expect(screen.queryByLabelText('What would help you understand it?')).toBeNull()
+  })
+
+  it('shows a recoverable load error instead of claiming composition has not started', async () => {
+    vi.mocked(getLessonDocumentByPlan).mockRejectedValueOnce(new Error('Local storage unavailable'))
+    render(<LessonDraftPreview onError={vi.fn()} onOpenEvidence={vi.fn()} plan={{ plan_id: 'plan-1' } as LessonPlan} />)
+    expect(screen.queryByText('Composition authorized')).not.toBeInTheDocument()
+    const retry = await screen.findByRole('button', { name: 'Try again' })
+    expect(screen.queryByText('Composition authorized')).not.toBeInTheDocument()
+    fireEvent.click(retry)
+    expect(await screen.findByRole('heading', { name: 'A grounded lesson' })).toBeVisible()
+  })
+
+  it('keeps a manually copyable request when clipboard permission fails', async () => {
+    const onError = vi.fn()
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } })
+    render(<LessonDraftPreview onError={onError} onOpenEvidence={vi.fn()} plan={{ plan_id: 'plan-1' } as LessonPlan} />)
+    await screen.findByRole('heading', { name: 'A grounded lesson' })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ask about this' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Copy request for agent' }))
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.stringContaining('Clipboard access was unavailable')))
+    fireEvent.click(screen.getByText('View or manually copy the request'))
+    expect(screen.getByLabelText('Full request for your agent')).toBeVisible()
+    expect((screen.getByLabelText('Full request for your agent') as HTMLTextAreaElement).value).toContain('block prose-1')
   })
 
   it('shows evidence analysis and requires the visible learner action for repair', async () => {

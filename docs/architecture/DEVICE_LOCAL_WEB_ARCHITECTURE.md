@@ -1,5 +1,9 @@
 # Device-local hosted web architecture
 
+**Current release authority — 2026-09-07:** [Cloudflare hosting and accounts](CLOUDFLARE_HOSTING.md)
+defines the approved optional cloud mode. The recovery-key and folder investigations
+below describe prototype history; they do not replace the accepted account design.
+
 **Release update — 2026-09-03:** Folder mode has been removed at the owner's
 request. The current product offers browser-only storage and opt-in
 [encrypted cloud sync](SYNCED_LIBRARY.md). Existing files in device folders are

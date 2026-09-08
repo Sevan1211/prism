@@ -1,6 +1,11 @@
 # Reading release execution plan
 
-**Agreed:** 2026-09-03. **Status:** judge rehearsal in progress; generation, revision acceptance and hosted checks remain open.
+**Agreed:** 2026-09-03. **Status:** historical challenge rehearsal and acceptance record.
+
+The [portfolio release plan](FINAL_PORTFOLIO_RELEASE_PLAN.md) and
+[Cloudflare/account contract](../architecture/CLOUDFLARE_HOSTING.md) now govern
+release work. The challenge has ended; do not use these historical hosting steps
+as publication instructions. Hosting is on hold during final local cleanup.
 
 ## Outcome and boundaries
 
@@ -96,7 +101,7 @@ reading, input focus, original figures, loading, missing files and cancellation.
 
 Update [submission readiness](SUBMISSION_READINESS.md) with actual evidence. Public hosting,
 repository release and a short authentic video remain separate gates. Do not confuse a
-local build, a registered Sites project or structural checks with a submitted entry.
+local build, a registered hosting project or structural checks with a submitted entry.
 
 ## Change record
 
@@ -163,8 +168,8 @@ After the worker and tab-refresh fixes, the web gate passes again: 104 tests in
 27 files, ESLint, TypeScript and production build. Live revision acceptance and
 complete-generation timing remain open until the learner-approved workflow finishes.
 
-Private hosting succeeded at [PRISM](https://prism-reading.sevan4355.chatgpt.site)
+Private hosting succeeded on the previous preview origin
 on 2026-09-04 at 00:45 UTC. The browser reached the owner-only sign-in gate.
 This is deployment evidence, not yet application acceptance on the hosted origin or
 public submission readiness. The canonical GitHub working tree remains uncommitted;
-the separate Sites source snapshot includes only the web app and required build files.
+the separate publishing source snapshot includes only the web app and required build files.

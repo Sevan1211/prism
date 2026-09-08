@@ -81,13 +81,14 @@ export interface SourceAnchor {
 }
 
 export interface BrowserSourceMap {
+  navigation_version?: string
   capabilities: {
     exact_search: boolean
     lesson_compilation: false
     render_original: true
     scope_manifest: boolean
     structural_detection: 'candidate_only'
-    visual_detection: 'not_available'
+    visual_detection: 'not_available' | 'on_demand_candidates'
   }
   content_hash: string
   index_status: BrowserIndexStatus

@@ -5,7 +5,7 @@ type ThemeChoice = 'system' | 'light' | 'dark'
 
 const ORDER: ThemeChoice[] = ['system', 'light', 'dark']
 const LABELS: Record<ThemeChoice, string> = {
-  system: 'Auto',
+  system: 'System',
   light: 'Light',
   dark: 'Night',
 }
@@ -52,6 +52,7 @@ export function ThemeToggle() {
       type="button"
       onClick={advance}
       aria-label={`Theme: ${LABELS[choice]}. Activate to change.`}
+      title={`Appearance: ${LABELS[choice]}. Click to cycle themes.`}
     >
       <Icon aria-hidden="true" weight="duotone" />
       <span>{LABELS[choice]}</span>

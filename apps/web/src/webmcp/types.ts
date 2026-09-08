@@ -2,6 +2,7 @@
 // browser: JavaScript registration through document.modelContext on the top-level page.
 
 export interface ModelContextToolResult {
+  isError?: boolean
   content: Array<{ type: 'text'; text: string }>
 }
 

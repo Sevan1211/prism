@@ -7,7 +7,8 @@
   ],
   "license": "Apache-2.0",
   "scripts": {
-    "build": "npm run build:web && vite build --config vite.sync.config.mts && node scripts/prepare_synced_site.mjs",
+    "build": "npm run build:web && node scripts/check_release_assets.mjs && wrangler deploy --dry-run --outdir dist/worker",
+    "deploy": "node scripts/check_production_config.mjs && wrangler d1 migrations apply prism-library --remote && wrangler deploy",
     "audit:pdf": "vitest run --config benchmarks/vitest.config.mts",
     "dev:web": "npm --workspace @prism/web run dev",
     "dev:api": ".venv\\Scripts\\python.exe -m uvicorn prism_api.main:app --host 127.0.0.1 --port 8000",
@@ -27,16 +28,19 @@
     "quality": "npm run schema:api && npm run quality:api && npm run quality:web && npm run check:docs",
     "dev:sync": "wrangler dev --port 8787",
     "typecheck:sync": "tsc -p apps/sync/tsconfig.json",
+    "test:sync": "vitest run --config apps/sync/vitest.config.mts",
     "migrate:sync": "drizzle-kit generate"
   },
   "engines": {
     "node": ">=24 <25"
   },
   "devDependencies": {
+    "@clerk/backend": "^3.17.1",
     "@cloudflare/workers-types": "^5.20260904.1",
-    "@openai/sites-vite-plugin": "^0.2.0",
+    "@napi-rs/canvas": "1.0.8",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
+    "pngjs": "7.0.0",
     "wrangler": "4.129.0"
   }
 }

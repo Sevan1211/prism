@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Minus, Plus, ArrowsHorizontal, FilePdf } from '@phosphor-icons/react'
+import { Minus, Plus, ArrowsHorizontal, FileText } from '@phosphor-icons/react'
 import { SourcePageCanvas } from './SourcePageCanvas'
 
 export function SourceVisualViewer({ sourceId, page, bbox, alt, onReady }: {
@@ -16,7 +16,7 @@ export function SourceVisualViewer({ sourceId, page, bbox, alt, onReady }: {
       <output aria-label="Figure zoom">{Math.round(zoom * 100)}%</output>
       <button type="button" aria-label="Zoom in" disabled={zoom >= 4} onClick={() => setZoom(value => Math.min(4, value + .25))}><Plus /></button>
       <button type="button" onClick={() => { setZoom(1); viewport.current?.scrollTo?.(0, 0) }}><ArrowsHorizontal /> Fit width</button>
-      <button type="button" aria-pressed={context} onClick={() => { setContext(value => !value); setZoom(1) }}><FilePdf /> {context ? 'Show figure crop' : 'Full page context'}</button>
+      <button type="button" aria-pressed={context} onClick={() => { setContext(value => !value); setZoom(1) }}><FileText /> {context ? 'Show figure crop' : 'Full page context'}</button>
     </div>
     <div ref={viewport} className="figure-viewport" tabIndex={0} aria-label="Original figure. Zoom for detail; scroll or drag to pan."
       onPointerDown={event => {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { loadLibrarySources } from './library/sourceLibrary'
 import { LoadingState } from './LoadingState'
+import { LandingPage } from './landing/LandingPage'
 import {
   libraryPath,
   lessonPath,
@@ -74,10 +75,6 @@ export function App() {
     void refreshSources().catch(() => undefined)
   }), [refreshSources])
 
-  useEffect(() => {
-    if (window.location.pathname === '/') navigatePrism(libraryPath(), { replace: true })
-  }, [])
-
   const routedPlan = route.kind === 'source' && route.view === 'lessons' ? route.planId : null
   useEffect(() => {
     if (!routedPlan) return
@@ -91,6 +88,7 @@ export function App() {
   }, [routedPlan])
 
   useEffect(() => {
+    if (route.kind === 'landing') return
     let cancelled = false
     void loadLibrarySources()
       .then((nextSources) => {
@@ -106,7 +104,7 @@ export function App() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [route.kind])
 
   const startLocalIndex = useCallback(async (sourceId: string) => {
     if (indexInFlight.current.has(sourceId)) return
@@ -185,11 +183,15 @@ export function App() {
 
   usePrismLibraryTools({ activeRoute: route, openReader, prepareSourceImport, importSource: handleUpload })
 
-  async function handleUpload(file: File, rightsStatus: RightsStatus) {
+  async function handleUpload(file: File, rightsStatus: RightsStatus, allowAgentAccess = false) {
     setBusy(true)
     setError(null)
     try {
       const source = await importBrowserSource(file, rightsStatus)
+      if (allowAgentAccess && !['open_license', 'public_domain'].includes(source.rights_status)) {
+        try { await setBrowserAgentContentAccess(source.id, true) }
+        catch { setError('Your PDF was added, but agent access could not be saved. Check access in the source overview before asking your agent to read it.') }
+      }
       await refreshSources()
       navigatePrism(sourcePath(source.id))
       if (source.browser_index?.state !== 'ready') void startLocalIndex(source.id)
@@ -204,18 +206,10 @@ export function App() {
 
   async function handleDelete(source: LibrarySource) {
     if (source.storage_location !== 'browser_vault') return
-    const confirmed = window.confirm(
-      `Remove “${source.original_name}” and its lessons and reading history from this library? If encrypted sync is connected, this removal also syncs to your other browsers.`,
-    )
-    if (!confirmed) return
     setError(null)
-    try {
-      await deleteBrowserSource(source.id)
-      await refreshSources()
-      navigatePrism(libraryPath(), { replace: true })
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'The source could not be removed.')
-    }
+    await deleteBrowserSource(source.id)
+    await refreshSources()
+    navigatePrism(libraryPath(), { replace: true })
   }
 
   async function handleAgentAccessChange(source: LibrarySource, granted: boolean) {
@@ -228,6 +222,8 @@ export function App() {
       setError(cause instanceof Error ? cause.message : 'Agent source access could not be changed.')
     }
   }
+
+  if (route.kind === 'landing') return <LandingPage />
 
   if (route.kind === 'reader' && readerSource) {
     return (
@@ -266,12 +262,12 @@ export function App() {
       error={error}
       importRequest={sourceImportRequest}
       onAgentAccessChange={(source, granted) => void handleAgentAccessChange(source, granted)}
-      onDelete={(source) => void handleDelete(source)}
+      onDelete={handleDelete}
       onError={setError}
       onEvidenceReturnComplete={() => setReaderReturnTargetId(null)}
       onIndex={(sourceId) => void startLocalIndex(sourceId)}
       onOpenEvidence={openSourceEvidence}
-      onUpload={async (file, rights) => { await handleUpload(file, rights) }}
+      onUpload={handleUpload}
       routeKind={route.kind}
       selectedSource={selectedSource}
       sourcePlanId={route.kind === 'source' && route.view === 'lessons' ? route.planId : null}

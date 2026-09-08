@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { acquireSourcePdf } from '../storage/sourcePdfDocument'
 import { pdfRenderSize } from './pdfRenderSize'
 
-export function SourcePageCanvas({ sourceId, page, bbox, alt, onReady, eager = false, detail = false }: {
+export function SourcePageCanvas({ sourceId, page, bbox, alt, onReady, eager = false, detail = false, renderWidth }: {
   sourceId: string; page: number; bbox: [number, number, number, number]; alt: string; eager?: boolean
   onReady?: (result: { width: number; height: number } | { error: string }) => void
   detail?: boolean
+  renderWidth?: number
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wrapper = useRef<HTMLDivElement>(null)
@@ -16,17 +17,18 @@ export function SourcePageCanvas({ sourceId, page, bbox, alt, onReady, eager = f
   useEffect(() => { readyRef.current = onReady }, [onReady])
   useEffect(() => {
     const element = wrapper.current
-    if (!element || typeof ResizeObserver === 'undefined') return
+    if (renderWidth !== undefined || !element || typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(([entry]) => {
       const width = Math.round(entry.contentRect.width)
       if (width > 0) setDisplayWidth(width)
     })
     observer.observe(element)
     return () => observer.disconnect()
-  }, [])
+  }, [renderWidth])
   const [left, top, right, bottom] = bbox
   useEffect(() => {
     let cancelled = false
+    let readyFrame = 0
     let cancelRender: (() => void) | undefined
     let release: (() => void) | undefined
     const canvas = canvasRef.current
@@ -42,7 +44,7 @@ export function SourcePageCanvas({ sourceId, page, bbox, alt, onReady, eager = f
         const original = pdfPage.getViewport({ scale: 1 })
         const cropWidth = original.width * (right - left)
         const cropHeight = original.height * (bottom - top)
-        const size = pdfRenderSize(cropWidth, cropHeight, displayWidth, window.devicePixelRatio || 1, detail)
+        const size = pdfRenderSize(cropWidth, cropHeight, renderWidth ?? displayWidth, window.devicePixelRatio || 1, detail)
         const scale = size.scale
         const viewport = pdfPage.getViewport({ scale })
         canvas.width = size.width
@@ -52,7 +54,16 @@ export function SourcePageCanvas({ sourceId, page, bbox, alt, onReady, eager = f
         const task = pdfPage.render({ canvas, canvasContext: context, viewport, transform: [1, 0, 0, 1, -left * viewport.width, -top * viewport.height] })
         cancelRender = () => task.cancel()
         await task.promise
-        if (!cancelled) { setStatus('ready'); readyRef.current?.({ width: canvas.width, height: canvas.height }) }
+        if (!cancelled) {
+          setStatus('ready')
+          // Tool completion must follow React's visibility commit and a paint,
+          // otherwise a same-turn screenshot can still show loading placeholders.
+          readyFrame = window.requestAnimationFrame(() => {
+            readyFrame = window.requestAnimationFrame(() => {
+              if (!cancelled) readyRef.current?.({ width: canvas.width, height: canvas.height })
+            })
+          })
+        }
       } catch (cause) {
         if (!cancelled) { setStatus('error'); readyRef.current?.({ error: cause instanceof Error ? cause.message : 'Page rendering failed.' }) }
       } finally { release?.() }
@@ -64,8 +75,8 @@ export function SourcePageCanvas({ sourceId, page, bbox, alt, onReady, eager = f
     }, { rootMargin: '400px' })
     if (eager) void render()
     else observer.observe(wrapper.current)
-    return () => { cancelled = true; observer.disconnect(); cancelRender?.(); release?.() }
-  }, [sourceId, page, left, top, right, bottom, attempt, eager, displayWidth, detail])
+    return () => { cancelled = true; window.cancelAnimationFrame(readyFrame); observer.disconnect(); cancelRender?.(); release?.() }
+  }, [sourceId, page, left, top, right, bottom, attempt, eager, displayWidth, detail, renderWidth])
   return <div ref={wrapper} className="source-page-canvas" data-render-status={status}>
     <canvas ref={canvasRef} role="img" aria-label={alt || `Original PDF page ${page}`} hidden={status !== 'ready'} />
     {status === 'loading' ? <p className="page-image-loading" role="status">Opening original page…</p> : null}

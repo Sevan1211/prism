@@ -9,8 +9,16 @@ export type SourceSummary = Schemas['SourceSummary']
 export type SectionReadiness = Schemas['SectionReadiness']
 export type SourceReadiness = Schemas['SourceReadiness']
 export type SourceSpan = Schemas['SourceSpan']
-export type SourceSection = Schemas['SourceSection']
-export type SourceStructure = Schemas['SourceStructure']
+// Navigation is derived separately from immutable source-evidence anchors.
+export type SourceSection = Schemas['SourceSection'] & {
+  page_y?: number
+  pdf_top?: number
+  detection_reasons?: string[]
+}
+export type SourceStructure = Omit<Schemas['SourceStructure'], 'sections'> & {
+  sections: SourceSection[]
+  navigation_warnings?: string[]
+}
 export type SearchHit = Schemas['SearchHit']
 export type SearchResponse = Schemas['SearchResponse']
 export type ReadingState = Schemas['ReadingState']

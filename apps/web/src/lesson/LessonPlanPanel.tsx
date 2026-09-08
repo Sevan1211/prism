@@ -7,6 +7,7 @@ import { LessonBriefComposer } from './LessonBriefComposer'
 import { LessonDraftPreview } from './LessonDraftPreview'
 import { PrismLink } from '../PrismLink'
 import { sourcePath } from '../navigation'
+import { LoadingState } from '../LoadingState'
 
 interface LessonPlanPanelProps {
   activePlanId: string | null
@@ -20,7 +21,11 @@ const coverageOrder: CoverageDisposition[] = [
   'core', 'supporting', 'compressed', 'prerequisite', 'omitted', 'deferred', 'source_only',
 ]
 
-export function LessonPlanPanel({
+export function LessonPlanPanel(props: LessonPlanPanelProps) {
+  return <LessonPlanSession key={props.source.id} {...props} />
+}
+
+function LessonPlanSession({
   activePlanId,
   onActivePlanChange,
   onError,
@@ -31,23 +36,31 @@ export function LessonPlanPanel({
   const [plans, setPlans] = useState<LessonPlan[]>([])
   const [busy, setBusy] = useState(false)
   const [announcement, setAnnouncement] = useState('')
+  const [loaded, setLoaded] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retry, setRetry] = useState(0)
   const eligible = source.storage_location === 'browser_vault'
     && source.browser_index?.state === 'ready'
 
   useEffect(() => {
     if (!eligible) return
     let cancelled = false
+    let request = 0
     const loadPlans = () => {
+      const current = ++request
       void Promise.all([listLessonBriefs(source.id), listLessonPlans(source.id)])
         .then(([nextBriefs, nextPlans]) => {
-          if (!cancelled) {
+          if (!cancelled && current === request) {
+            setLoaded(true)
+            setLoadError(null)
             setBriefs(nextBriefs)
             setPlans(nextPlans)
           }
         })
         .catch((cause: unknown) => {
-          if (!cancelled) {
-            onError(cause instanceof Error ? cause.message : 'Saved lesson plans could not be opened.')
+          if (!cancelled && current === request) {
+            setLoaded(true)
+            setLoadError(cause instanceof Error ? cause.message : 'Saved lesson plans could not be opened.')
           }
         })
     }
@@ -58,7 +71,7 @@ export function LessonPlanPanel({
       cancelled = true
       window.removeEventListener(PRISM_VAULT_CHANGED_EVENT, handleVaultChange)
     }
-  }, [eligible, onError, source.id])
+  }, [eligible, source.id, retry])
 
   const plan = activePlanId ? plans.find((candidate) => candidate.plan_id === activePlanId) ?? null : null
   const Proof = plan?.status === 'approved' ? 'details' : 'div'
@@ -79,15 +92,17 @@ export function LessonPlanPanel({
     }
   }
 
+  if (eligible && (!loaded || loadError)) return <LoadingState title="Opening your lessons" detail="Loading saved requests and plans." error={loadError} onRetry={() => { setLoadError(null); setLoaded(false); setRetry(value => value + 1) }} />
+
   return (
     <section className="lesson-plan-panel" aria-labelledby="lesson-plan-title">
-      {!plan || plan.status !== 'approved' ? <div className="lesson-plan-kicker">
+      {plan && plan.status !== 'approved' ? <div className="lesson-plan-kicker">
         <span>Lesson plan</span>
         {plan ? <strong data-status={plan.status}>{plan.status}</strong> : null}
       </div> : null}
-      <h3 id="lesson-plan-title" className={plan?.status === 'approved' ? 'sr-only' : undefined}>{plan?.status === 'approved' ? 'Your lesson' : 'Shape your lesson'}</h3>
+      <h3 id="lesson-plan-title" className={!plan || plan.status === 'approved' ? 'sr-only' : undefined}>{plan?.status === 'approved' ? 'Your lesson' : 'Shape your lesson'}</h3>
       {!activePlanId && plans.length > 0 ? <nav className="saved-lessons-list" aria-label="Saved lessons">{plans.map(candidate => <PrismLink key={candidate.plan_id} href={sourcePath(source.id, 'lessons', candidate.plan_id)}><div><strong>{candidate.title}</strong><span>Pages {candidate.page_start}–{candidate.page_end} · {candidate.estimated_minutes} min</span></div><span>{candidate.status === 'approved' ? 'Open lesson →' : 'Review plan →'}</span></PrismLink>)}</nav> : null}
-      {activePlanId && plans.length > 0 && !plan ? <p role="status">This exact lesson plan was not found. Return to the source’s lesson list to choose another.</p> : null}
+      {activePlanId && !plan ? <div role="status"><p>This lesson plan is not in this source’s library.</p><PrismLink className="button-secondary" href={sourcePath(source.id, 'lessons')}>View all lessons</PrismLink></div> : null}
       {eligible && !plan ? (
         <LessonBriefComposer briefs={briefs} onError={onError} plans={plans} source={source} />
       ) : null}

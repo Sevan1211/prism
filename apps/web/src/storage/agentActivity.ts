@@ -39,11 +39,12 @@ interface ActivityPolicy {
 }
 
 const ACTIVITY_POLICIES: Record<string, ActivityPolicy> = {
+  get_authoring_workspace: { kind: 'read', payloadClasses: ['lesson_contract'], summary: 'Read saved authoring context' },
+  get_source_visual_catalog: { kind: 'read', payloadClasses: ['source_structure', 'source_text'], summary: 'Inspected candidate source figures and captions' },
   import_public_pdf: { kind: 'import', payloadClasses: ['local_import'], summary: 'Imported a requested public PDF into this browser' },
   import_generated_illustration: { kind: 'write', payloadClasses: ['lesson_document'], summary: 'Attached a labeled AI-generated illustration' },
   read_source_packet: { kind: 'read', payloadClasses: ['source_text'], summary: 'Read a bounded multi-page evidence packet' },
-  read_source_page: { kind: 'read', payloadClasses: ['source_text'], summary: 'Read an original page’s extracted evidence' },
-  open_source_visual: { kind: 'navigation', payloadClasses: ['navigation'], summary: 'Opened original source pixels for inspection' },
+  inspect_source_visual: { kind: 'navigation', payloadClasses: ['navigation'], summary: 'Changed the source inspection viewer' },
   open_lesson: { kind: 'navigation', payloadClasses: ['navigation'], summary: 'Opened an exact lesson' },
   record_scope_review: { kind: 'write', payloadClasses: ['lesson_contract'], summary: 'Saved source coverage review' },
   finalize_lesson: { kind: 'write', payloadClasses: ['lesson_document'], summary: 'Saved a reviewed lesson for reading' },
@@ -57,11 +58,6 @@ const ACTIVITY_POLICIES: Record<string, ActivityPolicy> = {
     kind: 'write',
     payloadClasses: ['lesson_contract'],
     summary: 'Saved a learner lesson brief',
-  },
-  get_lesson_brief: {
-    kind: 'read',
-    payloadClasses: ['lesson_contract'],
-    summary: 'Read a saved learner assignment',
   },
   get_active_lesson_context: {
     kind: 'read',
@@ -77,11 +73,6 @@ const ACTIVITY_POLICIES: Record<string, ActivityPolicy> = {
     kind: 'read',
     payloadClasses: ['lesson_contract'],
     summary: 'Read lesson questions and evaluation criteria',
-  },
-  get_lesson_plan: {
-    kind: 'read',
-    payloadClasses: ['lesson_contract'],
-    summary: 'Read a saved lesson plan',
   },
   get_scope_manifest: {
     kind: 'read',
@@ -159,7 +150,7 @@ export async function recordWebMcpActivity(
     outcome: cause ? 'error' : hasRefusal(responsePayload) ? 'refused' : 'success',
     payload_classes: policy.payloadClasses,
     source_id: sourceIdFrom(args, responsePayload),
-    summary: summaryFor(policy.summary, args),
+    summary: summaryFor(policy.summary, args, toolName === 'read_source_packet'),
     tool_name: toolName,
     ...(elapsedMs !== undefined ? { elapsed_ms: Math.max(0, Math.round(elapsedMs)) } : {}),
   }
@@ -248,11 +239,11 @@ function findSourceId(value: unknown): string | null {
   return null
 }
 
-function summaryFor(summary: string, args: Record<string, unknown>): string {
+function summaryFor(summary: string, args: Record<string, unknown>, packet = false): string {
   if (Number.isInteger(args.page_start) && Number.isInteger(args.page_end)) {
     const start = Number(args.page_start)
     const end = Number(args.page_end)
-    return `${summary} · ${start === end ? `page ${start}` : `pages ${start}-${end}`}`
+    return `${summary} · ${packet ? 'requested scope: ' : ''}${start === end ? `page ${start}` : `pages ${start}-${end}`}`
   }
   if (Array.isArray(args.element_ids)) {
     return `${summary} · ${args.element_ids.length} selected element${args.element_ids.length === 1 ? '' : 's'}`

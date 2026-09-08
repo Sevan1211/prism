@@ -9,6 +9,12 @@ const source = { id: 'local_test', storage_location: 'browser_vault' } as Librar
 const props = { source, onExit: vi.fn() }
 afterEach(cleanup)
 beforeEach(() => { vi.mocked(getBrowserSourceStructure).mockResolvedValue({ origin: 'none', sections: [], source_id: 'local_test' }) })
+it('opens the PDF while contents analysis is still pending', async () => {
+  vi.mocked(createBrowserSourceObjectUrl).mockResolvedValueOnce({ url: 'blob:immediate', revoke: vi.fn() })
+  vi.mocked(getBrowserSourceStructure).mockReturnValueOnce(new Promise(() => undefined))
+  render(<SourceReader {...props} />)
+  expect(await screen.findByText('blob:immediate')).toBeVisible()
+})
 it('reopens a PDF with a fresh URL and never renders the revoked URL while loading', async () => {
   const revoke = vi.fn()
   vi.mocked(createBrowserSourceObjectUrl).mockResolvedValueOnce({ url: 'blob:first', revoke })

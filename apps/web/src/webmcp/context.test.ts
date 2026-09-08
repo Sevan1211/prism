@@ -61,7 +61,7 @@ describe('registerPageTool', () => {
     const failure = new Error('registration failed')
     fake = installFakeModelContext({ registrationFailure: failure })
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-    registerPageTool({
+    const cleanup = registerPageTool({
       name: 'broken_tool',
       description: 'demo',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
@@ -74,12 +74,14 @@ describe('registerPageTool', () => {
       failure,
     )
     warn.mockRestore()
+    cleanup()
   })
 })
 
 describe('result and gating helpers', () => {
   it('bounds oversized tool results', () => {
     const oversized = textResult('x'.repeat(20_000))
+    expect(oversized.isError).toBe(true)
     expect(oversized.content[0].text.length).toBeLessThan(17_000)
     expect(JSON.parse(oversized.content[0].text)).toMatchObject({
       error: 'tool_result_too_large',

@@ -29,10 +29,15 @@ function ReaderSession({ source, ...props }: Props & { onReload: () => void }) {
           const file = await createBrowserSourceObjectUrl(id)
           release = file.revoke
           if (cancelled) { release(); return }
+          setResource({ url: file.url, structure: null })
           // Outline failure must not prevent reading the original PDF.
-          const structure = await getBrowserSourceStructure(id).catch(() => null)
+          const structure = await getBrowserSourceStructure(id).catch(() => ({
+            origin: 'none' as const, sections: [], source_id: id,
+            navigation_warnings: ['Contents analysis was unavailable. Reopen the reader to retry; the original pages remain accessible.'],
+          }))
           if (!cancelled) setResource({ url: file.url, structure })
         } else {
+          setResource({ url: sourcePdfUrl(id), structure: null })
           const structure = await sourceStructure(id).catch(() => null)
           if (!cancelled) setResource({ url: sourcePdfUrl(id), structure })
         }
@@ -40,13 +45,14 @@ function ReaderSession({ source, ...props }: Props & { onReload: () => void }) {
     })()
     return () => { cancelled = true; release?.() }
   }, [id, storage])
-  const access = useMemo<ReaderAccess | null>(() => resource ? {
-    pdfUrl: resource.url,
+  const pdfUrl = resource?.url
+  const access = useMemo<ReaderAccess | null>(() => pdfUrl ? {
+    pdfUrl,
     loadReadingState: () => storage === 'browser_vault' ? getBrowserReadingState(id) : readingState(id),
     saveReadingState: (page, ratio) => storage === 'browser_vault' ? updateBrowserReadingState(id, page, ratio) : updateReadingState(id, page, ratio),
     search: query => storage === 'browser_vault' ? searchBrowserSource(id, query) : searchSource(id, query),
     storageLabel: storage !== 'browser_vault' ? 'Local companion' : synced.connected ? 'Encrypted synced library' : 'This browser only',
-  } : null, [id, resource, storage, synced.connected])
+  } : null, [id, pdfUrl, storage, synced.connected])
   if (!access) return <LoadingState title="Opening your source" detail={synced.connected ? 'Retrieving and unlocking the PDF. Large files can take longer on the first visit to this browser.' : 'Preparing the original PDF and its contents. You can return to your source at any time.'} error={error} onRetry={props.onReload} onBack={props.onExit} />
   return <Reader {...props} source={source} access={access} structure={resource?.structure ?? null} />
 }

@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#f4f5f5" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141616" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="describedby" href="/llms.txt" />
     <meta
       name="description"
       content="PRISM turns structured sources into inspectable, source-grounded interactive lessons."
@@ -61,8 +62,8 @@
     <div id="root">
       <main class="prism-boot" data-prism-boot>
         <div>
-          <strong>Opening your local workspace</strong>
-          <p data-prism-boot-message>PRISM is reconnecting to this browser's source vault.</p>
+          <strong>Opening PRISM</strong>
+          <p data-prism-boot-message>Preparing the source-grounded workspace.</p>
           <a href="">Reload PRISM</a>
         </div>
       </main>
@@ -76,7 +77,7 @@
         var message = document.querySelector('[data-prism-boot-message]');
         if (boot && message) {
           boot.dataset.stalled = 'true';
-          message.textContent = 'PRISM did not finish opening. Reload to reconnect without deleting local sources.';
+          message.textContent = 'PRISM did not finish opening. Reload without deleting your local sources.';
         }
       }, 7000);
     </script>

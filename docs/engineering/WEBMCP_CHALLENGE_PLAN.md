@@ -1,9 +1,14 @@
 # WebMCP submission plan
 
-**Updated:** 2026-09-03  
+**Updated:** 2026-09-04
 **Status:** full-paper composition completed after owner approval; complete release rehearsal and publication still pending.
 
 The [official challenge page](https://openai.com/webmcp-challenge/) lists the submission deadline as September 4, 2026, 1:00 a.m. Pacific (3:00 a.m. America/Chicago). Submission needs a hosted project, public source repository, and a video under three minutes with audio. Verify the form and terms again before final submission. Preparing the project does not submit the entry or accept legal terms for the owner.
+
+The September 4 discovery, evidence batching and figure-catalog changes are local
+only. The owner explicitly prohibited deployment until further instruction. See
+[submission readiness](SUBMISSION_READINESS.md) for measured checks and limits;
+the hosted release and existing demo recordings do not include these changes.
 
 ## Product to demonstrate
 
@@ -13,7 +18,7 @@ The public library starts empty. No textbook, paper, lesson, or document-specifi
 
 ## Current architecture
 
-- Static React application, PDF.js workers, OPFS source files, IndexedDB structured state.
+- React application with PDF.js workers, OPFS source files, and IndexedDB structured state. Optional encrypted library sync uses the deployed Worker and cloud storage; browser-only use remains available without connecting a library.
 - Bounded evidence reads and original-page inspection; browser vision supplies actual visual understanding when available.
 - Small-scope element coverage or long-scope page reviews plus explicit coverage ranges.
 - Soft word/time targets; optional end questions.
@@ -35,6 +40,8 @@ See [submission readiness](SUBMISSION_READINESS.md) for dated evidence. Items no
 
 ## Video storyboard — proposed, not yet recorded
 
+The current recording script and acceptance checklist are in [the demo video plan](DEMO_VIDEO_PLAN.md). The outline below records the earlier storyboard.
+
 | Time | Screen action | What it establishes |
 |---|---|---|
 | 0:00–0:15 | Empty library; import the recent AI paper | The app starts with the user's source |
@@ -50,4 +57,4 @@ Record actual tool calls and generated results. If waiting is cut or accelerated
 
 ## Deferred rather than implied
 
-Browser OCR, universal mathematical reconstruction, verified table extraction, arbitrary agent-authored applications, cross-device sync, and validated learning efficacy remain outside the demonstrated release. Scanned or uncertain pages retain original-image access. Project-level multi-source routing is a longer-term direction, not a completed submission feature.
+Browser OCR, universal mathematical reconstruction, verified table extraction, arbitrary agent-authored applications, and validated learning efficacy remain outside the demonstrated release. Optional encrypted library sync is deployed; full lesson/revision synchronization must still be checked during the final video rehearsal. Scanned or uncertain pages retain original-image access. Project-level multi-source routing is a longer-term direction, not a completed submission feature.

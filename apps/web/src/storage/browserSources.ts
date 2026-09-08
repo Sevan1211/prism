@@ -1,11 +1,12 @@
 import { loadPdfjs } from '../pdfjs'
+import { scanContentsInWorker } from '../reader/contentsScanWorker'
+import { CONTENTS_SCANNER_VERSION, type ContentsScan } from '../reader/documentContentsScanner'
 import { pdfDocumentOptions } from '../pdfResources'
 import { notifySourcesChanged } from './sourceLibraryEvents'
 import type {
   ReadingState,
   RightsStatus,
   SearchResponse,
-  SourceSection,
   SourceStructure,
   SourceSummary,
 } from '../types'
@@ -27,6 +28,7 @@ import {
   PRISM_VAULT_READING_STATE_STORE,
   PRISM_VAULT_SOURCE_PAGE_STORE,
   PRISM_VAULT_SOURCE_STORE,
+  PRISM_VAULT_SOURCE_FOLDER_STORE,
   type BrowserVaultEnvironment,
 } from './browserVault'
 import { detachProjectSourceInTransaction } from './browserProjects'
@@ -53,6 +55,20 @@ const DEFAULT_MANIFEST_LIMIT = 12
 const MAX_MANIFEST_LIMIT = 16
 const MAX_EVIDENCE_ELEMENTS = 12
 const MAX_EVIDENCE_CHARACTERS = 12_000
+const navigationCache = new Map<string, Promise<ContentsScan>>()
+
+function derivedNavigation(database: IDBDatabase, source: BrowserSourceRecord, environment?: BrowserVaultEnvironment): Promise<ContentsScan> {
+  const cacheKey = `${source.content_hash}:${source.browser_index?.parser_version}:${source.page_count}:${CONTENTS_SCANNER_VERSION}`
+  if (!environment && navigationCache.has(cacheKey)) return navigationCache.get(cacheKey)!
+  const pending = pageRecordsBySource(database, source.id, environment)
+    .then(pages => scanContentsInWorker(pages, source.page_count ?? 0))
+  if (!environment) {
+    navigationCache.set(cacheKey, pending)
+    while (navigationCache.size > 3) navigationCache.delete(navigationCache.keys().next().value!)
+    void pending.catch(() => navigationCache.delete(cacheKey))
+  }
+  return pending
+}
 
 export type SourceLocation = 'browser_vault' | 'local_companion'
 export type LibrarySource = SourceSummary & {
@@ -302,68 +318,16 @@ export function getBrowserSourceStructure(
     if (status.state !== 'ready') {
       return { origin: 'none', sections: [], source_id: sourceId }
     }
-    const pages = await pageRecordsBySource(database, sourceId, environment)
-    const sections = computedBrowserSections(
-      pages.flatMap((page) => page.elements ?? []),
-      source.page_count ?? 0,
-    )
+    const { sections, warnings } = await derivedNavigation(database, source, environment)
     return {
       origin: sections.length > 0 ? 'computed' : 'none',
       sections,
+      navigation_warnings: warnings,
       source_id: sourceId,
     }
   }, environment)
 }
 
-function computedBrowserSections(
-  elements: IndexedSourcePage['elements'],
-  pageCount: number,
-): SourceSection[] {
-  const candidates: Array<{ level: number; page: number; title: string }> = []
-  const seen = new Set<string>()
-  for (const element of elements) {
-    if (element.kind !== 'heading_candidate') continue
-    const title = element.text.trim().replace(/\s+/g, ' ').slice(0, 200)
-    const sectionNumber = /^(\d+(?:\.\d+)*)\.?\s+\S/.exec(title)
-    const isChapter = /^chapter\s+(?:\d+|[ivxlcdm]+|one|two|three|four|five|six|seven|eight|nine|ten)\b/i
-      .test(title)
-    if (!isChapter && !sectionNumber) continue
-    const key = `${element.page_number}:${title.toLocaleLowerCase()}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    candidates.push({
-      level: isChapter ? 1 : (sectionNumber?.[1].match(/\./g)?.length ?? 0) + 1,
-      page: element.page_number,
-      title,
-    })
-  }
-  candidates.sort((left, right) => left.page - right.page || left.level - right.level)
-
-  const parents = new Map<number, string>()
-  return candidates.map((candidate, index) => {
-    const nextBoundary = candidates.slice(index + 1).find((later) => (
-      later.level <= candidate.level && later.page >= candidate.page
-    ))
-    const id = `detected-${index}-${candidate.page}`
-    const section: SourceSection = {
-      confidence: 0.6,
-      id,
-      level: candidate.level,
-      origin: 'computed',
-      page_end: nextBoundary ? Math.max(candidate.page, nextBoundary.page - 1) : pageCount,
-      page_start: candidate.page,
-      parent_id: parents.get(candidate.level - 1) ?? null,
-      title: candidate.title,
-    }
-    parents.set(candidate.level, id)
-    for (const depth of [...parents.keys()]) {
-      if (depth > candidate.level) parents.delete(depth)
-    }
-    return section
-  })
-}
-
-/** A bounded page read for visual inspection and resumable source review. */
 export function getBrowserSourcePages(sourceId: string, pageStart: number, pageEnd: number, environment?: BrowserVaultEnvironment): Promise<IndexedSourcePage[]> {
   return accessBrowserVault(async (database) => {
     const source = await getRecord<BrowserSourceRecord>(database, PRISM_VAULT_SOURCE_STORE, sourceId)
@@ -399,6 +363,7 @@ export function getBrowserSourceMap(
       'semantic_candidates_not_inferred',
     ]
     if (!indexReady) warnings.unshift('source_index_not_ready')
+    const navigation = indexReady ? await derivedNavigation(database, source, environment) : { sections: [], warnings: [] }
     return {
       capabilities: {
         exact_search: indexReady,
@@ -406,17 +371,18 @@ export function getBrowserSourceMap(
         render_original: true,
         scope_manifest: indexReady,
         structural_detection: 'candidate_only',
-        visual_detection: 'not_available',
+        visual_detection: 'on_demand_candidates',
       },
       content_hash: source.content_hash,
       index_status: indexStatus,
       name: source.original_name,
-      outline: indexReady ? computedBrowserSections((await pageRecordsBySource(database, sourceId, environment)).flatMap((page) => page.elements ?? []), source.page_count ?? 0) : [],
+      outline: navigation.sections,
+      navigation_version: CONTENTS_SCANNER_VERSION,
       page_count: source.page_count ?? 0,
       page_labels: 'pdf_page_index_only',
       parser_version: indexStatus.parser_version,
       source_id: source.id,
-      warnings,
+      warnings: [...warnings, ...navigation.warnings],
     }
   }, environment)
 }
@@ -435,7 +401,7 @@ export function getBrowserScopeManifest(
     assertCurrentEvidenceIndex(source)
     const range = validPageRange(pageStart, pageEnd, source.page_count ?? 0)
     const offset = manifestOffset(cursor)
-    if (range.end - range.start >= 32) throw new Error('For scopes over 32 pages, use read_source_page and record_scope_review, then propose coverage_ranges.')
+    if (range.end - range.start >= 32) throw new Error('For scopes over 32 pages, use read_source_packet and record_scope_review, then propose coverage_ranges.')
     const pageLimit = Math.min(MAX_MANIFEST_LIMIT, Math.max(1, Math.trunc(limit)))
     const pages = (await pageRecordsByNumber(database, sourceId, Array.from({ length: range.end - range.start + 1 }, (_, index) => range.start + index)))
       .sort((left, right) => left.page_number - right.page_number)
@@ -655,6 +621,7 @@ export function deleteBrowserSource(
     const transaction = database.transaction(
       [
         PRISM_VAULT_SOURCE_STORE,
+        PRISM_VAULT_SOURCE_FOLDER_STORE,
         PRISM_VAULT_READING_STATE_STORE,
         PRISM_VAULT_SOURCE_PAGE_STORE,
         PRISM_VAULT_LESSON_BRIEF_STORE,
@@ -673,6 +640,7 @@ export function deleteBrowserSource(
       'readwrite',
     )
     transaction.objectStore(PRISM_VAULT_SOURCE_STORE).delete(sourceId)
+    transaction.objectStore(PRISM_VAULT_SOURCE_FOLDER_STORE).delete(sourceId)
     transaction.objectStore(PRISM_VAULT_READING_STATE_STORE).delete(sourceId)
     transaction.objectStore(PRISM_VAULT_AGENT_GRANT_STORE).delete(sourceId)
     deleteBySourceInTransaction(

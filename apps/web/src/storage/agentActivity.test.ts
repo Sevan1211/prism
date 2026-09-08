@@ -23,6 +23,13 @@ function environment(): BrowserVaultEnvironment {
 }
 
 describe('agent activity receipts', () => {
+  it('labels a full-range packet request as scope, not proof all pages were read', async () => {
+    const env = environment()
+    await recordWebMcpActivity('read_source_packet', { source_id: 'source-1', page_start: 1, page_end: 43 }, textResult({ pages_completed_in_packet: [1, 2], next_cursor: '3:0:0', elements: [{ text: 'Private evidence' }] }), undefined, env)
+    const records = await listAgentActivity('source-1', 12, env)
+    expect(records[0].summary).toBe('Read a bounded multi-page evidence packet · requested scope: pages 1-43')
+    expect(JSON.stringify(records)).not.toContain('Private evidence')
+  })
   it('records bounded action metadata without retaining private queries or source text', async () => {
     const env = environment()
     await recordWebMcpActivity(

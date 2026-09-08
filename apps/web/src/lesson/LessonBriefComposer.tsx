@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { ArrowRight, CheckCircle, Copy, Plus, X } from '@phosphor-icons/react'
 import type { LibrarySource } from '../storage/browserSources'
 import { createLessonBrief } from './lessonPlans'
+import { useBriefDraft } from './useBriefDraft'
+import { BriefReviewProgress } from './BriefReviewProgress'
+import { AGENT_STARTUP_PROMPT } from '../webmcp/authoringGuide'
 import type { LessonBrief, LessonDepth, LessonPlan, LessonOutputKind } from './lessonPlanTypes'
 
 interface LessonBriefComposerProps {
@@ -12,22 +15,16 @@ interface LessonBriefComposerProps {
 }
 
 export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBriefComposerProps) {
-  const [open, setOpen] = useState(false)
+  const { draft, update, clear, hasDraft, storageError, restored } = useBriefDraft(source.id, source.page_count ?? 1)
+  const { name, assignment, goal, outputKind, targetWords, includeQuestions, pageStart, pageEnd, timeBudget, depth, priorKnowledge } = draft
+  const [open, setOpen] = useState(restored)
   const [busy, setBusy] = useState(false)
   const [copiedBriefId, setCopiedBriefId] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
-  const [name, setName] = useState('')
-  const [assignment, setAssignment] = useState('')
-  const [goal, setGoal] = useState('')
-  const [outputKind, setOutputKind] = useState<LessonOutputKind>('lesson')
-  const [targetWords, setTargetWords] = useState<number | null>(null)
-  const [includeQuestions, setIncludeQuestions] = useState(false)
-  const [pageStart, setPageStart] = useState(1)
-  const [pageEnd, setPageEnd] = useState(source.page_count ?? 1)
-  const [timeBudget, setTimeBudget] = useState(30)
-  const [depth, setDepth] = useState<LessonDepth>('standard')
-  const [priorKnowledge, setPriorKnowledge] = useState('')
   const errorRef = useRef<HTMLParagraphElement>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { if (open) nameRef.current?.focus() }, [open])
 
   useEffect(() => {
     if (formError) errorRef.current?.focus()
@@ -70,6 +67,7 @@ export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBr
         source_id: source.id,
         time_budget_minutes: timeBudget,
       })
+      clear()
       setOpen(false)
     } catch (cause) {
       setFormError(cause instanceof Error ? cause.message : 'The lesson assignment could not be saved.')
@@ -96,10 +94,9 @@ export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBr
           <span>Create with your agent</span>
           <h4 id="lesson-launch-title">What would you like to understand?</h4>
           <p>
-            A single concept, a chapter, or a detailed synthesis of the whole source.
-            Save a request, ask your connected agent to build it, then review its plan.
-            You can keep refining the same lesson as you read.
+            Choose your scope and goal. Your connected agent proposes a plan for you to review before building the lesson.
           </p>
+          <details className="lesson-fidelity-note"><summary>Detailed, source-grounded explanations by default</summary><p>Keep definitions, reasoning, examples, qualifications, and relevant figures. A shorter scope or summary needs your explicit approval. Refine the same lesson as you read.</p></details>
         </div>
         <button
           className={open ? 'icon-button' : 'button-secondary'}
@@ -115,15 +112,21 @@ export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBr
 
       {open ? (
         <form id="lesson-brief-form" className="lesson-brief-form" onSubmit={submitBrief}>
+          <fieldset disabled={busy} className="brief-edit-fields">
+          <div className="lesson-field-wide draft-status">
+            <p role="status">{storageError ? 'This tab cannot keep a recovery draft. Save your request before leaving this page.' : hasDraft ? 'Draft kept in this tab. You can navigate away or reload; save your request to keep it in your library.' : 'Your edits will be kept in this tab until you save the request or close the tab.'}</p>
+            {hasDraft ? <button type="button" className="button-quiet" disabled={busy} onClick={() => { clear(); setFormError(null); nameRef.current?.focus() }}>Discard draft</button> : null}
+          </div>
           <label className="lesson-field lesson-field-wide">
             Lesson name
             <input
+              ref={nameRef}
               autoComplete="off"
               name="lesson_name"
               maxLength={140}
               value={name}
               placeholder="Chapter 1 foundations…"
-              onChange={(event) => setName(event.currentTarget.value)}
+              onChange={(event) => update('name', event.currentTarget.value)}
               required
             />
           </label>
@@ -135,7 +138,7 @@ export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBr
               maxLength={600}
               value={assignment}
               placeholder="Turn these 100 pages into a detailed, roughly 10-page reading guide. Preserve methods, evidence, limitations, and the important figures…"
-              onChange={(event) => setAssignment(event.currentTarget.value)}
+              onChange={(event) => update('assignment', event.currentTarget.value)}
               required
               rows={3}
             />
@@ -153,8 +156,8 @@ export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBr
               min={1}
               name="page_start"
               type="number"
-              value={pageStart}
-              onChange={(event) => setPageStart(event.currentTarget.valueAsNumber)}
+              value={pageStart || ''}
+              onChange={(event) => update('pageStart', event.currentTarget.valueAsNumber || 0)}
               required
             />
           </label>
@@ -167,19 +170,19 @@ export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBr
               min={1}
               name="page_end"
               type="number"
-              value={pageEnd}
-              onChange={(event) => setPageEnd(event.currentTarget.valueAsNumber)}
+              value={pageEnd || ''}
+              onChange={(event) => update('pageEnd', event.currentTarget.valueAsNumber || 0)}
               required
             />
           </label>
-          <button type="button" className="button-quiet" onClick={() => { setPageStart(1); setPageEnd(source.page_count ?? 1) }}>All {source.page_count?.toLocaleString() ?? ''} pages</button>
+          <button type="button" className="button-quiet" onClick={() => { update('pageStart', 1); update('pageEnd', source.page_count ?? 1) }}>All {source.page_count?.toLocaleString() ?? ''} pages</button>
           </div>
           </fieldset>
           <details className="lesson-options lesson-field-wide">
           <summary>Customize depth, length and prior knowledge</summary>
           <div className="lesson-options-grid">
-          <label className="lesson-field">Reading experience<select value={outputKind} onChange={(event) => setOutputKind(event.target.value as LessonOutputKind)}><option value="lesson">Lesson · teach me the ideas</option><option value="research_brief">Research brief · synthesize the source</option></select></label>
-          <label className="lesson-field">Approximate length · optional<input type="number" min={1} max={100000} value={targetWords ?? ''} placeholder="Target words, e.g. 4000" onChange={(event) => setTargetWords(event.target.value === '' ? null : event.target.valueAsNumber)} /><small>A soft target. Essential detail comes first.</small></label>
+          <label className="lesson-field">Reading experience<select value={outputKind} onChange={(event) => update('outputKind', event.target.value as LessonOutputKind)}><option value="lesson">Lesson · teach me the ideas</option><option value="research_brief">Research brief · synthesize the source</option></select></label>
+          <label className="lesson-field">Approximate length · optional<input type="number" min={1} max={100000} value={targetWords ?? ''} placeholder="Target words, e.g. 4000" onChange={(event) => update('targetWords', event.target.value === '' ? null : event.target.valueAsNumber)} /><small>A soft target. Essential detail comes first.</small></label>
           <label className="lesson-field">
             Approximate reading minutes
             <input
@@ -188,8 +191,8 @@ export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBr
               min={1}
               name="time_budget_minutes"
               type="number"
-              value={timeBudget}
-              onChange={(event) => setTimeBudget(event.currentTarget.valueAsNumber)}
+              value={timeBudget || ''}
+              onChange={(event) => update('timeBudget', event.currentTarget.valueAsNumber || 0)}
               required
             />
           </label>
@@ -198,16 +201,16 @@ export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBr
             <select
               name="intended_depth"
               value={depth}
-              onChange={(event) => setDepth(event.currentTarget.value as LessonDepth)}
+              onChange={(event) => update('depth', event.currentTarget.value as LessonDepth)}
             >
-              <option value="overview">Overview</option>
-              <option value="standard">Standard</option>
-              <option value="deep">Deep</option>
+              <option value="overview">Overview · propose what to shorten</option>
+              <option value="standard">Standard · preserve substantive content</option>
+              <option value="deep">Full explanations · include worked reasoning</option>
             </select>
           </label>
           <label className="lesson-field lesson-field-wide">
             What should you be able to do afterward? Optional
-            <textarea autoComplete="off" name="learner_goal" maxLength={400} value={goal} placeholder="Explain the central argument and apply it to a new case…" onChange={event => setGoal(event.currentTarget.value)} rows={2} />
+            <textarea autoComplete="off" name="learner_goal" maxLength={400} value={goal} placeholder="Explain the central argument and apply it to a new case…" onChange={event => update('goal', event.currentTarget.value)} rows={2} />
           </label>
           <label className="lesson-field lesson-field-wide">
             What do you already know? Optional
@@ -216,11 +219,11 @@ export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBr
               name="prior_knowledge"
               value={priorKnowledge}
               placeholder="One item per line, for example: introductory statistics…"
-              onChange={(event) => setPriorKnowledge(event.currentTarget.value)}
+              onChange={(event) => update('priorKnowledge', event.currentTarget.value)}
               rows={3}
             />
           </label>
-          <label className="lesson-field-wide lesson-check-option"><input type="checkbox" checked={includeQuestions} onChange={(event) => setIncludeQuestions(event.target.checked)} /> Include a few optional understanding questions</label>
+          <label className="lesson-field-wide lesson-check-option"><input type="checkbox" checked={includeQuestions} onChange={(event) => update('includeQuestions', event.target.checked)} /> Include a few optional understanding questions</label>
           </div>
           </details>
           {formError ? (
@@ -243,6 +246,7 @@ export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBr
               {!busy ? <ArrowRight aria-hidden="true" weight="bold" /> : null}
             </button>
           </div>
+          </fieldset>
         </form>
       ) : null}
 
@@ -254,7 +258,7 @@ export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBr
               <div>
                 <span>{brief.brief_kind === 'repair' ? 'Repair lesson ready' : 'Ready for an agent'}</span>
                 <h5>{brief.name}</h5>
-                <p>PDF pages {brief.page_start}-{brief.page_end}, {brief.time_budget_minutes} minutes, {brief.intended_depth} depth</p>
+                <p>PDF pages {brief.page_start}–{brief.page_end} · {brief.intended_depth === 'deep' ? 'Full explanations' : brief.intended_depth === 'overview' ? 'Overview proposal' : 'Standard depth'} · {brief.time_budget_minutes}-minute preference, flexible</p>
                 {brief.brief_kind === 'repair' ? (
                   <p>
                     Child of lesson {brief.parent_lesson_id?.slice(0, 18)}. Focused on
@@ -262,7 +266,7 @@ export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBr
                     {(brief.repair_for_criterion_ids?.length ?? 0) === 1 ? '' : 's'}.
                   </p>
                 ) : null}
-                <p>Ask your connected agent to use this request. Copy it into the agent chat to get started.</p>
+                <BriefReviewProgress brief={brief} />
                 <details className="brief-request"><summary>View agent request</summary><code>{agentRequest(brief)}</code></details>
               </div>
               <button className="button-quiet" type="button" onClick={() => copyAgentRequest(brief)}>
@@ -281,5 +285,5 @@ function agentRequest(brief: LessonBrief): string {
   const repairContext = brief.brief_kind === 'repair'
     ? ' This is a learner-approved repair brief tied to unresolved answer criteria.'
     : ''
-  return `Create my PRISM ${brief.output_kind === 'research_brief' ? 'research brief' : 'lesson'} ${brief.brief_id}.${repairContext} Read get_lesson_brief and get_authoring_guide. Inspect the requested source, including relevant page images with browser vision. For a long scope, save record_scope_review checkpoints and propose coverage_ranges. Length is a soft target; preserve essential reasoning and qualifications. Open the plan for my approval, then compose rich text and useful source-linked visuals. After I read it, help me improve the same saved lesson.`
+  return `${AGENT_STARTUP_PROMPT}\n\nCreate my PRISM ${brief.output_kind === 'research_brief' ? 'research brief' : 'lesson'} ${brief.brief_id}.${repairContext} Resume get_authoring_workspace with this brief_id. Respect its full requested range and goal. For a long scope, save record_scope_review checkpoints and propose coverage_ranges. Length is a soft target; preserve essential reasoning and qualifications. Open the plan for my approval, then compose complete sections with apply_lesson_patch using rich text and useful source-linked visuals. Reuse successful save receipts without rereading the entire document. After I read it, help me improve the same saved lesson.`
 }

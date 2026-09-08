@@ -160,7 +160,7 @@ function sourceElements(
   })
 }
 
-function textLines(fragments: IndexedTextFragment[]): TextLine[] {
+export function textLines(fragments: IndexedTextFragment[]): TextLine[] {
   const lines: TextLine[] = []
   let current: IndexedTextFragment[] = []
   for (const fragment of fragments) {

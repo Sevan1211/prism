@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { listSources, sourcePdfUrl } from './api'
@@ -14,8 +14,10 @@ import type { LessonBrief, LessonPlan } from './lesson/lessonPlanTypes'
 import { sourcePath } from './navigation'
 import {
   getBrowserReadingState,
+  deleteBrowserSource,
   importBrowserSource,
   listBrowserSources,
+  setBrowserAgentContentAccess,
 } from './storage/browserSources'
 import { installFakeModelContext } from './test/fakeModelContext'
 import type { SourceSummary } from './types'
@@ -144,15 +146,20 @@ describe('PRISM source workspace', () => {
   it('opens into the routed source library and then the selected source workspace', async () => {
     render(<App />)
 
-    expect(await screen.findByRole('heading', { name: 'Sources' })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Library' })).toBeVisible()
     expect(window.location.pathname).toBe('/sources')
+    const folders = screen.getByRole('complementary', { name: 'Library folders' })
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search your library' }), { target: { value: 'computer' } })
     fireEvent.click(screen.getAllByRole('link', { name: /computer networks/i })[0])
     expect(screen.getByRole('heading', { name: /computer networks/i })).toBeVisible()
     expect(window.location.pathname).toBe('/sources/src_networks')
-    expect(screen.getByText('Work from the source, then reconstruct it.')).toBeVisible()
-    expect(screen.getByText('Reading mode')).toBeVisible()
+    expect(screen.getByText('Continue reading')).toBeVisible()
+    expect(screen.getByRole('complementary', { name: 'Library folders' })).toBe(folders)
+    expect(screen.getByRole('button', { name: 'Agent tools status' })).toBeVisible()
     expect(screen.queryByText('Prepare a stream')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Enter semantic stream' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('link', { name: '← Back to library' }))
+    expect(screen.getByRole('searchbox', { name: 'Search your library' })).toHaveValue('computer')
   })
 
   it('opens the original in the full Reader from the source workspace', async () => {
@@ -170,35 +177,32 @@ describe('PRISM source workspace', () => {
     const fake = installFakeModelContext()
     try {
       render(<App />)
-      await screen.findByRole('heading', { name: 'Sources' })
+      await screen.findByRole('heading', { name: 'Library' })
 
       expect([...fake.tools.keys()].sort()).toEqual([
         'apply_lesson_patch',
-        'close_source_visual',
         'create_lesson_brief',
         'finalize_lesson',
         'get_active_lesson_context',
         'get_authoring_guide',
-        'get_lesson_brief',
+        'get_authoring_workspace',
         'get_lesson_document',
         'get_lesson_end_check',
-        'get_lesson_plan',
         'get_scope_manifest',
-        'get_scope_reviews',
         'get_source_map',
+        'get_source_visual_catalog',
         'import_generated_illustration',
         'import_public_pdf',
+        'inspect_source_visual',
         'list_sources',
         'open_lesson',
         'open_source_location',
-        'open_source_visual',
         'prepare_source_import',
         'propose_lesson_outcome',
         'propose_lesson_plan',
         'propose_lesson_revision',
         'read_source_bundle',
         'read_source_packet',
-        'read_source_page',
         'record_answer_analysis',
         'record_scope_review',
         'search_source',
@@ -206,6 +210,12 @@ describe('PRISM source workspace', () => {
       ])
       expect(fake.tools.has('prepare_stream')).toBe(false)
       expect(fake.tools.has('get_player_state')).toBe(false)
+      expect(fake.tools.get('get_source_map')?.inputSchema).toMatchObject({
+        properties: {
+          cursor: { type: 'string', pattern: '^\\d+$' },
+          limit: { type: 'integer', minimum: 1, maximum: 40 },
+        },
+      })
 
       let refusal: unknown
       await act(async () => {
@@ -216,6 +226,10 @@ describe('PRISM source workspace', () => {
       })
       expect(refusal).toMatchObject({ error: expect.stringContaining('agent_access_not_granted') })
       expect(createLessonBrief).not.toHaveBeenCalled()
+      await act(async () => {
+        refusal = await fake.execute('get_source_visual_catalog', { source_id: companionSource.id, page_start: 1, page_end: 4 })
+      })
+      expect(refusal).toMatchObject({ error: expect.stringContaining('agent_access_not_granted') })
     } finally {
       fake.uninstall()
     }
@@ -225,7 +239,7 @@ describe('PRISM source workspace', () => {
     const fake = installFakeModelContext()
     try {
       render(<App />)
-      await screen.findByRole('heading', { name: 'Sources' })
+      await screen.findByRole('heading', { name: 'Library' })
 
       let result: unknown
       await act(async () => {
@@ -248,6 +262,30 @@ describe('PRISM source workspace', () => {
     }
   })
 
+  it('keeps visual close usable without source access and rejects ambiguous inspection calls', async () => {
+    const fake = installFakeModelContext()
+    const close = vi.fn()
+    window.addEventListener('prism:inspect-source-page:close', close)
+    try {
+      render(<App />)
+      await screen.findByRole('heading', { name: 'Library' })
+      let result: unknown
+      await act(async () => { result = await fake.execute('inspect_source_visual', { action: 'close' }) })
+      expect(result).toMatchObject({ visible_state: 'source_inspection_closed' })
+      expect(close).toHaveBeenCalledOnce()
+      await act(async () => { result = await fake.execute('inspect_source_visual', { action: 'open', source_id: companionSource.id, page_number: 1 }) })
+      expect(result).toMatchObject({ error: expect.stringContaining('agent_access_not_granted') })
+      await act(async () => { result = await fake.execute('inspect_source_visual', { action: 'close', source_id: companionSource.id }) })
+      expect(result).toMatchObject({ error: expect.stringContaining('alone') })
+      await act(async () => { result = await fake.execute('inspect_source_visual', {}) })
+      expect(result).toMatchObject({ error: expect.stringContaining('action') })
+      for (const tool of ['get_lesson_document', 'validate_lesson', 'get_lesson_end_check']) {
+        await act(async () => { result = await fake.execute(tool, { lesson_id: 'lesson', plan_id: 'other' }) })
+        expect(result).toMatchObject({ error: expect.stringContaining('exactly one') })
+      }
+    } finally { window.removeEventListener('prism:inspect-source-page:close', close); fake.uninstall() }
+  })
+
   it('lets an external agent reopen a learner-saved local assignment brief', async () => {
     const fake = installFakeModelContext()
     const localSource = browserSource()
@@ -257,15 +295,15 @@ describe('PRISM source workspace', () => {
     vi.mocked(getLessonBrief).mockResolvedValue(brief)
     try {
       render(<App />)
-      await screen.findByRole('heading', { name: 'Sources' })
+      await screen.findByRole('heading', { name: 'Library' })
 
       let result: unknown
       await act(async () => {
-        result = await fake.execute('get_lesson_brief', { brief_id: brief.brief_id })
+        result = await fake.execute('get_authoring_workspace', { view: 'brief', brief_id: brief.brief_id })
       })
 
-      expect(result).toMatchObject({ briefs: [brief] })
-      expect(fake.tools.get('get_lesson_brief')?.annotations?.readOnlyHint).toBe(true)
+      expect(result).toMatchObject({ brief })
+      expect(fake.tools.get('get_authoring_workspace')?.annotations?.readOnlyHint).toBe(true)
     } finally {
       fake.uninstall()
     }
@@ -354,23 +392,71 @@ describe('PRISM source workspace', () => {
         active_surface: 'lessons',
         plan_selection: 'url',
         source_id: localSource.id,
+        page_count: localSource.page_count,
+        agent_access: 'allowed',
+        next_action: 'The learner must approve this plan in PRISM before composition.',
       })
     } finally {
       fake.uninstall()
     }
   })
 
+  it('filters the main library and restores navigable sources when search is cleared', async () => {
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Library' })
+    fireEvent.change(await screen.findByRole('searchbox', { name: 'Search your library' }), { target: { value: 'no-matching-title' } })
+    expect(screen.getByRole('heading', { name: 'No matching sources' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }))
+    const row = document.querySelector('.library-entry-link')!
+    expect(row.tagName).toBe('A')
+    expect(row).not.toHaveAttribute('role', 'listitem')
+    fireEvent.click(row)
+    expect(window.location.pathname).toBe('/sources/src_networks')
+  })
+
+  it('keeps the root address on the landing page until the learner opens the library', async () => {
+    window.history.replaceState({}, '', '/')
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Make sense of what you read.' })).toBeVisible()
+    expect(window.location.pathname).toBe('/')
+
+    fireEvent.click(screen.getByRole('link', { name: 'Open your library' }))
+    expect(await screen.findByRole('heading', { name: 'Library' })).toBeVisible()
+    expect(window.location.pathname).toBe('/sources')
+  })
+
+  it('keeps tools registered across overview, lessons and Reader while updating private-source guidance', async () => {
+    const fake = installFakeModelContext()
+    try {
+      render(<App />)
+      await screen.findByRole('heading', { name: 'Library' })
+      const registrations = fake.registrationCount
+      fireEvent.click(screen.getAllByRole('link', { name: /computer networks/i })[0])
+      let context: unknown
+      await act(async () => { context = await fake.execute('get_active_lesson_context') })
+      expect(context).toMatchObject({ active_surface: 'source_overview', agent_access: 'learner_approval_required', next_calls: [] })
+      fireEvent.click(screen.getByRole('link', { name: 'Lessons' }))
+      expect(fake.registrationCount).toBe(registrations)
+      fireEvent.click(screen.getByRole('link', { name: /^Reader$/ }))
+      await screen.findByText('Reader · computer-networks.pdf')
+      await act(async () => { context = await fake.execute('get_active_lesson_context') })
+      expect(context).toMatchObject({ active_surface: 'reader', agent_access: 'learner_approval_required' })
+      expect(fake.registrationCount).toBe(registrations)
+    } finally { fake.uninstall() }
+  })
+
   it('imports through the browser-local source dialog instead of a hosted upload path', async () => {
-    const imported = browserSource()
+    const imported = { ...browserSource(), rights_status: 'private_authorized' as const }
     vi.mocked(importBrowserSource).mockResolvedValue(imported)
     vi.mocked(listBrowserSources)
       .mockResolvedValueOnce([])
       .mockResolvedValue([imported])
 
     render(<App />)
-    fireEvent.click(await screen.findByRole('button', { name: 'Add a source' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Add PDF' }))
     await waitFor(() => expect(screen.getByLabelText('Choose a PDF')).toHaveFocus())
-    expect(document.querySelector('.workspace-body')).toHaveAttribute('inert')
+    expect(document.querySelector('.workspace-surface')).toHaveAttribute('inert')
     const file = new File(['%PDF-fixture'], 'course.pdf', { type: 'application/pdf' })
     fireEvent.change(screen.getByLabelText('Close import').closest('section')?.querySelector('input[type="file"]') as HTMLInputElement, {
       target: { files: [file] },
@@ -380,6 +466,86 @@ describe('PRISM source workspace', () => {
     await waitFor(() => expect(importBrowserSource).toHaveBeenCalledWith(file, 'private_authorized'))
     expect(await screen.findByRole('heading', { name: /open course/i })).toBeVisible()
     expect(window.location.pathname).toContain(imported.id)
+    expect(setBrowserAgentContentAccess).not.toHaveBeenCalled()
+  })
+
+  it.each(['private_authorized', 'unknown'] as const)('grants explicit %s source access during import', async (rights) => {
+    const imported = { ...browserSource(), rights_status: rights }
+    vi.mocked(importBrowserSource).mockResolvedValue(imported)
+    vi.mocked(listBrowserSources).mockResolvedValue([])
+    vi.mocked(setBrowserAgentContentAccess).mockResolvedValueOnce(undefined)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add PDF' }))
+    const file = new File(['%PDF-fixture'], 'private.pdf', { type: 'application/pdf' })
+    fireEvent.change(screen.getByLabelText('Choose a PDF'), { target: { files: [file] } })
+    fireEvent.change(screen.getByLabelText('Rights for this source'), { target: { value: rights } })
+    const access = screen.getByRole('checkbox', { name: 'Allow my agent to read this PDF' })
+    expect(access).not.toBeChecked()
+    fireEvent.click(access)
+    vi.mocked(listBrowserSources).mockResolvedValue([{ ...imported, agent_content_granted: true }])
+    fireEvent.click(screen.getByRole('button', { name: 'Add to library' }))
+    await waitFor(() => expect(setBrowserAgentContentAccess).toHaveBeenCalledWith(imported.id, true))
+    expect(await screen.findByText('Selected source access is on')).toBeVisible()
+    expect(approveLessonPlan).not.toHaveBeenCalled()
+  })
+
+  it('resets import access when replacing the PDF or changing its rights', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add PDF' }))
+    const access = screen.getByRole('checkbox', { name: 'Allow my agent to read this PDF' })
+    fireEvent.click(access)
+    fireEvent.change(screen.getByLabelText('Choose a PDF'), { target: { files: [new File(['%PDF'], 'other.pdf')] } })
+    expect(access).not.toBeChecked()
+    fireEvent.click(access)
+    fireEvent.change(screen.getByLabelText('Rights for this source'), { target: { value: 'open_license' } })
+    expect(screen.queryByRole('checkbox', { name: 'Allow my agent to read this PDF' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Rights for this source'), { target: { value: 'unknown' } })
+    expect(screen.getByRole('checkbox', { name: 'Allow my agent to read this PDF' })).not.toBeChecked()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Allow my agent to read this PDF' }))
+    fireEvent.change(screen.getByLabelText('Or paste a public PDF link'), { target: { value: 'https://example.org/paper.pdf' } })
+    expect(screen.getByRole('checkbox', { name: 'Allow my agent to read this PDF' })).not.toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(importBrowserSource).not.toHaveBeenCalled()
+    expect(setBrowserAgentContentAccess).not.toHaveBeenCalled()
+  })
+
+  it('keeps an imported PDF and reports a failed access grant without approving anything', async () => {
+    const imported = { ...browserSource(), rights_status: 'private_authorized' as const }
+    vi.mocked(importBrowserSource).mockResolvedValue(imported)
+    vi.mocked(listBrowserSources).mockResolvedValue([])
+    vi.mocked(setBrowserAgentContentAccess).mockRejectedValueOnce(new Error('Storage unavailable'))
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add PDF' }))
+    fireEvent.change(screen.getByLabelText('Choose a PDF'), { target: { files: [new File(['%PDF'], 'private.pdf')] } })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Allow my agent to read this PDF' }))
+    vi.mocked(listBrowserSources).mockResolvedValue([imported])
+    fireEvent.click(screen.getByRole('button', { name: 'Add to library' }))
+    expect(await screen.findByText(/Your PDF was added, but agent access could not be saved/)).toBeVisible()
+    expect(await screen.findByText('Agent source access is off')).toBeVisible()
+    expect(importBrowserSource).toHaveBeenCalledTimes(1)
+    expect(approveLessonPlan).not.toHaveBeenCalled()
+  })
+
+  it('confirms source removal and retains the dialog on failure', async () => {
+    const source = { ...browserSource(), rights_status: 'private_authorized' as const }
+    vi.mocked(listBrowserSources).mockResolvedValue([source])
+    vi.mocked(deleteBrowserSource).mockRejectedValueOnce(new Error('Could not remove the source')).mockResolvedValueOnce(undefined)
+    render(<App />)
+    fireEvent.click((await screen.findAllByRole('link', { name: /open course/i }))[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Remove source' }))
+    let dialog = screen.getByRole('dialog', { name: 'Remove this source?' })
+    expect(within(dialog).getByText(/its lessons, and its reading history/)).toBeVisible()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(deleteBrowserSource).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove source' }))
+    dialog = screen.getByRole('dialog', { name: 'Remove this source?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove source' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Could not remove the source')
+    vi.mocked(listBrowserSources).mockResolvedValue([])
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove source' }))
+    expect(await screen.findByRole('heading', { name: 'Library' })).toBeVisible()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Remove this source?' })).not.toBeInTheDocument())
+    expect(deleteBrowserSource).toHaveBeenCalledWith(source.id)
   })
 
   it('starts empty and makes source import the primary action', async () => {
@@ -400,7 +566,7 @@ describe('PRISM source workspace', () => {
       await new Promise((resolve) => window.setTimeout(resolve, 0))
     })
 
-    expect(await screen.findByRole('heading', { name: 'Sources' })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Library' })).toBeVisible()
     expect(window.location.pathname).toBe('/sources')
   })
 })

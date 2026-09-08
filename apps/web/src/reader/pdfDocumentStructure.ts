@@ -10,6 +10,7 @@ interface PdfOutlineNode {
 interface ResolvedOutlineNode {
   children: ResolvedOutlineNode[]
   page: number | null
+  top?: number
   title: string
 }
 
@@ -74,10 +75,11 @@ async function resolveOutlineNode(
   const children = await Promise.all(
     (node.items ?? []).map((child) => resolveOutlineNode(doc, child, pageCount)),
   )
-  const directPage = await destinationPage(doc, node.dest, pageCount)
+  const destination = await destinationPage(doc, node.dest, pageCount)
   return {
     children,
-    page: directPage ?? children.find((child) => child.page !== null)?.page ?? null,
+    page: destination?.page ?? children.find((child) => child.page !== null)?.page ?? null,
+    top: destination?.top,
     title: node.title.trim(),
   }
 }
@@ -86,7 +88,7 @@ async function destinationPage(
   doc: PDFDocumentProxy,
   destination: string | unknown[] | null,
   pageCount: number,
-): Promise<number | null> {
+): Promise<{ page: number; top?: number } | null> {
   try {
     const explicit = typeof destination === 'string'
       ? await doc.getDestination(destination)
@@ -97,7 +99,10 @@ async function destinationPage(
       ? reference
       : await doc.getPageIndex(reference as Parameters<PDFDocumentProxy['getPageIndex']>[0])
     const page = pageIndex + 1
-    return page >= 1 && page <= pageCount ? page : null
+    const mode = (explicit[1] as { name?: string } | null)?.name
+    const top = mode === 'XYZ' ? explicit[3] : mode === 'FitH' || mode === 'FitBH' ? explicit[2] : mode === 'FitR' ? explicit[5] : undefined
+    return Number.isInteger(page) && page >= 1 && page <= pageCount
+      ? { page, ...(typeof top === 'number' && Number.isFinite(top) ? { top } : {}) } : null
   } catch {
     return null
   }
@@ -121,6 +126,7 @@ function flattenOutline(nodes: ResolvedOutlineNode[], pageCount: number): Source
       origin: 'outline',
       page_end: pageCount,
       page_start: node.page,
+      ...(node.top !== undefined ? { pdf_top: node.top } : {}),
       parent_id: parentId,
       title: node.title,
     })

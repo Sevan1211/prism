@@ -1,12 +1,74 @@
 # Document intelligence and retrieval specification
 
 **Status:** adopted target; capability remains tiered and evidence-gated  
-**Reviewed:** 2026-08-29  
+**Reviewed:** 2026-09-04
 **Related:** [`PDF_PIPELINE.md`](PDF_PIPELINE.md), [`../product/READER_SPEC.md`](../product/READER_SPEC.md), [`../product/INTERACTIVE_LESSON_SPEC.md`](../product/INTERACTIVE_LESSON_SPEC.md), [`WEBMCP_INTEGRATION.md`](WEBMCP_INTEGRATION.md)
 
 ## Goal
 
 Give the learner and agent fast, inspectable access to all relevant material in a selected source range without pretending that indexed text is the complete document.
+
+## Implemented navigation scanner — 2026-09-06
+
+Browser-local PDF navigation now uses a separate `contents-v2` analysis over the
+existing evidence index. It does not regenerate evidence IDs or require reimport.
+The Reader preserves native bookmarks and resolves their vertical destinations;
+missing numbered subsections may supplement a matching authored branch.
+
+The fallback scanner combines repeated margin-text detection, text geometry,
+numbering, local font-size tiers, wrapped headings, and printed contents. Printed
+entries become destinations only after matching actual body headings. Repeated
+titles require an offset corroborated by at least three independent titles;
+unresolved entries are not assigned guessed destinations. Table rows, machine
+output, captions, and contents-page locations are excluded conservatively.
+
+Analysis runs in a local worker while the original PDF opens. A bounded in-memory
+cache retains three derived maps, keyed by source hash and evidence/navigation
+versions. No source content is sent to a service. Detected titles remain untrusted
+inferences with reasons and heuristic scores, not calibrated probabilities.
+The Reader exposes limitations under **About these contents**.
+
+The 2026-09-07 revision uses observed document typography for sparse pages instead
+of a fixed fallback text size, rejects aligned table cells even when enlarged,
+and suppresses short prose/command runs. A substantial verified printed outline
+takes precedence over unrelated enlarged callouts. Unambiguous conventional labels
+such as letter-spaced Foreword are normalized for navigation display; unknown
+letter-spaced words are not joined speculatively. Original indexed evidence stays
+unchanged. The versioned navigation cache refreshes these results without reimport.
+
+Contents initially expands only the current reading path, with explicit expand,
+collapse, and search controls. Detected navigation is labeled **Suggested contents**.
+PRISM's added page badges and contents-page-number column are removed; the page-jump
+control, accessible position announcements, source-printed page numbers, and internal
+destinations remain. When reliable headings are absent, the Reader offers search
+and page navigation without fabricating numbered page groups as contents.
+
+Local checks cover native bookmark destinations, sparse slides, tables, command
+output, an image-only PDF, and text search in an isolated Chrome context. Synthetic
+regressions cover printed-outline preference, conventional display labels, stable
+IDs, no evidence mutation, unresolved destinations, compact contents, and retained
+page jumping. The owner's pasted outline was inspected, but these checks do not
+establish accuracy across the complete original PDF or arbitrary documents.
+
+For wider coverage, use authored structure first, verified printed contents next,
+and cautious layout inference last. PDF.js exposes an optional document outline
+([PDFDocumentProxy](https://mozilla.github.io/pdf.js/api/draft/module-pdfjsLib-PDFDocumentProxy.html));
+tagged PDFs can encode real heading levels ([W3C PDF9](https://www.w3.org/WAI/WCAG22/Techniques/pdf/PDF9)).
+Tagged-heading extraction, evaluated local OCR for scans, and learner-editable
+navigation are follow-up work, not implemented capabilities of this revision.
+
+`get_source_map` now pages its outline: default 24, maximum 40 entries, with
+`total_sections` and `next_cursor`. This is navigation, not a complete evidence
+inventory. Existing per-source consent rules remain unchanged.
+
+Limits: this implementation supports PRISM's PDF import pipeline. It is not an
+OCR system or an EPUB/DOCX/HTML importer. Roman-numbered printed contents,
+unusual scripts, missing text mappings, complex typography, and restarted page
+numbering still need broader evaluation. Native bookmark titles and nesting
+remain preferred. No algorithm here establishes complete source coverage or
+learning effectiveness. Next extensions should use format-native semantics,
+then local OCR for image-only pages and learner-editable corrections, each with
+source locations and a separately evaluated fixture corpus.
 
 PRISM distinguishes three capabilities:
 
@@ -29,6 +91,32 @@ This is not yet a verified structural graph or multimodal document understanding
 The manifest explicitly reports that visual objects, semantic definition/claim
 candidates, cross-references, and verified hierarchy are unavailable, and browser-local
 lesson compilation remains disabled.
+
+## On-demand visual catalog — 2026-09-04, local only
+
+**Experimental:** `get_source_visual_catalog` supplies candidate graphics locations
+from PDF.js image coordinates and recorded drawing bounds, with nearby caption
+previews, stable page-image anchors, uncertainty warnings and suggested crops.
+Contiguous caption lines are included where their geometry supports that inference.
+The tool renders at most four selected pages per call, two concurrently, and caches
+up to 48 page inventories in memory. Images still require the learner's applicable
+access grant. The existing text index and its `visual_inventory: not_indexed` label
+remain unchanged; the source map reports `on_demand_candidates` separately.
+
+This follows the browser-native rendering capabilities documented by
+[PDF.js](https://mozilla.github.io/pdf.js/api/draft/api.js.html). No Poppler, Python,
+native companion or server PDF upload is introduced. The renderer crops original
+PDF objects at the display/zoom resolution, including vectors. It does not export
+original JPEG/PNG streams; native encoded extraction described in
+[PyMuPDF's image recipes](https://pymupdf.readthedocs.io/en/latest/recipes-images.html)
+is a different capability. Low-resolution raster sources remain low-resolution.
+
+This catalog is not semantic figure segmentation. It can merge panels, miss
+disconnected marks, or identify non-figure graphics. Scans retain a full-page
+fallback. Captions and crops require visual confirmation before lesson reuse;
+numerical chart extraction and OCR are not implemented. Tagged PDF figure/alt-text
+interpretation is also not implemented here. Candidate discovery and batched
+inspection reduce browser navigation without proving source understanding.
 
 ## Document intelligence package
 
