@@ -3,6 +3,7 @@ import { snapshotVaultRecords, writeVaultFile } from './vaultTransfer'
 import { allRecords, getRecord, isPortable, putRecord, recordKey, trackSyncWrites, transactionDone, type PendingCommit, type SyncChange } from './syncDatabase'
 import { hex, packObject, SYNC_CHUNK_BYTES, verifyObject } from './cloudObjects'
 import { mergeReadingProgress } from './syncReadingProgress'
+import { cloudRetryAt, cloudRetryMessage, deferCloudRequests } from './cloudRetry'
 
 export const SYNC_CHANGED = 'prism:sync-changed'
 interface Connection { library: string; owner: string }
@@ -55,12 +56,20 @@ export function bindCloudIdentity(owner: string, getToken: () => Promise<string 
 }
 function selectedIdentity() { if (!identity) throw new Error('Sign in to use cloud storage.'); return identity }
 export async function cloudRequest(path: string, init: RequestInit = {}) {
-  const selected = selectedIdentity(), token = await selected.getToken()
+  const selected = selectedIdentity()
+  const retryAt = cloudRetryAt(selected.owner)
+  if (retryAt) { schedule(); throw new SyncHttpError(429, cloudRetryMessage(retryAt)) }
+  const token = await selected.getToken()
   if (!token || identity !== selected || selected.controller.signal.aborted) throw new Error('Sign in again to continue.')
   let response: Response
   try { response = await fetch(`/api/cloud${path}`, { ...init, headers: { ...init.headers, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, cache: 'no-store', signal: AbortSignal.any([selected.controller.signal, AbortSignal.timeout(45000)]) }) }
   catch { throw new SyncHttpError(0, 'Unable to reach cloud storage. Your changes are saved on this browser.') }
   if (identity !== selected) throw new Error('Account changed. No data was applied.')
+  if (response.status === 429) {
+    const deadline = deferCloudRequests(selected.owner, response.headers.get('Retry-After'))
+    schedule()
+    throw new SyncHttpError(429, cloudRetryMessage(deadline))
+  }
   if (!response.ok) { const data = await response.json().catch(() => ({})); throw new SyncHttpError(response.status, data.error ?? 'Cloud storage could not finish this request.') }
   return response
 }
@@ -76,7 +85,8 @@ async function api(path: string, init: RequestInit = {}): Promise<Response> {
 }
 function schedule() {
   if (timer || !connection) return
-  timer = setTimeout(() => { timer = undefined; void syncNow() }, 250)
+  const delay = Math.max(1000, cloudRetryAt(connection.owner) - Date.now() + 100)
+  timer = setTimeout(() => { timer = undefined; void syncNow() }, delay)
 }
 export function startSyncWatching() {
   const refresh = () => { if (document.visibilityState === 'visible') void syncNow() }
@@ -114,7 +124,10 @@ async function plaintext(id: string) {
   const packed = await (await directory()).getDirectoryHandle('objects', { create: true })
   try { return await verifyObject(id, await (await (await packed.getFileHandle(id)).getFile()).arrayBuffer()) }
   catch (error) { if (!(error instanceof DOMException && error.name === 'NotFoundError')) throw error }
-  return verifyObject(id, await (await api(`/objects/${id}`)).arrayBuffer())
+  const bytes = await (await api(`/objects/${id}`)).arrayBuffer()
+  const verified = await verifyObject(id, bytes)
+  await writeVaultFile(packed, id, new Blob([bytes]))
+  return verified
 }
 async function downloadBlob(reference: BlobReference): Promise<Blob> {
   validateReference(reference)
@@ -124,19 +137,26 @@ async function downloadBlob(reference: BlobReference): Promise<Blob> {
   if (blob.size !== reference.size) throw new Error('A cloud file is incomplete. Retry before continuing.')
   return blob
 }
+// Walk binary records in order: a lesson with many figures must not start an
+// unbounded burst of uploads/downloads that continue after the first failure.
+async function mapRecords<T, U>(values: T[], transform: (value: T) => Promise<U>): Promise<U[]> {
+  const results: U[] = []
+  for (const value of values) results.push(await transform(value))
+  return results
+}
 async function encode(db: IDBDatabase, value: unknown): Promise<unknown> {
   if (value instanceof Blob) {
     const digest = hex(new Uint8Array(await crypto.subtle.digest('SHA-256', await value.arrayBuffer())))
     return uploadBlob(db, value, `blob:${digest}:${value.type}`)
   }
-  if (Array.isArray(value)) return Promise.all(value.map(item => encode(db, item)))
-  if (value && typeof value === 'object') return Object.fromEntries(await Promise.all(Object.entries(value).map(async ([key, item]) => [key, await encode(db, item)])))
+  if (Array.isArray(value)) return mapRecords(value, item => encode(db, item))
+  if (value && typeof value === 'object') return Object.fromEntries(await mapRecords(Object.entries(value), async ([key, item]) => [key, await encode(db, item)]))
   return value
 }
 async function decode(value: unknown): Promise<unknown> {
   if (value && typeof value === 'object' && 'kind' in value && value.kind === 'prism-cloud-blob-v1') { validateReference(value); return downloadBlob(value) }
-  if (Array.isArray(value)) return Promise.all(value.map(decode))
-  if (value && typeof value === 'object') return Object.fromEntries(await Promise.all(Object.entries(value).map(async ([key, item]) => [key, await decode(item)])))
+  if (Array.isArray(value)) return mapRecords(value, decode)
+  if (value && typeof value === 'object') return Object.fromEntries(await mapRecords(Object.entries(value), async ([key, item]) => [key, await decode(item)]))
   return value
 }
 async function cachedDirectory(db: IDBDatabase): Promise<DirectoryHandleLike> {
@@ -171,7 +191,11 @@ export async function withSyncedLibrary<T>(work: (db: IDBDatabase, directory: Di
   return locked(async () => {
     if (connection !== selected) throw new Error('The active library changed. Please retry.')
     const db = await cache()
-    try { return { value: await work(trackSyncWrites(db, () => { announce({ state: 'syncing', detail: 'Changes saved here. Syncing…' }); schedule() }), await cachedDirectory(db)) } }
+    try { return { value: await work(trackSyncWrites(db, () => {
+      const retryAt = cloudRetryAt(selected.owner)
+      announce(retryAt ? { state: 'error', detail: cloudRetryMessage(retryAt) } : { state: 'syncing', detail: 'Changes saved here. Syncing…' })
+      schedule()
+    }), await cachedDirectory(db)) } }
     finally { db.close() }
   })
 }
@@ -183,7 +207,7 @@ async function pull(db: IDBDatabase) {
     const response: { head: number; commits: RemoteCommit[] } = await (await api(`/commits?after=${head}`)).json()
     for (const remote of response.commits) {
       if (remote.revision !== head + 1 || !Array.isArray(remote.objects) || remote.objects.length > 64) throw new Error('The synced revision history is incomplete.')
-      const chunks = await Promise.all(remote.objects.map(plaintext))
+      const chunks = await mapRecords(remote.objects, plaintext)
       const encoded = await new Blob(chunks as Uint8Array<ArrayBuffer>[]).text()
       const document = JSON.parse(encoded) as CommitBody
       if (document.format !== 1 || document.parent !== head || !Array.isArray(document.entries) || document.entries.length > 100) throw new Error('The synced revision format is not supported.')
@@ -221,11 +245,15 @@ async function pull(db: IDBDatabase) {
 function ordered(entries: PendingCommit[]) { return entries.sort((a, b) => a.created - b.created) }
 async function flush(db: IDBDatabase) {
   let attempts = 0
+  let previousHead = -1, stalled = 0
   flushLoop: while (true) {
     const head = await pull(db)
     const pending = ordered(await allRecords<PendingCommit>(db, 'sync_outbox'))
     announce({ pending: pending.length })
     if (!pending.length) { announce({ connected: true, state: 'synced', detail: 'PDFs, lessons and history are synced.', lastSynced: Date.now(), conflict: undefined }); return }
+    stalled = head === previousHead ? stalled + 1 : 0
+    previousHead = head
+    if (stalled >= 5) throw new Error('Sync could not confirm progress. Your pending changes are saved on this browser. Please retry from Storage.')
     const batchKey = `batch:${head}:${pending[0].id}`
     let ids = await getRecord<string[]>(db, 'sync_meta', batchKey)
     if (!ids) { ids = pending.slice(0, 20).map(entry => entry.id); await putRecord(db, 'sync_meta', batchKey, ids) }
@@ -262,11 +290,12 @@ async function flush(db: IDBDatabase) {
 export async function syncNow() {
   if (!connection) return
   if (running) return running
+  if (timer) clearTimeout(timer); timer = undefined
   const selected = connection
   running = locked(async () => {
     if (connection !== selected) return
     const db = await cache()
-    try { await flush(db) }
+    try { announce({ pending: (await allRecords<PendingCommit>(db, 'sync_outbox')).length }); await flush(db) }
     catch (error) { if (connection === selected) announce({ state: error instanceof SyncHttpError && error.code === 0 ? 'offline' : 'error', detail: error instanceof Error ? error.message : 'Sync could not finish. Local changes are retained.' }) }
     finally { db.close() }
   })

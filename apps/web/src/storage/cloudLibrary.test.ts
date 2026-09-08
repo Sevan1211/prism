@@ -19,7 +19,7 @@ class Directory {
   async removeEntry(name: string) { this.files.delete(name) }
 }
 let release: (() => void) | undefined
-afterEach(() => { release?.(); release = undefined; vi.unstubAllGlobals(); vi.resetModules() })
+afterEach(() => { release?.(); release = undefined; vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.resetModules() })
 async function browser(fetcher: typeof fetch) {
   vi.resetModules()
   vi.stubGlobal('indexedDB', new IDBFactory()); vi.stubGlobal('IDBKeyRange', IDBKeyRange)
@@ -97,4 +97,99 @@ it('reopens only the restored owner’s opted-in cache when the network is offli
   release()
   release = client.bindCloudIdentity('user_beta', async () => 'other-session')
   expect(await client.withSyncedLibrary(async db => db.name)).toBeNull()
+})
+
+it('honors rate limits across retries and account rebinding, then sends retained changes', async () => {
+  let now = Date.now(), limited = false
+  const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
+  const id = 'c'.repeat(64), objects = new Map<string, Blob>(), commits: Array<{ revision: number; mutation: string; objects: string[] }> = []
+  const transport = vi.fn(async (path: string, init?: RequestInit) => {
+    if (limited) return Response.json({ error: 'Rate limited' }, { status: 429, headers: { 'Retry-After': '120' } })
+    if (path === '/api/cloud/library') return Response.json({ library: { id, head: commits.length }, usedBytes: 0, quotaBytes: 1e9 })
+    if (path.includes('/objects/')) { const key = path.split('/').at(-1)!; if (init?.method === 'PUT') { objects.set(key, init.body as Blob); return Response.json({ stored: true }) } return new Response(objects.get(key)) }
+    if (init?.method === 'POST') { const body = JSON.parse(init.body as string); commits.push({ revision: commits.length + 1, mutation: body.mutation, objects: body.objects }); return Response.json({ revision: commits.length }) }
+    const after = Number(new URL(path, 'http://local').searchParams.get('after'))
+    return Response.json({ head: commits.length, commits: commits.filter(c => c.revision > after) })
+  })
+  const client = await browser(transport as typeof fetch)
+  release = client.bindCloudIdentity('user_alpha', async () => 'test-token')
+  await client.connectCloudLibrary(false, false)
+  limited = true
+  await client.withSyncedLibrary(async db => {
+    const { transactionDone } = await import('./syncDatabase')
+    const tx = db.transaction('library_folders', 'readwrite')
+    tx.objectStore('library_folders').put({ id: 'pending-folder', name: 'Retained offline' })
+    await transactionDone(tx)
+  })
+  await client.syncNow()
+  const count = transport.mock.calls.length
+  expect(client.syncStatus().state).toBe('error')
+  expect(client.syncStatus().detail).toContain('retry after')
+  release(); release = client.bindCloudIdentity('user_alpha', async () => 'restored-token')
+  for (let n = 0; n < 5; n++) await client.syncNow()
+  await expect(client.cloudLibraryInfo()).rejects.toThrow('retry after')
+  expect(transport).toHaveBeenCalledTimes(count)
+  now += 121000; limited = false
+  await client.syncNow()
+  expect(client.syncStatus().state).toBe('synced')
+  expect(commits).toHaveLength(1)
+  await client.withSyncedLibrary(async db => {
+    const { allRecords } = await import('./syncDatabase')
+    expect(await allRecords(db, 'sync_outbox')).toEqual([])
+    expect(await allRecords(db, 'library_folders')).toEqual([{ id: 'pending-folder', name: 'Retained offline' }])
+  })
+  clock.mockRestore()
+})
+
+it('stops an acknowledgement loop without discarding the pending change', async () => {
+  const id = 'd'.repeat(64)
+  const transport = vi.fn(async (path: string, init?: RequestInit) => {
+    if (path === '/api/cloud/library') return Response.json({ library: { id, head: 0 } })
+    if (init?.method) return Response.json({ revision: 1, stored: true })
+    return Response.json({ head: 0, commits: [] })
+  })
+  const client = await browser(transport as typeof fetch)
+  release = client.bindCloudIdentity('user_alpha', async () => 'test-token')
+  await client.connectCloudLibrary(false, false)
+  await client.withSyncedLibrary(async db => {
+    const { transactionDone } = await import('./syncDatabase')
+    const tx = db.transaction('library_folders', 'readwrite')
+    tx.objectStore('library_folders').put({ id: 'pending-folder', name: 'Keep me' })
+    await transactionDone(tx)
+  })
+  await client.syncNow()
+  expect(client.syncStatus()).toMatchObject({ state: 'error', pending: 1 })
+  expect(client.syncStatus().detail).toContain('could not confirm progress')
+  expect(transport.mock.calls.length).toBeLessThan(20)
+  await client.withSyncedLibrary(async db => {
+    const { allRecords } = await import('./syncDatabase')
+    expect(await allRecords(db, 'sync_outbox')).toHaveLength(1)
+  })
+})
+
+it('resumes an interrupted multi-object download from verified cached chunks', async () => {
+  const { packObject } = await import('./cloudObjects')
+  const id = 'e'.repeat(64)
+  const bytes = new TextEncoder().encode(JSON.stringify({ format: 1, parent: 0, files: {}, entries: [{ id: 'remote', created: 1, changes: [{ store: 'library_folders', key: 'folder', base: null, value: { id: 'folder', name: 'Restored' } }] }] }))
+  const first = await packObject(bytes.slice(0, 50)), second = await packObject(bytes.slice(50))
+  let fail = true
+  const transport = vi.fn(async (path: string) => {
+    if (path === '/api/cloud/library') return Response.json({ library: { id, head: 1 } })
+    if (path.endsWith(first.id)) return new Response(new Uint8Array(first.bytes))
+    if (path.endsWith(second.id)) { if (fail) throw new TypeError('Connection interrupted'); return new Response(new Uint8Array(second.bytes)) }
+    return Response.json({ head: 1, commits: path.endsWith('after=0') ? [{ revision: 1, mutation: 'remote', objects: [first.id, second.id] }] : [] })
+  })
+  const client = await browser(transport as typeof fetch)
+  release = client.bindCloudIdentity('user_alpha', async () => 'test-token')
+  await client.connectCloudLibrary(false, false)
+  expect(client.syncStatus().state).toBe('offline')
+  fail = false
+  await client.syncNow()
+  expect(client.syncStatus().state).toBe('synced')
+  expect(transport.mock.calls.filter(([path]) => path.endsWith(first.id))).toHaveLength(1)
+  expect(transport.mock.calls.filter(([path]) => path.endsWith(second.id))).toHaveLength(2)
+  await client.withSyncedLibrary(async db => {
+    const { allRecords } = await import('./syncDatabase')
+    expect(await allRecords(db, 'library_folders')).toEqual([{ id: 'folder', name: 'Restored' }])
+  })
 })

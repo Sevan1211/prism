@@ -1,8 +1,10 @@
 # Username/password and Google cloud accounts
 
-**Researched and accepted:** 2026-09-07. **Status:** development Clerk application
-connected; owner login and authenticated local Worker verification confirmed.
-Account-owned storage is implemented and tested locally. The remote D1 database and private R2 bucket are provisioned; the Worker and website are not deployed.
+**Researched and accepted:** 2026-09-07. **Status:** production Clerk, Google sign-in,
+Worker, D1 and private R2 storage are deployed at `prism.sevanlewispayne.com`.
+See [current acceptance evidence](../engineering/SUBMISSION_READINESS.md) for
+verified flows and outstanding sync recovery checks; deployment alone does not
+establish reliable cross-device behavior.
 
 The owner now explicitly requires username/password login alongside a real OAuth
 provider and a service free for users with minimized owner costs. Keep Cloudflare hosting, local reading,
@@ -62,6 +64,12 @@ of inactivity. Clerk directly includes the requested username sign-in behavior.
 6. Provide account settings, sign-out, session revocation, export and deletion.
    Account switching must isolate local caches and pending uploads by owner.
    Never attach the previous user's outbox to the next user's account.
+
+Background failures must not open a modal or interrupt reading. The Storage
+indicator exposes errors/conflicts for manual review. Honor the server's retry
+deadline across tabs/reloads, keep pending writes durable, and cache verified
+download chunks so an interrupted transfer resumes instead of starting over.
+Stop retry loops that fail to advance the cloud revision; never label them synced.
 
 Google production setup needs the owner's OAuth client, exact authorized callback
 URLs and a public homepage/privacy policy. Request identity scopes only, not
