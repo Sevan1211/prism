@@ -27,8 +27,13 @@ import { LessonReaderPage } from './lesson/LessonReaderPage'
 import { getLessonDocumentByPlan } from './lesson/lessonDocuments'
 import { PRISM_VAULT_CHANGED_EVENT } from './storage/browserVault'
 import { subscribeSourcesChanged } from './storage/sourceLibraryEvents'
+import { LibraryStorageHost } from './LibraryStorage'
 
 export function App() {
+  return <><LibraryStorageHost /><ReadingWorkspace /></>
+}
+
+function ReadingWorkspace() {
   const route = usePrismRoute()
   const [sources, setSources] = useState<LibrarySource[]>([])
   const [sourcesReady, setSourcesReady] = useState(false)

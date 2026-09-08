@@ -337,7 +337,7 @@ function SourceOverview({
             </div>
           </header>
           <p>
-            {synced.connected ? 'Your library is encrypted before cloud sync. ' : 'Original PDFs stay in your local library. '}When access is on, bounded text or region evidence
+            {synced.connected ? 'Your cloud library is protected in transit and at rest; PRISM’s service can read stored files. ' : 'Original PDFs stay in your local library. '}When access is on, bounded text or region evidence
             returned by PRISM tools may be sent to your chosen agent provider under its data controls.
           </p>
           <AgentPrompt source={source} />
