@@ -61,7 +61,7 @@ async function eraseLibrary(env: Env, library: string) {
 // also finish interrupted library deletions. Provider outages never erase data.
 export async function reconcileDeletedAccounts(env: Env) {
   if (env.CLOUD_STORAGE_MODE !== 'remote' || !env.CLERK_SECRET_KEY?.startsWith('sk_live_')) return
-  const rows = await env.DB.prepare('SELECT id, owner, deleted FROM cloud_libraries WHERE deleted < 2 LIMIT 50').all<{ id: string; owner: string; deleted: number }>()
+  const rows = await env.DB.prepare('SELECT id, owner, deleted FROM cloud_libraries WHERE deleted < 2 ORDER BY deleted DESC, created ASC LIMIT 50').all<{ id: string; owner: string; deleted: number }>()
   for (const library of rows.results) {
     if (library.deleted === 1) { await eraseLibrary(env, library.id); continue }
     const response = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(library.owner)}`, {

@@ -70,6 +70,18 @@ it('never erases an account library when the identity provider is unavailable', 
   expect(f.files.size).toBe(1)
   expect(f.db.prepare('SELECT deleted FROM cloud_libraries WHERE id = ?').get(id)?.deleted).toBe(0)
 })
+it('finishes pending deletions before checking a full set of active accounts', async () => {
+  const f = fixture(), id = await f.create(); await f.upload(id, 1)
+  f.db.prepare('UPDATE cloud_libraries SET deleted = 1 WHERE id = ?').run(id)
+  for (let index = 0; index < 50; index++) {
+    f.db.prepare('INSERT INTO cloud_libraries (id, owner, created) VALUES (?, ?, 0)').run(`active_${index}`, `user_keep_${index}`)
+  }
+  f.env.CLOUD_STORAGE_MODE = 'remote'; f.env.CLERK_SECRET_KEY = 'sk_live_test'
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 200 })))
+  await reconcileDeletedAccounts(f.env)
+  expect(f.db.prepare('SELECT deleted FROM cloud_libraries WHERE id = ?').get(id)?.deleted).toBe(2)
+  expect(f.files.size).toBe(0)
+})
 it('rejects API bursts before authentication or storage work', async () => {
   const f = fixture()
   f.env.API_RATE_LIMIT = { limit: async () => ({ success: false }) }
