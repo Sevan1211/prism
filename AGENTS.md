@@ -43,16 +43,18 @@ brief or mapping the repository.
 | Implementation or release checks | Relevant sections of [engineering standards](docs/engineering/ENGINEERING_STANDARDS.md) |
 | Release status or deployment | [Cloudflare hosting](docs/architecture/CLOUDFLARE_HOSTING.md), [release plan](docs/engineering/FINAL_PORTFOLIO_RELEASE_PLAN.md), and [acceptance evidence](docs/engineering/SUBMISSION_READINESS.md) |
 
-## Hosting decision and current stopping point
+## Hosting decision and release authorization
 
-Cloudflare Worker Static Assets/Worker, Better Auth Google/GitHub login, D1, and
-private R2 at `prism.sevanlewispayne.com` are the accepted release direction.
-Initial cloud beta limits: 50 users, 100 MB each, 5 GB globally. Local reading stays
-account-free. As of 2026-09-07, the owner is finishing local changes before hosting:
-do not deploy, change DNS, enable paid services, or retire the previous host until
-the owner resumes that work. Legacy publishing configuration and historical receipts
-are not authority to publish to the previous platform. Account/build migration is
-pending; do not claim it is implemented from the documentation decision.
+The owner resumed hosting on 2026-09-07, explicitly requesting Cloudflare domain/DNS
+setup, a GitHub main release, and CI/CD publishing on pushes to main. The earlier
+local-cleanup hosting hold is superseded by that request. Publish authorized fixes
+through the required sevan-dev PR and passing checks; do not bypass that workflow.
+
+Cloudflare Worker Static Assets/Worker, Clerk username/password and Google login,
+D1, and private R2 at `prism.sevanlewispayne.com` are deployed. Initial cloud beta
+limits are 50 accounts, 1 GB each, 50 GB globally. Local reading stays account-free.
+See current acceptance evidence before claiming a hosted flow works. Paid-plan
+upgrades and unrelated host retirement still need their own authorization.
 
 ## Complete the requested work
 

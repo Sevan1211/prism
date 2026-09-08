@@ -124,5 +124,7 @@ IndexedDB or OPFS. Verify an explicit transfer/reimport or opted-in cloud recove
 before retiring the old origin. Do not silently upload existing local or encrypted
 prototype libraries, delete them, or change their privacy properties.
 
-The owner separately authorized CLI connection and the new PRISM database/bucket setup.
-Website deployment, DNS change, paid-plan upgrades and old-host shutdown remain on hold.
+The initial CLI/database authorization was followed by the owner's explicit
+2026-09-07 request to configure DNS, publish the website and deploy from GitHub
+main. The earlier website/DNS hold is superseded. Paid-plan upgrades and unrelated
+old-host shutdown still require their own authorization.
