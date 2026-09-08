@@ -11,7 +11,7 @@ vi.mock('./account/AccountPanel', () => ({ AccountPanel: () => {
   useEffect(() => { lifetime.mount(); return lifetime.unmount }, [])
   return <p>Account library options</p>
 } }))
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.unstubAllEnvs() })
 beforeEach(() => {
   vi.clearAllMocks()
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); this.dispatchEvent(new Event('close')) }
@@ -41,6 +41,12 @@ it('signals background errors and conflicts without reopening a dismissed dialog
   expect(screen.getByRole('button', { name: 'Library storage' })).toHaveAttribute('data-attention', 'true')
   fireEvent.click(screen.getByRole('button', { name: 'Library storage' }))
   expect(screen.getByRole('dialog')).toHaveTextContent('Account library options')
+})
+it('activates configured account recovery in a fresh browser without opening Storage', () => {
+  vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', 'pk_live_test')
+  render(<><LibraryStorageHost /><LibraryStorage /></>)
+  expect(lifetime.mount).toHaveBeenCalledTimes(1)
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
 it('keeps the activated account mounted when the workspace header leaves for the reader', () => {

@@ -3,7 +3,8 @@
 ## Automatic account-library recovery - 2026-09-08
 
 Signed-in browsers automatically reopen an existing account library, including a
-fresh browser with no cached pointer. This does not create a cloud library or copy
+fresh browser with no cached pointer. When accounts are configured, the hidden
+account host activates at startup without opening Storage. This does not create a cloud library or copy
 an original browser library: initial creation/copying remains explicit. Choosing
 "Use browser library" persists an owner-specific opt-out. Account changes and a
 local-library selection during restoration cancel the pending reopen.

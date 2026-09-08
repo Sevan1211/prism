@@ -2,7 +2,7 @@
 
 ## Authoring, visual review and automatic storage - 2026-09-08
 
-Local validation passed: web lint/typecheck, 243 tests in 60 files, production web
+Local validation passed: web lint/typecheck, 244 tests in 60 files, production web
 build and documentation checks. Chrome inspection covered source/brief/passage
 request-card behavior through the shared component, 390/900 px prompt layouts,
 full-precision chart inspection, complete source crops and fitted full pages.
@@ -16,7 +16,8 @@ about implicit resets and guided static sequences; these diagnostics do not prov
 semantic correctness. The actual full-page viewer also needed its inherited 50%
 minimum width removed so tall pages fit vertically.
 
-Existing account libraries now restore automatically, scheduled local edits upload
+The configured account host activates at startup without opening Storage. Existing
+account libraries now restore automatically, scheduled local edits upload
 without a manual sync action, and visibility/online recovery retries remote reads.
 Tests cover automatic uploads, fresh-browser discovery, local-choice races, offline
 startup recovery, owner isolation and existing retry/conflict protections. No new
