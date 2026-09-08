@@ -3,7 +3,7 @@ import { useId, useLayoutEffect, useRef, useState } from 'react'
 import { SignOut } from '@phosphor-icons/react'
 import { accountReturnPath } from './accountReturn'
 import { CloudStoragePanel } from './CloudStoragePanel'
-import { bindCloudIdentity, startSyncWatching } from '../storage/syncedLibrary'
+import { bindCloudIdentity, startSyncWatching, settleCloudAccount } from '../storage/syncedLibrary'
 
 function AccountControls() {
   const { isLoaded, isSignedIn, user } = useUser()
@@ -19,7 +19,8 @@ function AccountControls() {
   const [busy, setBusy] = useState(false)
   const owner = user?.id
   useLayoutEffect(() => {
-    if (!isLoaded || !isSignedIn || !owner) return
+    if (!isLoaded) return
+    if (!isSignedIn || !owner) { settleCloudAccount(); return }
     const unbind = bindCloudIdentity(owner, () => tokenGetter.current()), stop = startSyncWatching()
     return () => { unbind(); stop() }
   }, [isLoaded, isSignedIn, owner])

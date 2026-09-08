@@ -319,3 +319,15 @@ The owner rejected the previous hero direction and requested a clean removal bef
 selecting a replacement. Keep the root landing text-only until the owner provides
 that direction. Do not infer a new illustration, animation, or interaction from the
 PRISM name alone.
+
+## Authoring throughput and automatic sync acceptance - 2026-09-08
+
+The reported long-chapter run spent 29m37s in composition/review out of 35m52s
+reported work. Per-tool host trace and model-token evidence were unavailable, so
+no end-to-end speedup is established. Compare the same approved scope in the next
+run with exported local timings and host wall-clock data; preserve source coverage.
+
+Client automatic restore/upload and online/visible-tab recovery have regression
+coverage. Verify two independent deployed browser sessions and measure operation
+budgets under the 30-second visible-tab poll before claiming complete cross-device
+acceptance. Existing rate limits and explicit local-library choice remain enforced.

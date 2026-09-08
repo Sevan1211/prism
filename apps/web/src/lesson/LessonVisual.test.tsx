@@ -1,7 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
 import { LessonVisual } from './LessonVisual'
 import type { DataPlot, VisualScene } from './lessonVisuals'
+
+afterEach(cleanup)
 
 describe('accessible visual reading controls', () => {
   it('starts paused, supports stepping and reset, and retains the full explanation', () => {
@@ -28,5 +30,16 @@ describe('accessible visual reading controls', () => {
     expect(screen.getByRole('table')).toHaveTextContent('8')
     fireEvent.click(screen.getByRole('button', { name: 'Compare all' }))
     expect(container.querySelectorAll('.plot-series')).toHaveLength(2)
+  })
+  it('uses spaced numeric ticks and readable values without discarding full precision', () => {
+    const content: DataPlot = { kind: 'data_plot', caption: 'Calculated values', description: 'Synthetic numeric-axis regression.', x_label: 'Seconds', y_label: 'Rate', style: 'line', series: [{ label: 'A', points: [{ x: 0, y: 0.00000123456789, label: 'A long descriptive point label' }, { x: .001, y: 74.07407407407408, label: 'Nearby' }, { x: 100, y: 1, label: 'End' }] }] }
+    const { container } = render(<LessonVisual content={content} />)
+    expect(Array.from(container.querySelectorAll('.plot-tick')).map(tick => tick.textContent)).toEqual(['0', '100'])
+    fireEvent.click(screen.getByText('Inspect the underlying values'))
+    expect(screen.getByRole('table')).toHaveTextContent('0.000001235')
+    expect(screen.getByRole('table')).toHaveTextContent('74.07')
+    fireEvent.click(screen.getByRole('button', { name: 'Full precision' }))
+    expect(screen.getByRole('table')).toHaveTextContent('74.07407407407408')
+    expect(screen.getByRole('table')).toHaveTextContent('0.00000123456789')
   })
 })

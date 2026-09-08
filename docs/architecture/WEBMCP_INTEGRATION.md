@@ -230,3 +230,25 @@ descriptor size: replacement schemas carry the preserved detail and discovery
 options. These are transport measurements, not measured agent task latency or
 proof of improved tool choice. Real external-host rediscovery and comparative
 agent-run evaluation remain separate from this local acceptance rehearsal.
+
+## Authoring quality diagnostics - 2026-09-08
+
+The source starter, saved brief handoff and selected-passage request share one
+compact request card. A single copy action exposes its full request on demand;
+clipboard failure opens a selectable manual fallback. Requests reuse saved scope
+and existing learner approvals without removing consent boundaries.
+
+Visual save/validation reports now warn when a later scene step omits a previously
+moved node (which returns it to its base position), and identify guided diagrams
+whose steps change emphasis without movement. These are review cues, not automatic
+semantic verdicts or approval gates. The authoring guide explicitly defines
+non-cumulative step positions and requires inspecting saved crops, all sequence
+states, captions and calculated values. Tight crops must include top labels and
+all relevant panels; uncertain crops should retain a complete source page.
+
+Agent activity timings aggregate up to 300 stored source receipts, while the
+visible list retains 12. Export timings writes a source-text-free JSON report with
+local tool names, timestamps, durations and outcomes. These timings exclude model
+thinking, host delays, approval waits and reading time; they cannot establish an
+end-to-end speedup by themselves. A new same-scope authoring run and its host trace
+are required to attribute or compare the full creation time.

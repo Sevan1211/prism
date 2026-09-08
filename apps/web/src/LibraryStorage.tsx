@@ -10,7 +10,7 @@ const OPEN_STORAGE = 'prism:open-storage'
 /** Mounted once above page navigation, so Reader visits keep their cloud identity. */
 export function LibraryStorageHost() {
   const [open, setOpen] = useState(() => isAccountReturn(window.location.search))
-  const [activated, setActivated] = useState(() => isAccountReturn(window.location.search) || Object.keys(localStorage).some(key => key.startsWith('prism-cloud-enabled:') && localStorage.getItem(key) === 'true'))
+  const [activated, setActivated] = useState(() => Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.trim()) || isAccountReturn(window.location.search) || Object.keys(localStorage).some(key => key.startsWith('prism-cloud-enabled:') && localStorage.getItem(key) === 'true'))
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     const show = () => { setActivated(true); setOpen(true) }

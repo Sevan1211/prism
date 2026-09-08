@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeVisual, type VisualScene } from './lessonVisuals'
+import { normalizeVisual, visualSceneWarnings, type VisualScene } from './lessonVisuals'
 
 const scene: VisualScene = { kind: 'visual_scene', caption: 'Two connected ideas', description: 'An editable spatial explanation.', nodes: [{ id: 'a', x: 100, y: 100, width: 200, height: 100, label: 'Cause', detail: 'The initial condition.', shape: 'box', tone: 'neutral' }, { id: 'b', x: 650, y: 100, width: 200, height: 100, label: 'Effect', detail: 'The resulting change.', shape: 'ellipse', tone: 'accent' }], edges: [{ from: 'a', to: 'b', label: 'influences' }], steps: [{ label: 'Inspect the cause', description: 'Start with the initial condition.', focus: ['a'], positions: [] }] }
 
 describe('declarative visual contract', () => {
+  it('flags implicit position resets and distinguishes a guided static sequence', () => {
+    const initial = scene.steps[0]
+    expect(visualSceneWarnings({ ...scene, steps: [initial, initial] })).toMatchObject([{ code: 'visual_guided_static' }])
+    const moved = { ...initial, positions: [{ id: 'a', x: 300, y: 200 }] }
+    const warnings = visualSceneWarnings({ ...scene, steps: [moved, initial] })
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toMatchObject({ code: 'visual_position_resets' })
+    expect(warnings[0].message).toContain('Step 2')
+    expect(visualSceneWarnings({ ...scene, steps: [moved, moved] })).toEqual([])
+  })
   it('accepts subject-independent data and rejects executable extensions or broken geometry', () => {
     expect(normalizeVisual(scene)).toEqual(scene)
     expect(() => normalizeVisual({ ...scene, script: 'alert(1)' })).toThrow('unknown properties')

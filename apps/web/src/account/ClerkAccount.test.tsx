@@ -14,7 +14,7 @@ vi.mock('@clerk/react', () => ({
   SignUp: ({ forceRedirectUrl, signInForceRedirectUrl, signInUrl }: { forceRedirectUrl: string; signInForceRedirectUrl: string; signInUrl: string }) => <div aria-label="Sign-up form" data-return={forceRedirectUrl} data-signin-return={signInForceRedirectUrl} data-signin-url={signInUrl} />,
   UserProfile: () => { const [value, setValue] = useState(''); return <input aria-label="Profile draft" value={value} onChange={e => setValue(e.target.value)} /> },
 }))
-vi.mock('../storage/syncedLibrary', () => ({ bindCloudIdentity: vi.fn(() => session.unbind), startSyncWatching: vi.fn(() => session.stop) }))
+vi.mock('../storage/syncedLibrary', () => ({ bindCloudIdentity: vi.fn(() => session.unbind), startSyncWatching: vi.fn(() => session.stop), settleCloudAccount: vi.fn() }))
 vi.mock('./CloudStoragePanel', () => ({ CloudStoragePanel: () => { const [copy, setCopy] = useState(false); return <label><input type="checkbox" checked={copy} onChange={e => setCopy(e.target.checked)} />Copy choice</label> } }))
 afterEach(() => { cleanup(); vi.clearAllMocks(); session.owner = 'user_test'; session.signedIn = true; window.history.replaceState(null, '', '/') })
 

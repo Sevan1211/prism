@@ -10,6 +10,7 @@ import { libraryPath, sourcePath } from '../navigation'
 import { PrismLink } from '../PrismLink'
 import { AppHeader } from '../workspace/AppHeader'
 import { LoadingState } from '../LoadingState'
+import { useSyncStatus } from '../storage/useSyncStatus'
 
 interface LessonReaderPageProps {
   lessonId: string; onError: (message: string) => void
@@ -22,6 +23,7 @@ export function LessonReaderPage(props: LessonReaderPageProps) {
 }
 
 function LessonReaderSession({ lessonId, onError, onOpenEvidence, returnTargetId, onReturnComplete }: LessonReaderPageProps) {
+  const sync = useSyncStatus()
   const [record, setRecord] = useState<{ document: LessonDocument; plan: LessonPlan } | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -43,7 +45,7 @@ function LessonReaderSession({ lessonId, onError, onOpenEvidence, returnTargetId
     void load()
     window.addEventListener(PRISM_VAULT_CHANGED_EVENT, load)
     return () => { cancelled = true; window.removeEventListener(PRISM_VAULT_CHANGED_EVENT, load) }
-  }, [lessonId, retry])
+  }, [lessonId, retry, sync.restoring])
   useEffect(() => {
     const previous = globalThis.document.title
     if (savedTitle) globalThis.document.title = `${savedTitle} | PRISM`
@@ -69,7 +71,7 @@ function LessonReaderSession({ lessonId, onError, onOpenEvidence, returnTargetId
   }, [savedLessonId, returnTargetId, onReturnComplete])
   return <div className="lesson-reading-page">
     <a className="skip-link" href="#workspace-main">Skip to lesson</a><AppHeader />
-    {!loaded || loadError ? <main id="workspace-main" tabIndex={-1}><LoadingState title="Opening your lesson" detail="Loading the saved explanation, citations and visuals." error={loadError} onRetry={() => setRetry(value => value + 1)} /></main> : !record ? <main id="workspace-main" tabIndex={-1} className="not-found-view"><h1>This lesson is not in your current library.</h1><p>It may have been removed or saved in another library. If you created it elsewhere, open the browser or library where you saved it.</p><PrismLink href={libraryPath()} className="button-primary">Open your library</PrismLink></main> : <>
+    {!loaded || loadError || (!record && sync.restoring) ? <main id="workspace-main" tabIndex={-1}><LoadingState title="Opening your lesson" detail={sync.restoring ? 'Opening your account library and checking for saved lessons…' : 'Loading the saved explanation, citations and visuals.'} error={loadError} onRetry={() => setRetry(value => value + 1)} /></main> : !record ? <main id="workspace-main" tabIndex={-1} className="not-found-view"><h1>This lesson is not in your current library.</h1><p>It may have been removed or saved in another library. If you created it elsewhere, open the browser or library where you saved it.</p><PrismLink href={libraryPath()} className="button-primary">Open your library</PrismLink></main> : <>
       <div className="reading-toolbar">
         <nav aria-label="Breadcrumb"><PrismLink href={libraryPath()}>Library</PrismLink><span>/</span><PrismLink href={sourcePath(record.plan.source_id, 'lessons')}>Source lessons</PrismLink><span>/</span><span aria-current="page">Reading</span></nav>
         <div><button type="button" aria-pressed={contents} onClick={() => setContents(value => !value)}><List /> Contents</button></div>

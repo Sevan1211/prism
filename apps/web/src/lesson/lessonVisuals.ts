@@ -4,6 +4,24 @@ export interface SceneStep { label: string; description: string; focus: string[]
 export interface VisualScene { kind: 'visual_scene'; caption: string; description: string; nodes: SceneNode[]; edges: SceneEdge[]; steps: SceneStep[] }
 export interface DataPlot { kind: 'data_plot'; caption: string; description: string; x_label: string; y_label: string; style: 'line' | 'bar' | 'scatter' | 'area'; series: Array<{ label: string; points: Array<{ x: number; y: number; label: string }> }> }
 
+export function visualSceneWarnings(scene: VisualScene): Array<{ code: string; message: string }> {
+  const warnings: Array<{ code: string; message: string }> = []
+  const originals = new Map(scene.nodes.map(node => [node.id, node]))
+  if (scene.steps.length > 1 && !scene.steps.some(step => step.positions.some(position => {
+    const node = originals.get(position.id)
+    return node && (node.x !== position.x || node.y !== position.y)
+  }))) warnings.push({ code: 'visual_guided_static', message: 'This sequence changes emphasis and explanations without moving nodes. Describe it as a guided diagram, and confirm that it shows the intended mechanism.' })
+  scene.steps.slice(1).forEach((step, index) => {
+    const positioned = new Set(step.positions.map(position => position.id))
+    const reset = scene.steps[index].positions.filter(position => {
+      const node = originals.get(position.id)
+      return node && !positioned.has(position.id) && (node.x !== position.x || node.y !== position.y)
+    })
+    if (reset.length) warnings.push({ code: 'visual_position_resets', message: `Step ${index + 2} (${step.label}) returns ${reset.map(position => originals.get(position.id)!.label).join(', ')} to the original positions. Positions do not carry over between steps. Confirm this matches the explanation, or repeat their intended positions.` })
+  })
+  return warnings
+}
+
 const id = { type: 'string', minLength: 1, maxLength: 60, pattern: '^[A-Za-z0-9_-]+$' }
 const text = (maxLength: number) => ({ type: 'string', maxLength })
 const number = (minimum: number, maximum: number) => ({ type: 'number', minimum, maximum })

@@ -2,7 +2,7 @@
 
 Create a useful, detailed reading document from the user-selected source. A lesson teaches; a research brief synthesizes. Neither is a PDF, quiz course, or collection of disconnected cards.
 
-Use PRISM’s WebMCP tools in the open browser tab. Start with get_active_lesson_context and read get_authoring_guide once. Use read_source_packet for indexed text and follow next_call; inspect selected original visuals together with inspect_source_visual action: open with views and browser vision. Zoom only unclear details needed for this lesson. If tools are unavailable, tell me before scanning Reader pages manually.
+Use PRISM’s WebMCP tools in the open tab. Start with get_active_lesson_context, follow its resume call, and read get_authoring_guide once. If tools are unavailable, report that before a manual Reader fallback.
 
 Discover WebMCP through your browser host on the top-level PRISM tab. Tool names, descriptions and input schemas are registered with document.modelContext.registerTool. If tools are unavailable, report it and ask the user to check Agent tools and the browser's site-tool settings. Do not silently switch to scanning every Reader page.
 
@@ -24,7 +24,7 @@ Discover WebMCP through your browser host on the top-level PRISM tab. Tool names
 
 8. Compose a complete section per apply_lesson_patch where it fits (up to 24 operations). Use a unique request_id and expected_version (null for the first save); retry uncertain writes with the same id and identical payload. Compact save receipts include the committed version and validation counts; do not reread the whole document after every successful receipt. Use each save receipt as the next version; do not poll or reopen the lesson after every block. Read changed sections for semantic review and inspect the first rendered section early so a layout mistake is not repeated. Saved sections appear immediately; finalization requires complete agreed coverage.
 
-9. Inspect the actual rendered lesson and its visuals. Check numbers, negation, qualification, causal steps, mathematical assumptions, and essential coverage against the source. Separate added analogies from source claims. Patch receipts contain structural validation; use validate_lesson only when fresh diagnostics are needed. finalize_lesson always validates again. Finish with a candid semantic review. Do not imply that an agent review proves correctness or learning.
+9. Inspect the actual rendered lesson and its visuals. Check numbers, negation, qualification, causal steps, mathematical assumptions, and essential coverage against the source. Separate added analogies from source claims. Patch receipts contain structural validation; inspect returned visual continuity warnings while saving; use validate_lesson only when fresh diagnostics are needed. finalize_lesson always validates again. Finish with a candid semantic review. Do not imply that an agent review proves correctness or learning.
 
 10. For a follow-up question, read the selected block, the latest document, and its evidence. Address the actual misunderstanding. propose_lesson_revision improves this same lesson with an explanation or a worked example, without deleting useful content. Open it for learner review. Never recreate the whole lesson unnecessarily.
 
@@ -52,15 +52,15 @@ There is no visual quota and no domain restriction. Judge relevance before openi
 
 ### source_figure
 
-Reuse the actual source whenever it explains the concept well. Specify observed page_number and normalized bbox [left,top,right,bottom], an informative alt description, and an agent-added caption. Cite an anchor on that page. The page-image anchor returned in read_source_packet pages[].image_anchor supports scans independently of OCR. Keep legends, axis labels, and relevant captions within the crop.
+Reuse the actual source whenever it explains the concept well. Specify observed page_number and normalized bbox [left,top,right,bottom], an informative alt description, and an agent-added caption. Cite an anchor on that page. The page-image anchor returned in read_source_packet pages[].image_anchor supports scans independently of OCR. Keep every relevant panel, topmost label, legend, axis label and caption within the crop. Inspect the saved inline crop as well as the full-page source before finalization. If boundaries remain uncertain, keep the full page rather than a tight crop.
 
 ### visual_scene
 
-A subject-independent 1000 × 600 diagram. Supply positioned box/ellipse nodes with meaningful labels, details, and neutral/accent/muted tones; edges reference node ids. Optional steps focus nodes and override their positions to explain a process. Reuse ids across steps. Leave space for arrows and labels. Provide a complete description and step explanations for the static transcript. Use empty steps for a static interactive concept diagram. Do not animate solely for decoration.
+A subject-independent 1000 × 600 diagram. Supply positioned box/ellipse nodes with meaningful labels, details, and neutral/accent/muted tones; edges reference node ids. Optional steps focus nodes and override their positions to explain a process. Reuse ids across steps. Positions are absolute overrides of the original nodes, not cumulative: an omitted node returns to its original position on every step. Explicitly position every moved node in each later step where it must remain moved (including queued or delivered packets). Leave space for arrows and labels. Provide a complete description and step explanations for the static transcript. Use empty steps for a static interactive concept diagram. Do not animate solely for decoration. A highlighted box is not a simulation: when describing movement or a changing state, provide meaningful position changes, or use a static diagram and label the steps as an explanation. Test every step, last-step behavior, reset, and the static transcript in the rendered lesson.
 
 ### data_plot
 
-A line, bar, scatter, or area chart with axis labels, 1–4 uniquely named series and explicit finite x/y values. Use scatter for individual observations (repeated x values allowed), line for ordered trends, bar for comparisons and area only when magnitude relative to zero is meaningful. Each point has a label. Use actual source values, or visibly label calculated/illustrative data and its assumptions. The reader can compare series and inspect the exact underlying table. Never fabricate measurements. Keep axis labels short enough to remain legible.
+A line, bar, scatter, or area chart with axis labels, 1–4 uniquely named series and explicit finite x/y values. Use scatter for individual observations (repeated x values allowed), line for ordered trends, bar for comparisons and area only when magnitude relative to zero is meaningful. Each point has a label. Use actual source values, or visibly label calculated/illustrative data and its assumptions. The reader can compare series and inspect the exact underlying table. Never fabricate measurements. Keep axis labels short enough to remain legible. Numeric axes use x values; point labels belong in the inspection table. Avoid rounding a small nonzero quantity to zero. Check derived values with units before saving.
 
 ### provenance
 

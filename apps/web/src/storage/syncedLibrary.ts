@@ -9,19 +9,22 @@ export const SYNC_CHANGED = 'prism:sync-changed'
 interface Connection { library: string; owner: string }
 interface Identity { owner: string; getToken: () => Promise<string | null>; controller: AbortController }
 let identity: Identity | null = null
+let connectionEpoch = 0
+let restoreAccountLibrary: (() => void) | undefined
 export interface CloudLibraryInfo { library: { id: string; head: number; deleted: number } | null; usedBytes: number; quotaBytes: number; mode: 'local' | 'remote' }
 interface BlobReference { kind: 'prism-cloud-blob-v1'; chunks: string[]; size: number; type: string }
 interface UploadPlan extends BlobReference { sent: number }
 interface RemoteCommit { revision: number; mutation: string; objects: string[] }
 interface CommitBody { format: 1; parent: number; entries: PendingCommit[]; files: Record<string, BlobReference> }
-export interface SyncStatus { connected: boolean; state: 'local' | 'syncing' | 'synced' | 'offline' | 'conflict' | 'error'; detail: string; lastSynced: number | null; pending: number; conflict?: string }
+export interface SyncStatus { connected: boolean; state: 'local' | 'syncing' | 'synced' | 'offline' | 'conflict' | 'error'; detail: string; lastSynced: number | null; pending: number; conflict?: string; revision?: number; restoring?: boolean }
 let connection: Connection | null | undefined
 let sequence: Promise<unknown> = Promise.resolve()
 let running: Promise<void> | undefined
 let timer: ReturnType<typeof setTimeout> | undefined
-let status: SyncStatus = { connected: false, state: 'local', detail: 'This library is saved on this browser.', lastSynced: null, pending: 0 }
+let status: SyncStatus = { connected: false, state: 'local', detail: 'This library is saved on this browser.', lastSynced: null, pending: 0, restoring: Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.trim()) }
 export const syncStatus = () => status
 function announce(change: Partial<SyncStatus>) { status = { ...status, ...change }; window.dispatchEvent(new Event(SYNC_CHANGED)) }
+export function settleCloudAccount() { if (!identity) announce({ restoring: false }) }
 function changed() { for (const event of ['prism:vault-changed', 'prism:sources-changed', 'prism:lesson-document-changed']) window.dispatchEvent(new Event(event)) }
 function serialized<T>(work: () => Promise<T>): Promise<T> { const result = sequence.then(work, work); sequence = result.catch(() => undefined); return result }
 async function locked<T>(work: () => Promise<T>) {
@@ -29,28 +32,43 @@ async function locked<T>(work: () => Promise<T>) {
 }
 // Tokens are never persisted. Cached library pointers are scoped to the restored owner.
 export function bindCloudIdentity(owner: string, getToken: () => Promise<string | null>) {
+  const epoch = ++connectionEpoch
+  restoreAccountLibrary = undefined
   identity?.controller.abort()
   const selected = { owner, getToken, controller: new AbortController() }
   identity = selected; connection = null
-  announce({ connected: false, state: 'local', detail: 'Your browser library is available.', pending: 0, conflict: undefined })
+  announce({ connected: false, state: 'local', detail: 'Your browser library is available.', pending: 0, conflict: undefined, restoring: false, revision: undefined })
   changed()
-  if (localStorage.getItem(`prism-cloud-enabled:${owner}`) === 'true') {
+  if (localStorage.getItem(`prism-cloud-enabled:${owner}`) !== 'false') {
     const library = localStorage.getItem(`prism-cloud-library:${owner}`)
     if (library && /^[a-f0-9]{64}$/.test(library)) {
       connection = { library, owner }
-      announce({ connected: true, state: 'offline', detail: 'Opening your saved account library. Checking the connection…' })
+      announce({ connected: true, state: 'syncing', restoring: true, revision: undefined, detail: 'Opening your saved account library. Checking the connection…' })
       changed()
       void syncNow()
-    } else void connectCloudLibrary(false, false).catch(error => {
-      if (identity === selected) announce({ state: 'error', detail: error instanceof Error ? error.message : 'Reopen storage to reconnect your account.' })
-    })
+    } else {
+      restoreAccountLibrary = () => {
+        if (connection || identity !== selected || epoch !== connectionEpoch || status.restoring) return
+        announce({ restoring: true })
+        void cloudLibraryInfo().then(async info => {
+          if (identity !== selected || epoch !== connectionEpoch) return
+          if (info.library && !info.library.deleted) await connectCloudLibrary(false, false)
+          else { restoreAccountLibrary = undefined; announce({ state: 'local', detail: 'Your browser library is available.' }) }
+        }).catch(error => {
+          if (identity === selected && epoch === connectionEpoch) announce({ state: 'error', detail: error instanceof Error ? error.message : 'Cloud storage will retry when the connection is available.' })
+        }).finally(() => { if (identity === selected && epoch === connectionEpoch) announce({ restoring: false }) })
+      }
+      restoreAccountLibrary()
+    }
   }
   return () => {
     selected.controller.abort()
     if (identity !== selected) return
+    connectionEpoch++
+    restoreAccountLibrary = undefined
     identity = null; connection = null
     if (timer) clearTimeout(timer); timer = undefined
-    announce({ connected: false, state: 'local', detail: 'Signed out of cloud storage. Your original browser library is available.', pending: 0, conflict: undefined })
+    announce({ connected: false, state: 'local', detail: 'Signed out of cloud storage. Your original browser library is available.', pending: 0, conflict: undefined, restoring: false, revision: undefined })
     changed()
   }
 }
@@ -89,10 +107,18 @@ function schedule() {
   timer = setTimeout(() => { timer = undefined; void syncNow() }, delay)
 }
 export function startSyncWatching() {
-  const refresh = () => { if (document.visibilityState === 'visible') void syncNow() }
-  const interval = setInterval(refresh, 120000)
-  window.addEventListener('online', refresh); window.addEventListener('focus', refresh)
-  return () => { clearInterval(interval); window.removeEventListener('online', refresh); window.removeEventListener('focus', refresh) }
+  let lastRefresh = 0
+  const reconnect = () => { if (connection) void syncNow(); else restoreAccountLibrary?.() }
+  const refresh = () => {
+    if (document.visibilityState !== 'visible' || Date.now() - lastRefresh < 1000) return
+    lastRefresh = Date.now()
+    reconnect()
+  }
+  const interval = setInterval(refresh, 30000)
+  window.addEventListener('online', reconnect); window.addEventListener('focus', refresh)
+  document.addEventListener('visibilitychange', refresh)
+  window.addEventListener('pageshow', refresh)
+  return () => { clearInterval(interval); window.removeEventListener('online', reconnect); window.removeEventListener('focus', refresh); window.removeEventListener('pageshow', refresh); document.removeEventListener('visibilitychange', refresh) }
 }
 
 async function uploadBlob(db: IDBDatabase, blob: Blob, cacheKey: string): Promise<BlobReference> {
@@ -250,7 +276,7 @@ async function flush(db: IDBDatabase) {
     const head = await pull(db)
     const pending = ordered(await allRecords<PendingCommit>(db, 'sync_outbox'))
     announce({ pending: pending.length })
-    if (!pending.length) { announce({ connected: true, state: 'synced', detail: 'PDFs, lessons and history are synced.', lastSynced: Date.now(), conflict: undefined }); return }
+    if (!pending.length) { announce({ connected: true, state: 'synced', detail: 'PDFs, lessons and history sync automatically while this browser is online.', lastSynced: Date.now(), revision: head, conflict: undefined }); return }
     stalled = head === previousHead ? stalled + 1 : 0
     previousHead = head
     if (stalled >= 5) throw new Error('Sync could not confirm progress. Your pending changes are saved on this browser. Please retry from Storage.')
@@ -297,11 +323,12 @@ export async function syncNow() {
     const db = await cache()
     try { announce({ pending: (await allRecords<PendingCommit>(db, 'sync_outbox')).length }); await flush(db) }
     catch (error) { if (connection === selected) announce({ state: error instanceof SyncHttpError && error.code === 0 ? 'offline' : 'error', detail: error instanceof Error ? error.message : 'Sync could not finish. Local changes are retained.' }) }
-    finally { db.close() }
+    finally { db.close(); if (connection === selected) announce({ restoring: false }) }
   })
   try { await running } finally { running = undefined }
 }
 export async function connectCloudLibrary(create: boolean, copyExisting: boolean) {
+  const epoch = connectionEpoch
   const selected = selectedIdentity()
   const info: CloudLibraryInfo = create
     ? await (await cloudRequest('/library', { method: 'POST', body: JSON.stringify({ consent: true }) })).json()
@@ -312,7 +339,7 @@ export async function connectCloudLibrary(create: boolean, copyExisting: boolean
   // Only the explicit create/copy action snapshots the original browser library.
   const original = copyExisting && !connection ? await accessBrowserVault(async (db, directory) => ({ records: await snapshotVaultRecords(db), directory })) : null
   await locked(async () => {
-    if (identity !== selected) throw new Error('Account changed. Please retry.')
+    if (identity !== selected || epoch !== connectionEpoch) throw new Error('Library selection changed. Please retry.')
     if (original) {
       const db = await openVaultDatabase(indexedDB, () => new Date().toISOString(), `prism-cloud-${library}`)
       try {
@@ -333,7 +360,7 @@ export async function connectCloudLibrary(create: boolean, copyExisting: boolean
         }
       } finally { db.close() }
     }
-    if (identity !== selected) throw new Error('Account changed. Local files were retained.')
+    if (identity !== selected || epoch !== connectionEpoch) throw new Error('Library selection changed. Local files were retained.')
     connection = { library, owner: selected.owner }
     localStorage.setItem(`prism-cloud-enabled:${selected.owner}`, 'true')
     localStorage.setItem(`prism-cloud-library:${selected.owner}`, library)
@@ -342,9 +369,10 @@ export async function connectCloudLibrary(create: boolean, copyExisting: boolean
   changed(); await syncNow()
 }
 export async function disconnectSyncedLibrary() {
+  connectionEpoch++
   const owner = identity?.owner
-  if (owner) localStorage.removeItem(`prism-cloud-enabled:${owner}`)
-  await locked(async () => { connection = null; announce({ connected: false, state: 'local', detail: 'Using your original browser library. Cloud files and cached drafts are retained.', pending: 0, conflict: undefined }) })
+  if (owner) localStorage.setItem(`prism-cloud-enabled:${owner}`, 'false')
+  await locked(async () => { connection = null; announce({ connected: false, state: 'local', detail: 'Using your original browser library. Cloud files and cached drafts are retained.', pending: 0, conflict: undefined, restoring: false, revision: undefined }) })
   changed()
 }
 export async function resolveSyncConflict(choice: 'local' | 'remote') {

@@ -20,7 +20,7 @@ import type {
   LessonEditProposal,
 } from './lessonDocumentTypes'
 import type { LessonPlan } from './lessonPlanTypes'
-import { normalizeVisual } from './lessonVisuals'
+import { normalizeVisual, visualSceneWarnings } from './lessonVisuals'
 import { getLessonIllustration } from '../storage/lessonIllustrations'
 import { unchangedCoverageReview, validateCoverageReview } from './lessonCoverageReview'
 
@@ -560,7 +560,12 @@ async function validateDocument(
     if (!planSections.has(section.section_id)) {
       errors.push(issue('unapproved_section', `Section ${section.section_id} is outside the approved plan.`, section.section_id))
     }
-    for (const block of section.blocks) validateBlockProvenance(block, section, errors)
+    for (const block of section.blocks) {
+      validateBlockProvenance(block, section, errors)
+      if (block.content.kind === 'visual_scene') for (const warning of visualSceneWarnings(block.content)) {
+        warnings.push(issue(warning.code, warning.message, section.section_id, block.block_id))
+      }
+    }
   }
 
   await validateSourceExcerpts(document, environment, errors)

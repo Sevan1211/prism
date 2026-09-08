@@ -1,5 +1,24 @@
 # Cloudflare hosting and cloud accounts
 
+## Automatic account-library recovery - 2026-09-08
+
+Signed-in browsers automatically reopen an existing account library, including a
+fresh browser with no cached pointer. When accounts are configured, the hidden
+account host activates at startup without opening Storage. This does not create a cloud library or copy
+an original browser library: initial creation/copying remains explicit. Choosing
+"Use browser library" persists an owner-specific opt-out. Account changes and a
+local-library selection during restoration cancel the pending reopen.
+
+Local cloud-library writes retain the durable outbox and schedule upload after one
+second. Visible tabs retrieve changes every 30 seconds and on focus, restored page
+visibility, reconnect, and browser history restoration. Hidden tabs do not poll.
+Existing account retry deadlines, quotas, conflict handling and access-grant
+isolation remain enforced. At steady idle this adds at most 120 polls per hour per
+visible tab, excluding focus/reconnect events; it is not a provider-budget or
+cross-device acceptance claim. Storage's manual action is now "Check for updates".
+Direct lesson links wait for account-library restoration before reporting absence.
+
+
 **Decision:** accepted by the owner on 2026-09-07.  
 **Implementation:** account-owned storage implemented and tested locally; D1 and private R2 provisioned; remote API acceptance pending.  
 **Deployment:** public release and DNS setup authorized on 2026-09-07; preparation in progress. See [release operations](../engineering/CLOUDFLARE_RELEASE.md) for CI/CD and required live evidence.

@@ -1,0 +1,10 @@
+.agent-request-card { min-width: 0; padding: 18px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-2); font-family: var(--font-ui); }
+.agent-request-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.agent-request-card-heading > div { min-width: 0; }
+.agent-request-card-heading strong { color: var(--ink); font-size: .9rem; }
+.agent-request-card-heading p { margin: 6px 0 0; color: var(--ink-soft); font-size: .8rem; line-height: 1.6; }
+.agent-request-card-heading button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex-shrink: 0; }
+.agent-request-card .agent-request-card-status { margin: 12px 0; color: var(--ink-soft); font-size: .75rem; line-height: 1.5; }
+.agent-request-card summary { cursor: pointer; color: var(--ink-soft); font-size: .8rem; }
+.agent-request-card textarea { display: block; box-sizing: border-box; width: 100%; min-height: 140px; max-height: 360px; resize: vertical; margin-top: 12px; padding: 12px; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--surface); color: var(--ink); font: .8rem/1.65 var(--font-ui); }
+@media (max-width: 600px) { .agent-request-card-heading { flex-direction: column; gap: 12px; }.agent-request-card-heading button { width: 100%; } }

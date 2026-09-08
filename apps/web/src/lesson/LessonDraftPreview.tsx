@@ -1,4 +1,5 @@
 import { Fragment, lazy, Suspense, useEffect, useState } from 'react'
+import { AgentRequestCard } from '../workspace/AgentRequestCard'
 import { lessonPassageRequest } from './lessonPassageRequest'
 import { LessonCoveragePanel } from './LessonCoveragePanel'
 import { ArrowSquareOut, CaretLeft, CaretRight } from '@phosphor-icons/react'
@@ -48,7 +49,6 @@ function LessonDraftSession({ onError, onOpenEvidence, plan }: LessonDraftPrevie
   const [decisionPending, setDecisionPending] = useState(false)
   const [focus, setFocus] = useState<{ blockId: string; text: string; version: number } | null>(null)
   const [question, setQuestion] = useState('Explain this more deeply, preserving the source’s qualifications. Add a worked example if it helps.')
-  const [copied, setCopied] = useState(false)
   const [evidencePreview, setEvidencePreview] = useState<{ elementId: string; referenceIds: string[]; returnTargetId: string } | null>(null)
 
   useEffect(() => {
@@ -144,23 +144,13 @@ function LessonDraftSession({ onError, onOpenEvidence, plan }: LessonDraftPrevie
       setFocus({ blockId: start.dataset.blockId!, text: text.slice(0, 1600), version: document.document_version })
     }
   }
-  const copyRequest = async () => {
-    if (!activeFocus) return
-    try {
-      await navigator.clipboard.writeText(lessonPassageRequest(document.lesson_id, document.document_version, activeFocus.blockId, activeFocus.text, question))
-      setCopied(true)
-    } catch { onError('Clipboard access was unavailable. You can select and copy the request text below.') }
-  }
-
   const passageHelp = activeFocus ? <aside className="lesson-agent-request" aria-label="Selected passage for your agent">
-    <div className="lesson-agent-request-header"><strong>Understand this passage</strong><button type="button" onClick={() => { setFocus(null); setCopied(false) }} aria-label="Clear selected passage">×</button></div>
+    <div className="lesson-agent-request-header"><strong>Understand this passage</strong><button type="button" onClick={() => { setFocus(null) }} aria-label="Clear selected passage">×</button></div>
     {activeFocus.text ? <blockquote data-selected-excerpt>{activeFocus.text}</blockquote> : <p>Your agent will read this block and its source references.</p>}
     <label htmlFor="lesson-agent-question">What would help you understand it?</label>
-    <textarea id="lesson-agent-question" data-learner-request value={question} maxLength={800} onChange={(event) => { setQuestion(event.target.value); setCopied(false) }} />
-    <div className="passage-help-options">{['Explain why this follows.', 'Walk through a worked example.', 'Explain the missing prerequisite.', 'Clarify the limitations.'].map(prompt => <button className="quiet-button" type="button" key={prompt} onClick={() => { setQuestion(prompt); setCopied(false) }}>{prompt}</button>)}</div>
-    <p>Paste the request into your connected agent conversation. Review its proposed change here before accepting it.</p>
-    <button className="quiet-button" type="button" onClick={() => { void copyRequest() }}>{copied ? 'Request copied' : 'Copy request for agent'}</button>
-    <details><summary>View or manually copy the request</summary><textarea aria-label="Full request for your agent" readOnly rows={8} value={lessonPassageRequest(document.lesson_id, document.document_version, activeFocus.blockId, activeFocus.text, question)} /></details>
+    <textarea id="lesson-agent-question" data-learner-request value={question} maxLength={800} onChange={(event) => { setQuestion(event.target.value) }} />
+    <div className="passage-help-options">{['Explain why this follows.', 'Walk through a worked example.', 'Explain the missing prerequisite.', 'Clarify the limitations.'].map(prompt => <button className="quiet-button" type="button" key={prompt} onClick={() => { setQuestion(prompt) }}>{prompt}</button>)}</div>
+    <AgentRequestCard title="Ask about this passage" description="Review any proposed lesson changes here before accepting them." prompt={lessonPassageRequest(document.lesson_id, document.document_version, activeFocus.blockId, activeFocus.text, question)} />
   </aside> : null
 
   return (
@@ -214,7 +204,7 @@ function LessonDraftSession({ onError, onOpenEvidence, plan }: LessonDraftPrevie
                 <Fragment key={block.block_id}><LessonBlock
                   block={block}
                   sourceId={plan.source_id}
-                  onAsk={() => { setFocus((current) => ({ blockId: block.block_id, text: current?.blockId === block.block_id ? current.text : '', version: document.document_version })); setCopied(false) }}
+                  onAsk={() => { setFocus((current) => ({ blockId: block.block_id, text: current?.blockId === block.block_id ? current.text : '', version: document.document_version })) }}
                   onOpenEvidence={(elementId, returnTargetId) => setEvidencePreview({ elementId, referenceIds: block.source_element_ids, returnTargetId })}
                 />{activeFocus?.blockId === block.block_id ? passageHelp : null}</Fragment>
               ))

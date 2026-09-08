@@ -59,7 +59,7 @@ html:has(.lesson-reading-page) { overflow: hidden; }
 .figure-viewport { height: min(65dvh, 850px); overflow: auto; overflow-y: scroll; scrollbar-gutter: stable; overscroll-behavior: contain; background: var(--surface-2); border: 1px solid var(--line); border-radius: 3px; }
 .figure-viewport canvas { cursor: grab; }
 .figure-viewport canvas:active { cursor: grabbing; }
-.figure-zoom-surface { min-width: 50%; margin-inline: auto; }
+.figure-zoom-surface { min-width: 0; margin-inline: auto; }
 :is(.source-inspection-dialog, .figure-dialog) .source-visual-viewer .source-page-canvas canvas { width: 100%; max-width: none; max-height: none; height: auto; }
 .figure-view-hint { margin: 10px 0 0; font: .72rem/1.6 var(--font-ui) !important; color: var(--ink-soft); }
 .source-visual-viewer .page-image-loading { min-height: 240px; }
@@ -79,7 +79,7 @@ html:has(.lesson-reading-page) { overflow: hidden; }
 .revision-evidence { display: flex; flex-wrap: wrap; gap: 8px; }
 .revision-evidence .quiet-button { margin-top: 0; }
 .source-page-canvas canvas { display: block; max-width: 100%; height: auto; margin-inline: auto; background: white; }.source-page-canvas canvas[hidden] { display: none; }.page-image-loading { display: grid; min-height: 160px; place-content: center; color: var(--ink-soft); font: .85rem var(--font-ui); }
-.source-figure { position: relative; }.source-figure .figure-expand { display: flex; gap: 6px; margin: 10px 0 0 auto; font: .75rem var(--font-ui); }.source-figure figcaption > span { display: block; margin-top: 6px; color: var(--ink-soft); }
+.source-figure { position: relative; }.source-figure-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin-top: 10px; }.source-figure-actions button { display: inline-flex; align-items: center; gap: 6px; font: .75rem var(--font-ui); }.source-figure figcaption > span { display: block; margin-top: 6px; color: var(--ink-soft); }
 .source-inspection-dialog, .figure-dialog { width: min(1000px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 24px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; box-shadow: var(--shadow); overscroll-behavior: contain; }
 .source-inspection-dialog::backdrop, .figure-dialog::backdrop { background: rgb(0 0 0 / 60%); }
 .source-inspection-dialog .source-page-canvas canvas { max-height: calc(100dvh - 195px); width: auto; object-fit: contain; }
