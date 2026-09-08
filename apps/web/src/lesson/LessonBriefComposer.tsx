@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { ArrowRight, CheckCircle, Copy, Plus, X } from '@phosphor-icons/react'
+import { ArrowRight, CheckCircle, Plus, X } from '@phosphor-icons/react'
 import type { LibrarySource } from '../storage/browserSources'
 import { createLessonBrief } from './lessonPlans'
 import { useBriefDraft } from './useBriefDraft'
 import { BriefReviewProgress } from './BriefReviewProgress'
+import { AgentRequestCard } from '../workspace/AgentRequestCard'
 import { AGENT_STARTUP_PROMPT } from '../webmcp/authoringGuide'
 import type { LessonBrief, LessonDepth, LessonPlan, LessonOutputKind } from './lessonPlanTypes'
 
@@ -14,12 +15,11 @@ interface LessonBriefComposerProps {
   source: LibrarySource
 }
 
-export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBriefComposerProps) {
+export function LessonBriefComposer({ briefs, plans, source }: LessonBriefComposerProps) {
   const { draft, update, clear, hasDraft, storageError, restored } = useBriefDraft(source.id, source.page_count ?? 1)
   const { name, assignment, goal, outputKind, targetWords, includeQuestions, pageStart, pageEnd, timeBudget, depth, priorKnowledge } = draft
   const [open, setOpen] = useState(restored)
   const [busy, setBusy] = useState(false)
-  const [copiedBriefId, setCopiedBriefId] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const errorRef = useRef<HTMLParagraphElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
@@ -76,16 +76,6 @@ export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBr
     }
   }
 
-  async function copyAgentRequest(brief: LessonBrief) {
-    const prompt = agentRequest(brief)
-    try {
-      await navigator.clipboard.writeText(prompt)
-      setCopiedBriefId(brief.brief_id)
-      window.setTimeout(() => setCopiedBriefId(null), 1800)
-    } catch {
-      onError('PRISM could not copy the agent request. Select the request text and copy it manually.')
-    }
-  }
 
   return (
     <section className="lesson-launch" aria-labelledby="lesson-launch-title">
@@ -267,12 +257,9 @@ export function LessonBriefComposer({ briefs, onError, plans, source }: LessonBr
                   </p>
                 ) : null}
                 <BriefReviewProgress brief={brief} />
-                <details className="brief-request"><summary>View agent request</summary><code>{agentRequest(brief)}</code></details>
+                <AgentRequestCard title="Prepare my lesson plan" prompt={agentRequest(brief)} />
               </div>
-              <button className="button-quiet" type="button" onClick={() => copyAgentRequest(brief)}>
-                <Copy aria-hidden="true" />
-                {copiedBriefId === brief.brief_id ? 'Copied' : 'Copy agent request'}
-              </button>
+
             </article>
           ))}
         </div>
@@ -285,5 +272,5 @@ function agentRequest(brief: LessonBrief): string {
   const repairContext = brief.brief_kind === 'repair'
     ? ' This is a learner-approved repair brief tied to unresolved answer criteria.'
     : ''
-  return `${AGENT_STARTUP_PROMPT}\n\nCreate my PRISM ${brief.output_kind === 'research_brief' ? 'research brief' : 'lesson'} ${brief.brief_id}.${repairContext} Resume get_authoring_workspace with this brief_id. Respect its full requested range and goal. For a long scope, save record_scope_review checkpoints and propose coverage_ranges. Length is a soft target; preserve essential reasoning and qualifications. Open the plan for my approval, then compose complete sections with apply_lesson_patch using rich text and useful source-linked visuals. Reuse successful save receipts without rereading the entire document. After I read it, help me improve the same saved lesson.`
+  return `${AGENT_STARTUP_PROMPT}\n\nResume my saved ${brief.output_kind === 'research_brief' ? 'research brief' : 'lesson'} request with get_authoring_workspace, brief_id: ${brief.brief_id}.${repairContext} Preserve the full requested scope and depth. Reuse saved reviews and approvals; open a new plan for my approval only when needed. Compose complete sections after approval and review the rendered result against the source.`
 }

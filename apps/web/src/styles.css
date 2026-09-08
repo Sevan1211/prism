@@ -279,10 +279,6 @@ svg { display: block; flex: 0 0 auto; }
 .agent-connection h2 { margin: 0; font-size: 0.93rem; }
 .agent-connection > p { margin: 16px 0; color: var(--ink-soft); font-size: 0.75rem; line-height: 1.58; }
 
-.agent-prompt { overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; }
-.agent-prompt p { margin: 0; padding: 13px; color: var(--ink-soft); font-size: 0.75rem; line-height: 1.55; }
-.agent-prompt button { width: 100%; padding: 9px 13px; color: var(--accent-strong); font-size: 0.75rem; font-weight: 750; text-align: left; background: var(--surface); border-top: 1px solid var(--line); }
-.agent-prompt button:hover { background: var(--accent-soft); }
 
 .agent-permission { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--line); }
 .agent-permission span { min-width: 0; }

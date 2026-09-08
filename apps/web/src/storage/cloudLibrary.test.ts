@@ -19,13 +19,13 @@ class Directory {
   async removeEntry(name: string) { this.files.delete(name) }
 }
 let release: (() => void) | undefined
-afterEach(() => { release?.(); release = undefined; vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.resetModules() })
+afterEach(() => { release?.(); release = undefined; vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.resetModules() })
 async function browser(fetcher: typeof fetch) {
   vi.resetModules()
   vi.stubGlobal('indexedDB', new IDBFactory()); vi.stubGlobal('IDBKeyRange', IDBKeyRange)
   vi.stubGlobal('window', new EventTarget())
   vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } })
-  const root = new Directory(), preferences = new Map<string, string>()
+  const root = new Directory(), preferences = new Map<string, string>([['prism-cloud-enabled:user_alpha', 'false'], ['prism-cloud-enabled:user_beta', 'false']])
   vi.stubGlobal('localStorage', { getItem: (key: string) => preferences.get(key) ?? null, setItem: (key: string, value: string) => preferences.set(key, value), removeItem: (key: string) => preferences.delete(key) })
   vi.stubGlobal('fetch', fetcher)
   return import('./syncedLibrary')
@@ -56,9 +56,10 @@ it('transfers saved records and lazy file bytes into a fresh device, without tra
     tx.objectStore('source_agent_grants').put({ source_id: 'source-test', granted: true })
     await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onabort = () => reject(tx.error) })
   })
-  await client.syncNow()
-  expect(client.syncStatus().state).toBe('synced')
-  expect(commits).toHaveLength(1)
+  await vi.waitFor(() => {
+    expect(commits).toHaveLength(1)
+    expect(client.syncStatus().state).toBe('synced')
+  }, { timeout: 3000 })
   release(); release = undefined
   client = await browser(transport)
   release = client.bindCloudIdentity('user_alpha', async () => 'fresh-device-token')
@@ -192,4 +193,94 @@ it('resumes an interrupted multi-object download from verified cached chunks', a
     const { allRecords } = await import('./syncDatabase')
     expect(await allRecords(db, 'library_folders')).toEqual([{ id: 'folder', name: 'Restored' }])
   })
+})
+
+
+it('automatically opens an existing account library on a new browser without creating or copying one', async () => {
+  const id = 'f'.repeat(64)
+  const transport = vi.fn(async (path: string, init?: RequestInit) => !init?.method && path === '/api/cloud/library'
+    ? Response.json({ library: { id, head: 0, deleted: 0 } })
+    : Response.json({ head: 0, commits: [] }))
+  const client = await browser(transport as typeof fetch)
+  localStorage.removeItem('prism-cloud-enabled:user_alpha')
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  expect(client.syncStatus().restoring).toBe(true)
+  await vi.waitFor(() => expect(client.syncStatus()).toMatchObject({ connected: true, state: 'synced', restoring: false }))
+  expect(transport.mock.calls.every(call => call[1]?.method === undefined)).toBe(true)
+  expect(localStorage.getItem('prism-cloud-enabled:user_alpha')).toBe('true')
+})
+
+it('keeps a new account local when no cloud library exists, and respects an explicit browser-library choice', async () => {
+  const transport = vi.fn(async () => Response.json({ library: null }))
+  const client = await browser(transport as typeof fetch)
+  localStorage.removeItem('prism-cloud-enabled:user_alpha')
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  await vi.waitFor(() => expect(client.syncStatus().restoring).toBe(false))
+  expect(client.syncStatus().connected).toBe(false)
+  await client.disconnectSyncedLibrary()
+  release()
+  transport.mockClear()
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  await Promise.resolve()
+  expect(transport).not.toHaveBeenCalled()
+})
+
+it('does not reopen cloud storage if the learner chooses the browser library during restoration', async () => {
+  let respond!: (response: Response) => void
+  const transport = vi.fn(() => new Promise<Response>(resolve => { respond = resolve }))
+  const client = await browser(transport as typeof fetch)
+  localStorage.removeItem('prism-cloud-enabled:user_alpha')
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  await vi.waitFor(() => expect(transport).toHaveBeenCalledTimes(1))
+  await client.disconnectSyncedLibrary()
+  respond(Response.json({ library: { id: 'f'.repeat(64), head: 0, deleted: 0 } }))
+  await new Promise(resolve => setImmediate(resolve))
+  expect(transport).toHaveBeenCalledTimes(1)
+  expect(client.syncStatus()).toMatchObject({ connected: false, state: 'local', restoring: false })
+  expect(localStorage.getItem('prism-cloud-enabled:user_alpha')).toBe('false')
+})
+
+it('retries a failed fresh-browser restoration when connectivity returns, even in a hidden tab', async () => {
+  let offline = true
+  const transport = vi.fn(async (path: string) => {
+    if (offline) throw new TypeError('offline')
+    return path === '/api/cloud/library' ? Response.json({ library: { id: '9'.repeat(64), head: 0 } }) : Response.json({ head: 0, commits: [] })
+  })
+  const client = await browser(transport as typeof fetch)
+  const doc = Object.assign(new EventTarget(), { visibilityState: 'hidden' })
+  vi.stubGlobal('document', doc)
+  localStorage.removeItem('prism-cloud-enabled:user_alpha')
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  const stop = client.startSyncWatching()
+  try {
+    await vi.waitFor(() => expect(client.syncStatus()).toMatchObject({ state: 'error', restoring: false }))
+    offline = false
+    window.dispatchEvent(new Event('online'))
+    await vi.waitFor(() => expect(client.syncStatus()).toMatchObject({ connected: true, state: 'synced', restoring: false }))
+  } finally { stop() }
+})
+
+it('retrieves remote changes on tab visibility and polls only visible tabs, without manual sync', async () => {
+  const transport = vi.fn(async (path: string) => path === '/api/cloud/library'
+    ? Response.json({ library: { id: '1'.repeat(64), head: 0 } })
+    : Response.json({ head: 0, commits: [] }))
+  const client = await browser(transport as typeof fetch)
+  const page = Object.assign(new EventTarget(), { visibilityState: 'hidden' })
+  vi.stubGlobal('document', page)
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  await client.connectCloudLibrary(false, false)
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] })
+  const stop = client.startSyncWatching()
+  try {
+    transport.mockClear()
+    await vi.advanceTimersByTimeAsync(30000)
+    expect(transport).not.toHaveBeenCalled()
+    page.visibilityState = 'visible'
+    page.dispatchEvent(new Event('visibilitychange'))
+    await client.syncNow()
+    expect(transport).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(30000)
+    await client.syncNow()
+    expect(transport).toHaveBeenCalledTimes(2)
+  } finally { stop() }
 })

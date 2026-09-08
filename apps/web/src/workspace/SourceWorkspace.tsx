@@ -1,3 +1,4 @@
+import { AgentRequestCard } from './AgentRequestCard'
 import { AGENT_STARTUP_PROMPT } from '../webmcp/authoringGuide'
 import { SourceLibrary } from './SourceLibrary'
 import { ConfirmationDialog } from './ConfirmationDialog'
@@ -393,27 +394,9 @@ function InfoRow({
 }
 
 function AgentPrompt({ source }: { source: LibrarySource }) {
-  const [copied, setCopied] = useState(false)
-  const request = `Build a lesson from ${cleanTitle(source.original_name)}. Use my saved request if available; ask only for missing scope or learning goals. Preserve essential details and propose a plan for my approval.`
-  const prompt = `${AGENT_STARTUP_PROMPT}\n\n${request} Source id: ${source.id}.`
-
-  async function copyPrompt() {
-    try {
-      await navigator.clipboard.writeText(prompt)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1600)
-    } catch {
-      setCopied(false)
-    }
-  }
-
-  return (
-    <div className="agent-prompt">
-      <p>{request}</p>
-      <details className="brief-request"><summary>View WebMCP prompt</summary><p>{prompt}</p></details>
-      <button type="button" onClick={copyPrompt}>{copied ? 'Copied' : 'Copy starter prompt'}</button>
-    </div>
-  )
+  const request = `Build a detailed lesson from the selected source. Resume my saved request or approved plan; ask only for missing scope or goals. Preserve substantive definitions, reasoning, examples, qualifications and relevant figures. Propose a plan if I have not approved one.`
+  const prompt = `${AGENT_STARTUP_PROMPT}\n\n${request}\nSource: ${source.id}.`
+  return <AgentRequestCard title="Build a lesson" description="Choose a chapter and goal with your agent, then review its plan here." prompt={prompt} />
 }
 
 function ImportDialog({

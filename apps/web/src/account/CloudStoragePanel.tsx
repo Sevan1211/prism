@@ -12,7 +12,7 @@ export function CloudStoragePanel() {
   const [consent, setConsent] = useState(false)
   const [deleteWord, setDeleteWord] = useState('')
   async function refresh() { setInfo(await cloudLibraryInfo()); setError('') }
-  useEffect(() => { let active = true; void cloudLibraryInfo().then(value => { if (active) { setInfo(value); setError('') } }).catch(cause => { if (active) setError(cause.message) }); return () => { active = false } }, [status.lastSynced])
+  useEffect(() => { let active = true; void cloudLibraryInfo().then(value => { if (active) { setInfo(value); setError('') } }).catch(cause => { if (active) setError(cause.message) }); return () => { active = false } }, [status.revision])
   async function act(work: () => Promise<void>) {
     setBusy(true); setError('')
     try { await work(); await refresh() } catch (cause) { setError(cause instanceof Error ? cause.message : 'Cloud storage could not finish. Please retry.') }
@@ -27,7 +27,8 @@ export function CloudStoragePanel() {
     {status.connected ? <>
       <div className="sync-status" data-state={status.state} role="status"><span className="sync-dot" /><div><strong>{({ local: 'On this browser', syncing: 'Saving changes…', synced: 'Up to date', offline: 'Saved here · waiting for connection', conflict: 'Choose a version', error: 'Needs attention' })[status.state]}</strong><p>{status.detail}</p></div></div>
       {status.pending > 0 && <p className="storage-help">{status.pending} saved change{status.pending === 1 ? '' : 's'} waiting to reach the cloud. Keep this browser’s data until sync finishes.</p>}
-      <div className="storage-actions"><button className="button-secondary" disabled={busy} onClick={() => void act(syncNow)}><ArrowClockwise />Sync now</button><button className="button-quiet" disabled={busy} onClick={() => void act(disconnectSyncedLibrary)}><HardDrive />Use browser library</button></div>
+      <p className="storage-help">Sync is automatic. New edits upload in the background; returning to this tab checks for changes from your other browsers.</p>
+      <div className="storage-actions"><button className="button-secondary" disabled={busy || status.state === 'syncing'} onClick={() => void act(syncNow)}><ArrowClockwise />Check for updates</button><button className="button-quiet" disabled={busy} onClick={() => void act(disconnectSyncedLibrary)}><HardDrive />Use browser library</button></div>
       {status.state === 'conflict' && <div className="account-notice"><p>Both versions are saved on this browser. Choose which version to keep working with.</p><div className="storage-actions"><button disabled={busy} className="button-secondary" onClick={() => void act(() => resolveSyncConflict('local'))}>Keep this version</button><button disabled={busy} className="button-secondary" onClick={() => void act(() => resolveSyncConflict('remote'))}>Use cloud version</button></div></div>}
       <p className="account-privacy"><ShieldCheck />Only your signed-in account can access this library. Source access for agents stays a separate choice on each browser.</p>
       <details className="cloud-delete"><summary>Delete cloud library</summary><p>Remove the cloud files and saved history. Your original browser library and downloaded copies stay on their devices. This action cannot be undone.</p><label>Type DELETE to confirm<input value={deleteWord} onChange={event => setDeleteWord(event.target.value)} autoComplete="off" /></label><button disabled={busy || deleteWord !== 'DELETE'} className="button-secondary" onClick={() => void act(async () => { await deleteSyncedLibrary(); setDeleteWord('') })}>Delete cloud library</button></details>

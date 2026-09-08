@@ -1,5 +1,34 @@
 # Submission readiness
 
+## Authoring, visual review and automatic storage - 2026-09-08
+
+Local validation passed: web lint/typecheck, 243 tests in 60 files, production web
+build and documentation checks. Chrome inspection covered source/brief/passage
+request-card behavior through the shared component, 390/900 px prompt layouts,
+full-precision chart inspection, complete source crops and fitted full pages.
+Saved-lesson review exercised all 27 states of six scene sequences, 46 concept
+controls, two text sequences, chart filtering and the keyboard delay model.
+
+The reviewed long chapter substantively covers its approved scope, but a tight
+source crop and implicit packet-position resets require a learner-reviewed content
+revision. Ready lesson content was not overwritten. The application now warns
+about implicit resets and guided static sequences; these diagnostics do not prove
+semantic correctness. The actual full-page viewer also needed its inherited 50%
+minimum width removed so tall pages fit vertically.
+
+Existing account libraries now restore automatically, scheduled local edits upload
+without a manual sync action, and visibility/online recovery retries remote reads.
+Tests cover automatic uploads, fresh-browser discovery, local-choice races, offline
+startup recovery, owner isolation and existing retry/conflict protections. No new
+cloud library or original-local-library upload is silently initiated.
+
+Local checks are not deployed acceptance. The associated release PR/Actions run
+records publishing; independent deployed-device recovery, provider operation
+budgets and a comparable full authoring speed measurement remain outstanding.
+Agent timings can now be exported from up to 300 source receipts without source
+text or prompts; model and host time are explicitly excluded.
+
+
 ## Sync recovery follow-up — 2026-09-07
 
 PR #7 deployed successfully in GitHub run 34183218757. The hosted Reader opened

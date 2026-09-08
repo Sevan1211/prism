@@ -1,6 +1,7 @@
 import { Component, lazy, Suspense, type ReactNode } from 'react'
 import { Cloud, ShieldCheck } from '@phosphor-icons/react'
 import { CLOUD_POLICY } from '../../../../shared/cloudPolicy'
+import { settleCloudAccount } from '../storage/syncedLibrary'
 import './account.css'
 
 const ClerkAccount = lazy(() => import('./ClerkAccount'))
@@ -8,6 +9,7 @@ const ClerkAccount = lazy(() => import('./ClerkAccount'))
 class AccountBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch() { settleCloudAccount() }
   render() {
     return this.state.failed
       ? <div role="alert"><p>Account sign-in couldn’t load. Your local library is still available.</p><button type="button" onClick={() => window.location.reload()}>Reload account connection</button></div>

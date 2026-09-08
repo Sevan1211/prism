@@ -67,6 +67,7 @@ function connection(from: SceneNode, to: SceneNode): [number, number] {
 
 function Plot({ content }: { content: DataPlot }) {
   const [selected, setSelected] = useState<number | null>(null)
+  const [precise, setPrecise] = useState(false)
   const series = selected === null ? content.series : [content.series[selected]]
   const points = content.series.flatMap((item) => item.points)
   const minX = Math.min(...points.map((point) => point.x))
@@ -79,6 +80,7 @@ function Plot({ content }: { content: DataPlot }) {
   const xValues = [...new Set(points.map((point) => point.x))].sort((a, b) => a - b)
   const pointSpacing = xValues.length > 1 ? Math.min(...xValues.slice(1).map((value, i) => x(value) - x(xValues[i]))) : 100
   const barWidth = Math.max(1, Math.min(26, pointSpacing * .65 / content.series.length))
+  const ticks = xValues.reduce<number[]>((kept, value) => { if (!kept.length || x(value) - x(kept.at(-1)!) >= 65) kept.push(value); return kept }, [])
   return <figure className="lesson-visual data-plot">
     <figcaption>{content.caption}</figcaption>
     <div className="visual-node-controls" aria-label="Chart series"><button type="button" aria-pressed={selected === null} onClick={() => setSelected(null)}>Compare all</button>{content.series.map((item, i) => <button type="button" aria-pressed={selected === i} key={item.label} onClick={() => setSelected(i)}><span className="plot-legend-swatch" data-series={i} aria-hidden="true" />{item.label}</button>)}</div>
@@ -90,14 +92,14 @@ function Plot({ content }: { content: DataPlot }) {
         return <g key={item.label} className="plot-series" data-series={index}>
           {content.style === 'area' ? <polygon fill="currentColor" fillOpacity={.12} points={`${x(item.points[0].x)},${y(0)} ${item.points.map(point => `${x(point.x)},${y(point.y)}`).join(' ')} ${x(item.points.at(-1)!.x)},${y(0)}`} /> : null}
           {content.style === 'line' || content.style === 'area' ? <polyline fill="none" points={item.points.map((point) => `${x(point.x)},${y(point.y)}`).join(' ')} strokeDasharray={index ? `${10 + index * 3} ${4 + index * 2}` : undefined} /> : null}
-          {item.points.map((point, pointIndex) => content.style === 'bar' ? <rect key={point.x} x={x(point.x) + (index - content.series.length / 2) * barWidth} y={Math.min(y(point.y), y(0))} width={Math.max(1, barWidth - 2)} height={Math.abs(y(point.y) - y(0))}><title>{item.label}: {point.label || point.x}, {point.y}</title></rect> : <circle key={pointIndex} cx={x(point.x)} cy={y(point.y)} r={4}><title>{item.label}: {point.label || point.x}, {point.y}</title></circle>)}
+          {item.points.map((point, pointIndex) => content.style === 'bar' ? <rect key={point.x} x={x(point.x) + (index - content.series.length / 2) * barWidth} y={Math.min(y(point.y), y(0))} width={Math.max(1, barWidth - 2)} height={Math.abs(y(point.y) - y(0))}><title>{item.label}: {point.label || formatNumber(point.x)}, {formatNumber(point.y)}</title></rect> : <circle key={pointIndex} cx={x(point.x)} cy={y(point.y)} r={4}><title>{item.label}: {point.label || formatNumber(point.x)}, {formatNumber(point.y)}</title></circle>)}
         </g>
       })}
-      {Array.from(new Map(points.map((point) => [point.x, point])).values()).filter((_, i, all) => all.length <= 8 || i % Math.ceil(all.length / 6) === 0).map((point) => <text className="plot-tick" key={point.x} x={x(point.x)} y={410} textAnchor="middle">{content.style === 'scatter' ? formatNumber(point.x) : point.label || formatNumber(point.x)}</text>)}
+      {ticks.map(value => <text className="plot-tick" key={value} x={x(value)} y={410} textAnchor="middle">{formatNumber(value)}</text>)}
       <text className="plot-label" x={450} y={452} textAnchor="middle">{content.x_label}</text><text className="plot-label" transform="translate(20,220) rotate(-90)" textAnchor="middle">{content.y_label}</text>
     </svg></div>
     <p className="visual-explanation">{content.description}</p>
-    <details className="visual-transcript"><summary>Inspect the underlying values</summary><div className="plot-data"><table><thead><tr><th scope="col">Series</th><th scope="col">{content.x_label}</th><th scope="col">{content.y_label}</th></tr></thead><tbody>{content.series.flatMap((item) => item.points.map((point, pointIndex) => <tr key={`${item.label}-${pointIndex}`}><th scope="row">{item.label}</th><td>{point.label ? `${point.label} (${point.x})` : point.x}</td><td>{point.y}</td></tr>))}</tbody></table></div></details>
+    <details className="visual-transcript"><summary>Inspect the underlying values</summary><p>Values are rounded for readability. Full precision shows the stored numbers.</p><button type="button" aria-pressed={precise} onClick={() => setPrecise(value => !value)}>Full precision</button><div className="plot-data"><table><thead><tr><th scope="col">Series</th><th scope="col">{content.x_label}</th><th scope="col">{content.y_label}</th></tr></thead><tbody>{content.series.flatMap((item) => item.points.map((point, pointIndex) => <tr key={`${item.label}-${pointIndex}`}><th scope="row">{item.label}</th><td>{point.label ? `${point.label} (${precise ? point.x : formatNumber(point.x)})` : precise ? point.x : formatNumber(point.x)}</td><td>{precise ? point.y : formatNumber(point.y)}</td></tr>))}</tbody></table></div></details>
   </figure>
 }
 

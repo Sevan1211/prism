@@ -8,12 +8,14 @@ import { PRISM_VAULT_CHANGED_EVENT } from '../storage/browserVault'
 import type { LessonDocument } from './lessonDocumentTypes'
 import type { LessonPlan } from './lessonPlanTypes'
 
+const sync = vi.hoisted(() => ({ restoring: false }))
+vi.mock('../storage/useSyncStatus', () => ({ useSyncStatus: () => sync }))
 vi.mock('./lessonDocuments', () => ({ getLessonDocument: vi.fn() }))
 vi.mock('./lessonPlans', () => ({ getLessonPlan: vi.fn() }))
 vi.mock('../workspace/SourceWorkspace', () => ({ AppHeader: () => <header>PRISM</header> }))
 vi.mock('./LessonDraftPreview', () => ({ LessonDraftPreview: () => <section id="section-first">Saved section</section> }))
 
-afterEach(() => { cleanup(); window.history.replaceState(null, '', '/'); vi.restoreAllMocks() })
+afterEach(() => { sync.restoring = false; cleanup(); window.history.replaceState(null, '', '/'); vi.restoreAllMocks() })
 
 it('clears the previous lesson immediately when navigating to another lesson', async () => {
   vi.mocked(getLessonDocument).mockResolvedValue({ lesson_id: 'l1', plan_id: 'p1', title: 'First', sections: [] } as unknown as LessonDocument)
@@ -52,4 +54,18 @@ it('restores a deep link once without pulling the reader back on each background
   vi.mocked(getLessonDocument).mockResolvedValue({ ...document, document_version: 2 })
   await act(async () => { window.dispatchEvent(new Event(PRISM_VAULT_CHANGED_EVENT)) })
   expect(scroll).toHaveBeenCalledTimes(1)
+})
+
+
+it('waits for account restoration before declaring a cloud lesson missing', async () => {
+  sync.restoring = true
+  vi.mocked(getLessonDocument).mockResolvedValue(undefined)
+  const props = { lessonId: 'cloud-lesson', onError: vi.fn(), onOpenEvidence: vi.fn(), returnTargetId: null, onReturnComplete: vi.fn() }
+  const view = render(<LessonReaderPage {...props} />)
+  await waitFor(() => expect(getLessonDocument).toHaveBeenCalled())
+  expect(screen.getByText('Opening your lesson')).toBeVisible()
+  expect(screen.queryByText('This lesson is not in your current library.')).not.toBeInTheDocument()
+  sync.restoring = false
+  view.rerender(<LessonReaderPage {...props} />)
+  expect(await screen.findByText('This lesson is not in your current library.')).toBeVisible()
 })
