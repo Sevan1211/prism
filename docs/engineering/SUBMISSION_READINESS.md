@@ -1,5 +1,19 @@
 # Submission readiness
 
+## Adaptive favicon - 2026-09-09
+
+The favicon now uses a transparent SVG traced from the owner's serif-p and
+five-color fan reference. Its letter is dark in light mode and white in dark mode,
+using the browser's `prefers-color-scheme` preference. The rainbow stays unchanged.
+The previous square-backed SVG is deleted and the HTML points to a new asset URL
+so existing browsers can fetch the replacement.
+
+Local Chrome inspection covered 16, 32 and 64 px rendering and light/dark/light
+preference changes without reloading the SVG. Pixel checks confirmed transparent
+surroundings and letter cutouts, the expected letter colors and an unchanged fan.
+Production publishing is recorded by the associated PR and deployment workflow;
+these local checks alone do not establish the deployed icon or cached browser tabs.
+
 ## Fresh-device cloud restoration - 2026-09-09
 
 The owner reports that a new device restores the library automatically after
