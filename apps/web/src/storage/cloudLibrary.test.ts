@@ -207,7 +207,66 @@ it('automatically opens an existing account library on a new browser without cre
   expect(client.syncStatus().restoring).toBe(true)
   await vi.waitFor(() => expect(client.syncStatus()).toMatchObject({ connected: true, state: 'synced', restoring: false }))
   expect(transport.mock.calls.every(call => call[1]?.method === undefined)).toBe(true)
+  expect(transport.mock.calls.filter(([path]) => path === '/api/cloud/library')).toHaveLength(1)
   expect(localStorage.getItem('prism-cloud-enabled:user_alpha')).toBe('true')
+})
+
+it.each([false, true])('restores a fresh device in bounded download windows, in order, with interruption=%s', async interrupted => {
+  const { packObject } = await import('./cloudObjects')
+  const objects = new Map<string, Uint8Array>()
+  const commits: Array<{ revision: number; mutation: string; objects: string[] }> = []
+  for (let revision = 1; revision <= 8; revision++) {
+    const packed = await packObject(new TextEncoder().encode(JSON.stringify({ format: 1, parent: revision - 1, files: {}, entries: [{ id: `change-${revision}`, created: revision, changes: [{ store: 'library_folders', key: 'folder', base: revision === 1 ? null : `change-${revision - 1}`, value: { id: 'folder', name: `Version ${revision}` } }] }] })))
+    objects.set(packed.id, packed.bytes)
+    commits.push({ revision, mutation: `change-${revision}`, objects: [packed.id] })
+  }
+  const waiting: Array<{ id: string; resolve: (response: Response) => void }> = []
+  let active = 0, peak = 0
+  const transport = vi.fn(async (path: string) => {
+    if (path === '/api/cloud/library') return Response.json({ library: { id: '8'.repeat(64), head: 8 } })
+    if (path.includes('/objects/')) {
+      active++; peak = Math.max(peak, active)
+      try { return await new Promise<Response>(resolve => waiting.push({ id: path.split('/').at(-1)!, resolve })) }
+      finally { active-- }
+    }
+    return Response.json({ head: 8, commits: commits.filter(commit => commit.revision > Number(new URL(path, 'http://test').searchParams.get('after'))) })
+  })
+  const client = await browser(transport as typeof fetch)
+  const refresh = vi.fn()
+  window.addEventListener('prism:vault-changed', refresh)
+  localStorage.removeItem('prism-cloud-enabled:user_alpha')
+  release = client.bindCloudIdentity('user_alpha', async () => 'fresh-device-token')
+  // The mounted account panel asks for allowance at the same time as discovery.
+  await client.cloudLibraryInfo()
+  await vi.waitFor(() => expect(waiting).toHaveLength(4))
+  expect(transport.mock.calls.filter(([path]) => path === '/api/cloud/library')).toHaveLength(1)
+  expect(client.syncStatus()).toMatchObject({ restoring: true, state: 'syncing' })
+  const finish = () => { for (const item of waiting.splice(0).reverse()) item.resolve(new Response(new Uint8Array(objects.get(item.id)!))) }
+  if (interrupted) {
+    waiting.shift()!.resolve(Response.json({ error: 'Temporary download failure' }, { status: 503 }))
+    await new Promise(resolve => setImmediate(resolve))
+    expect(client.syncStatus().state).toBe('syncing')
+    finish()
+    await vi.waitFor(() => expect(client.syncStatus()).toMatchObject({ state: 'error', restoring: false }))
+    expect(active).toBe(0)
+    void client.syncNow()
+    await vi.waitFor(() => expect(waiting).toHaveLength(1))
+    // The other three verified objects survive the interruption.
+    finish()
+  } else finish()
+  await vi.waitFor(() => expect(waiting).toHaveLength(4))
+  finish()
+  await vi.waitFor(() => expect(client.syncStatus()).toMatchObject({ state: 'synced', restoring: false, revision: 8 }))
+  expect(peak).toBe(4)
+  expect(active).toBe(0)
+  // Identity selection, cloud selection, and one completed replay notification.
+  expect(refresh).toHaveBeenCalledTimes(3)
+  await client.withSyncedLibrary(async db => {
+    const { allRecords, getRecord } = await import('./syncDatabase')
+    expect(await allRecords(db, 'library_folders')).toEqual([{ id: 'folder', name: 'Version 8' }])
+    expect(await getRecord(db, 'sync_meta', 'head')).toBe(8)
+    expect(await allRecords(db, 'sync_outbox')).toEqual([])
+  })
 })
 
 it('keeps a new account local when no cloud library exists, and respects an explicit browser-library choice', async () => {

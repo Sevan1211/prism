@@ -18,6 +18,20 @@ visible tab, excluding focus/reconnect events; it is not a provider-budget or
 cross-device acceptance claim. Storage's manual action is now "Check for updates".
 Direct lesson links wait for account-library restoration before reporting absence.
 
+### Fresh-device restoration latency - 2026-09-09
+
+Initial account discovery and the Storage allowance view share an in-flight,
+owner-scoped library lookup; discovery reuses that response to open the library.
+Restore downloads at most four revisions concurrently, verifies all objects, then
+applies revisions in order. Each window settles before a failure is reported;
+verified cached objects survive retries. Binary traversal within each revision
+remains sequential, and duplicate in-flight object reads share one download.
+Readers refresh once after replay rather than queuing a full reload for every
+revision. Restoration progress appears outside Storage and in the account panel;
+the manual open button is hidden while automatic restoration is in progress.
+This reduces serial request waits; it does not promise a fixed restoration time
+on a new device or eliminate the initial sign-in requirement.
+
 
 **Decision:** accepted by the owner on 2026-09-07.  
 **Implementation:** account-owned storage implemented and tested locally; D1 and private R2 provisioned; remote API acceptance pending.  

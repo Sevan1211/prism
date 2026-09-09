@@ -781,6 +781,9 @@ svg { display: block; flex: 0 0 auto; }
 .storage-header-button.storage-compact { display: grid; place-items: center; padding: 0; flex: 0 0 32px; }
 .storage-header-button.storage-compact svg { flex-shrink: 0; width: 18px; height: 18px; }
 .storage-header-button[data-attention="true"] { color: var(--alert); }
+.library-sync-notice { display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: .85rem; }
+.library-sync-notice > svg { flex-shrink: 0; width: 22px; height: 22px; }
+.library-sync-notice p { margin: 3px 0 0; color: var(--muted); }
 /* Shared modal shell. Account-only dimensions belong to account.css. */
 .storage-dialog { width: min(680px, calc(100vw - 40px)); max-width: none; max-height: calc(100dvh - 40px); margin: auto; padding: 0; overflow: hidden; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: var(--shadow); font: 400 1rem/1.55 var(--font-ui); }
 .storage-dialog[open] { display: flex; flex-direction: column; }
