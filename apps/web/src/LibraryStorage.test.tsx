@@ -49,6 +49,17 @@ it('activates configured account recovery in a fresh browser without opening Sto
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 })
 
+it('shows restoration outside Storage and removes it when the library is ready', () => {
+  vi.mocked(useSyncStatus).mockReturnValue({ connected: false, state: 'syncing', restoring: true, detail: 'Finding your account library…', lastSynced: null, pending: 0 })
+  const view = render(<><LibraryStorageHost /><LibraryStorage /></>)
+  expect(screen.getByRole('status')).toHaveTextContent('Your library will appear automatically.')
+  expect(screen.getByRole('button', { name: 'Library storage' })).toHaveAttribute('title', 'Library storage · Loading library…')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  vi.mocked(useSyncStatus).mockReturnValue({ connected: true, state: 'synced', restoring: false, detail: 'Up to date', lastSynced: 1, pending: 0 })
+  view.rerender(<><LibraryStorageHost /><LibraryStorage /></>)
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+})
+
 it('keeps the activated account mounted when the workspace header leaves for the reader', () => {
   const view = render(<><LibraryStorageHost /><LibraryStorage /></>)
   fireEvent.click(screen.getByRole('button', { name: 'Library storage' }))

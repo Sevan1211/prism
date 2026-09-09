@@ -1,5 +1,29 @@
 # Submission readiness
 
+## Fresh-device cloud restoration - 2026-09-09
+
+The owner reports that a new device restores the library automatically after
+sign-in, with an approximately 15-second wait. Inspection found duplicate initial
+library lookups, sequential revision downloads, and repeated queued reader reloads.
+The updated path shares discovery, downloads four revisions at a time, applies
+them in order, and notifies readers once after replay. Restoration is visible
+outside the Storage dialog; its manual open control no longer appears while
+automatic restoration is underway.
+
+Regression checks exercise an empty browser cache with eight revisions arriving
+out of order, a failed download with three others in flight, cached retry, a
+single shared lookup, the final authoritative revision and bounded reader refresh.
+They establish two download windows for eight single-object revisions, not a
+measured fourfold improvement on the owner's device. Independent live-device
+timing remains an acceptance check.
+
+Local validation: web lint/typecheck, all 250 tests in 61 files, production web
+build and documentation checks passed. Chrome rendered the actual storage
+components against a synthetic, gated local transport: progress advanced from
+0/8 to 4/8, then the banner disappeared and Storage showed Synced, without opening
+the dialog. This is browser UI acceptance with synthetic data, not a live
+cross-device latency measurement.
+
 ## Authoring, visual review and automatic storage - 2026-09-08
 
 Local validation passed: web lint/typecheck, 244 tests in 60 files, production web

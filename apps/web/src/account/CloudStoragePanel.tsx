@@ -19,12 +19,13 @@ export function CloudStoragePanel() {
     finally { setBusy(false) }
   }
   const percent = info ? Math.min(100, info.usedBytes / info.quotaBytes * 100) : 0
+  const connectionError = error || (!status.connected && status.state === 'error' ? status.detail : '')
   return <section className="cloud-storage" aria-label="Cloud library">
     <div className="cloud-storage-heading"><div><p className="page-kicker">A place for your reading</p><h3>Your cloud library</h3><p>PDFs, lessons, folders, and your place in the original.</p></div><Cloud aria-hidden="true" /></div>
     <div className="cloud-allowance"><div><strong>1 GB</strong><span>{info ? `${(info.usedBytes / 1_000_000).toFixed(1)} MB used · files and saved versions` : 'Storage allowance per account'}</span></div><progress value={percent} max={100} aria-label="Cloud storage used" /></div>
     {info?.mode === 'local' && <p className="account-notice">Local storage test: files go to Cloudflare’s emulator on this computer. Cross-device cloud storage starts after the Cloudflare service is deployed.</p>}
-    {error && <div className="account-notice" role="alert"><p>{error}</p><button className="button-secondary" disabled={busy} onClick={() => void act(refresh)}>Retry connection</button></div>}
-    {status.connected ? <>
+    {connectionError && <div className="account-notice" role="alert"><p>{connectionError}</p><button className="button-secondary" disabled={busy} onClick={() => void act(async () => { if (info?.library && !info.library.deleted) await connectCloudLibrary(false, false); else await refresh() })}>Retry connection</button></div>}
+    {status.restoring ? <div className="sync-status" data-state="syncing" role="status"><span className="sync-dot" /><div><strong>Opening your library automatically…</strong><p>{status.detail}</p><p>You can close Storage. Your PDFs and lessons will appear as soon as restoration finishes.</p></div></div> : status.connected ? <>
       <div className="sync-status" data-state={status.state} role="status"><span className="sync-dot" /><div><strong>{({ local: 'On this browser', syncing: 'Saving changes…', synced: 'Up to date', offline: 'Saved here · waiting for connection', conflict: 'Choose a version', error: 'Needs attention' })[status.state]}</strong><p>{status.detail}</p></div></div>
       {status.pending > 0 && <p className="storage-help">{status.pending} saved change{status.pending === 1 ? '' : 's'} waiting to reach the cloud. Keep this browser’s data until sync finishes.</p>}
       <p className="storage-help">Sync is automatic. New edits upload in the background; returning to this tab checks for changes from your other browsers.</p>

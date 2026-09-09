@@ -11,6 +11,7 @@ interface Identity { owner: string; getToken: () => Promise<string | null>; cont
 let identity: Identity | null = null
 let connectionEpoch = 0
 let restoreAccountLibrary: (() => void) | undefined
+let libraryLookup: { identity: Identity; promise: Promise<CloudLibraryInfo> } | undefined
 export interface CloudLibraryInfo { library: { id: string; head: number; deleted: number } | null; usedBytes: number; quotaBytes: number; mode: 'local' | 'remote' }
 interface BlobReference { kind: 'prism-cloud-blob-v1'; chunks: string[]; size: number; type: string }
 interface UploadPlan extends BlobReference { sent: number }
@@ -49,10 +50,10 @@ export function bindCloudIdentity(owner: string, getToken: () => Promise<string 
     } else {
       restoreAccountLibrary = () => {
         if (connection || identity !== selected || epoch !== connectionEpoch || status.restoring) return
-        announce({ restoring: true })
+        announce({ restoring: true, state: 'syncing', detail: 'Finding your account library…' })
         void cloudLibraryInfo().then(async info => {
           if (identity !== selected || epoch !== connectionEpoch) return
-          if (info.library && !info.library.deleted) await connectCloudLibrary(false, false)
+          if (info.library && !info.library.deleted) await openCloudLibrary(info, false, selected, epoch)
           else { restoreAccountLibrary = undefined; announce({ state: 'local', detail: 'Your browser library is available.' }) }
         }).catch(error => {
           if (identity === selected && epoch === connectionEpoch) announce({ state: 'error', detail: error instanceof Error ? error.message : 'Cloud storage will retry when the connection is available.' })
@@ -91,7 +92,14 @@ export async function cloudRequest(path: string, init: RequestInit = {}) {
   if (!response.ok) { const data = await response.json().catch(() => ({})); throw new SyncHttpError(response.status, data.error ?? 'Cloud storage could not finish this request.') }
   return response
 }
-export async function cloudLibraryInfo(): Promise<CloudLibraryInfo> { return (await cloudRequest('/library')).json() }
+export async function cloudLibraryInfo(): Promise<CloudLibraryInfo> {
+  const selected = selectedIdentity()
+  if (libraryLookup?.identity === selected) return libraryLookup.promise
+  const promise = cloudRequest('/library').then(response => response.json() as Promise<CloudLibraryInfo>)
+    .finally(() => { if (libraryLookup?.promise === promise) libraryLookup = undefined })
+  libraryLookup = { identity: selected, promise }
+  return promise
+}
 function current() { if (!connection) throw new Error('Connect a synced library first.'); return connection }
 async function cache() { return openVaultDatabase(indexedDB, () => new Date().toISOString(), `prism-cloud-${current().library}`) }
 async function directory() { return (await navigator.storage.getDirectory()).getDirectoryHandle(`prism-cloud-${current().library}`, { create: true }) }
@@ -146,7 +154,16 @@ function validateReference(value: unknown): asserts value is BlobReference {
   const ref = value as BlobReference
   if (!ref || ref.kind !== 'prism-cloud-blob-v1' || !Array.isArray(ref.chunks) || !ref.chunks.length || ref.chunks.length > 1024 || !ref.chunks.every(id => typeof id === 'string' && /^[a-f0-9]{64}$/.test(id)) || !Number.isSafeInteger(ref.size) || ref.size < 0 || ref.size > 512 * 1024 * 1024 || typeof ref.type !== 'string') throw new Error('Invalid cloud file reference.')
 }
-async function plaintext(id: string) {
+const objectDownloads = new Map<string, Promise<Uint8Array>>()
+function plaintext(id: string): Promise<Uint8Array> {
+  const key = `${connectionEpoch}:${current().library}:${id}`
+  const existing = objectDownloads.get(key)
+  if (existing) return existing
+  const pending = readPlaintext(id).finally(() => { objectDownloads.delete(key) })
+  objectDownloads.set(key, pending)
+  return pending
+}
+async function readPlaintext(id: string) {
   const packed = await (await directory()).getDirectoryHandle('objects', { create: true })
   try { return await verifyObject(id, await (await (await packed.getFileHandle(id)).getFile()).arrayBuffer()) }
   catch (error) { if (!(error instanceof DOMException && error.name === 'NotFoundError')) throw error }
@@ -229,43 +246,63 @@ export async function withSyncedLibrary<T>(work: (db: IDBDatabase, directory: Di
 async function pull(db: IDBDatabase) {
   const selected = current()
   let head = await getRecord<number>(db, 'sync_meta', 'head') ?? 0
-  while (true) {
-    const response: { head: number; commits: RemoteCommit[] } = await (await api(`/commits?after=${head}`)).json()
-    for (const remote of response.commits) {
-      if (remote.revision !== head + 1 || !Array.isArray(remote.objects) || remote.objects.length > 64) throw new Error('The synced revision history is incomplete.')
-      const chunks = await mapRecords(remote.objects, plaintext)
-      const encoded = await new Blob(chunks as Uint8Array<ArrayBuffer>[]).text()
-      const document = JSON.parse(encoded) as CommitBody
-      if (document.format !== 1 || document.parent !== head || !Array.isArray(document.entries) || document.entries.length > 100) throw new Error('The synced revision format is not supported.')
-      const entries = await decode(document.entries) as PendingCommit[]
-      const pending = (await allRecords<PendingCommit>(db, 'sync_outbox')).filter(entry => !entries.some(incoming => incoming.id === entry.id))
-      const protectedKeys = new Set(pending.flatMap(entry => entry.changes.map(change => recordKey(change.store, change.key))))
-      const names = Array.from(db.objectStoreNames)
-      for (const entry of entries) {
-        if (typeof entry.id !== 'string' || !Array.isArray(entry.changes)) throw new Error('Invalid synced changes.')
-        for (const change of entry.changes) if (!names.includes(change.store) || !isPortable(change.store) || change.key === undefined) throw new Error('This library requires a newer PRISM version.')
-      }
-      for (const reference of Object.values(document.files)) validateReference(reference)
-      if (connection !== selected) throw new Error('Account changed. No downloaded data was applied.')
-      const tx = db.transaction(names, 'readwrite')
-      for (const entry of entries) {
-        tx.objectStore('sync_outbox').delete(entry.id)
-        for (const change of entry.changes) {
-          const key = recordKey(change.store, change.key)
-          tx.objectStore('sync_committed').put({ revision: entry.id, change }, key)
-          if (protectedKeys.has(key)) continue
-          if (change.value === undefined) tx.objectStore(change.store).delete(change.key)
-          else tx.objectStore(change.store).put(change.value)
-          tx.objectStore('sync_versions').put(entry.id, key)
+  let applied = false
+  try {
+    while (true) {
+      const response: { head: number; commits: RemoteCommit[] } = await (await api(`/commits?after=${head}`)).json()
+      for (let offset = 0; offset < response.commits.length; offset += 4) {
+        announce({ state: 'syncing', detail: `Loading saved changes (${head} of ${response.head})…` })
+        // A bounded window hides request latency without an unbounded download burst.
+        // Settle every in-flight read before reporting failure or releasing the lock.
+        const window = response.commits.slice(offset, offset + 4)
+        for (const [index, remote] of window.entries()) {
+          if (remote.revision !== head + index + 1 || !Array.isArray(remote.objects) || !remote.objects.length || remote.objects.length > 64) throw new Error('The synced revision history is incomplete.')
         }
+        const downloads = await Promise.allSettled(window.map(async remote => {
+          const chunks = await mapRecords(remote.objects, plaintext)
+          const encoded = await new Blob(chunks as Uint8Array<ArrayBuffer>[]).text()
+          const document = JSON.parse(encoded) as CommitBody
+          if (document.format !== 1 || document.parent !== remote.revision - 1 || !Array.isArray(document.entries) || document.entries.length > 100) throw new Error('The synced revision format is not supported.')
+          return { remote, document, entries: await decode(document.entries) as PendingCommit[] }
+        }))
+        for (const result of downloads) if (result.status === 'rejected') throw result.reason
+        for (const result of downloads) {
+          if (result.status !== 'fulfilled') continue
+          const { remote, document, entries } = result.value
+          const pending = (await allRecords<PendingCommit>(db, 'sync_outbox')).filter(entry => !entries.some(incoming => incoming.id === entry.id))
+          const protectedKeys = new Set(pending.flatMap(entry => entry.changes.map(change => recordKey(change.store, change.key))))
+          const names = Array.from(db.objectStoreNames)
+          for (const entry of entries) {
+            if (typeof entry.id !== 'string' || !Array.isArray(entry.changes)) throw new Error('Invalid synced changes.')
+            for (const change of entry.changes) if (!names.includes(change.store) || !isPortable(change.store) || change.key === undefined) throw new Error('This library requires a newer PRISM version.')
+          }
+          for (const reference of Object.values(document.files)) validateReference(reference)
+          if (connection !== selected) throw new Error('Account changed. No downloaded data was applied.')
+          const tx = db.transaction(names, 'readwrite')
+          for (const entry of entries) {
+            tx.objectStore('sync_outbox').delete(entry.id)
+            for (const change of entry.changes) {
+              const key = recordKey(change.store, change.key)
+              tx.objectStore('sync_committed').put({ revision: entry.id, change }, key)
+              if (protectedKeys.has(key)) continue
+              if (change.value === undefined) tx.objectStore(change.store).delete(change.key)
+              else tx.objectStore(change.store).put(change.value)
+              tx.objectStore('sync_versions').put(entry.id, key)
+            }
+          }
+          for (const [name, reference] of Object.entries(document.files)) tx.objectStore('sync_files').put(reference, name)
+          tx.objectStore('sync_meta').put(remote.revision, 'head')
+          await transactionDone(tx)
+          head = remote.revision
+          applied = true
+        }
+        announce({ detail: `Loading saved changes (${head} of ${response.head})…` })
       }
-      for (const [name, reference] of Object.entries(document.files)) tx.objectStore('sync_files').put(reference, name)
-      tx.objectStore('sync_meta').put(remote.revision, 'head')
-      await transactionDone(tx)
-      head = remote.revision
-      changed()
+      if (!response.commits.length || head >= response.head) return head
     }
-    if (!response.commits.length || head >= response.head) return head
+  } finally {
+    // Readers share this lock: reload once after replay, including partial recovery.
+    if (applied) changed()
   }
 }
 function ordered(entries: PendingCommit[]) { return entries.sort((a, b) => a.created - b.created) }
@@ -333,6 +370,9 @@ export async function connectCloudLibrary(create: boolean, copyExisting: boolean
   const info: CloudLibraryInfo = create
     ? await (await cloudRequest('/library', { method: 'POST', body: JSON.stringify({ consent: true }) })).json()
     : await cloudLibraryInfo()
+  await openCloudLibrary(info, copyExisting, selected, epoch)
+}
+async function openCloudLibrary(info: CloudLibraryInfo, copyExisting: boolean, selected: Identity, epoch: number) {
   if (!info.library || info.library.deleted) throw new Error(info.library?.deleted ? 'This cloud library was deleted. Your original local library remains available.' : 'Create your cloud library first.')
   const library = info.library.id
   if (copyExisting && info.library.head !== 0) throw new Error('Open the existing cloud library first. Import additional PDFs from inside it.')
@@ -364,7 +404,7 @@ export async function connectCloudLibrary(create: boolean, copyExisting: boolean
     connection = { library, owner: selected.owner }
     localStorage.setItem(`prism-cloud-enabled:${selected.owner}`, 'true')
     localStorage.setItem(`prism-cloud-library:${selected.owner}`, library)
-    announce({ connected: true, state: 'syncing', detail: 'Opening your account library…', pending: 0, conflict: undefined })
+    announce({ connected: true, state: 'syncing', restoring: true, detail: 'Opening your account library…', pending: 0, conflict: undefined })
   })
   changed(); await syncNow()
 }
