@@ -9,6 +9,10 @@ import {
   readerPath,
   sourcePath,
   usePrismRoute,
+  usePrismNavigationState,
+  navigationToken,
+  readPrismNavigationState,
+  rememberReturnTarget,
 } from './navigation'
 import { SourceReader } from './reader/SourceReader'
 import {
@@ -39,11 +43,18 @@ function ReadingWorkspace() {
   const [sourcesReady, setSourcesReady] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [readerInitialHighlight, setReaderInitialHighlight] = useState<SearchHit | null>(null)
-  const [readerNavigationRequestId, setReaderNavigationRequestId] = useState(0)
-  const [readerReturnTargetId, setReaderReturnTargetId] = useState<string | null>(null)
-  const [readerReturnPlanId, setReaderReturnPlanId] = useState<string | null>(null)
-  const [readerReturnLessonId, setReaderReturnLessonId] = useState<string | null>(null)
+  const navigation = usePrismNavigationState()
+  const [completedReturn, setCompletedReturn] = useState<string | null>(null)
+  const returnToken = `${navigation.state?.key}:${navigation.revision}`
+  const returnTargetId = completedReturn === returnToken ? null : navigation.state?.returnTargetId ?? null
+  const completeReturn = useCallback(() => setCompletedReturn(returnToken), [returnToken])
+  const readerContext = navigation.state?.reader
+  const readerInitialHighlight: SearchHit | null = readerContext?.highlight ? {
+    bbox_normalized: readerContext.highlight.bounds,
+    element_id: readerContext.highlight.elementId,
+    page_number: readerContext.highlight.page,
+    document_region: 'body', kind: 'paragraph', snippet: '', status: 'source_only',
+  } : null
   const [activeIndexIds, setActiveIndexIds] = useState<Set<string>>(() => new Set())
   const [sourceImportRequest, setSourceImportRequest] = useState<{
     requestId: number
@@ -84,13 +95,18 @@ function ReadingWorkspace() {
   useEffect(() => {
     if (!routedPlan) return
     let cancelled = false
-    const resolve = () => { void getLessonDocumentByPlan(routedPlan).then(document => {
-      if (document && !cancelled) navigatePrism(`${lessonPath(document.lesson_id)}${window.location.hash}`, { replace: true })
-    }).catch(() => undefined) }
+    const resolve = () => {
+      const origin = navigationToken()
+      void getLessonDocumentByPlan(routedPlan).then(document => {
+        if (document && !cancelled && origin === navigationToken()) navigatePrism(`${lessonPath(document.lesson_id)}${window.location.hash}`, {
+          replace: true, state: { returnTargetId: readPrismNavigationState()?.returnTargetId },
+        })
+      }).catch(() => undefined)
+    }
     resolve()
     window.addEventListener(PRISM_VAULT_CHANGED_EVENT, resolve)
     return () => { cancelled = true; window.removeEventListener(PRISM_VAULT_CHANGED_EVENT, resolve) }
-  }, [routedPlan])
+  }, [routedPlan, navigation.revision])
 
   useEffect(() => {
     if (route.kind === 'landing') return
@@ -136,26 +152,45 @@ function ReadingWorkspace() {
     }
   }, [refreshSources])
 
-  const openReader = useCallback(async (
-    sourceId: string,
-    initialPage?: number,
-    initialHighlight: SearchHit | null = null,
+  const beginReaderRequest = useCallback(() => ({
+    sequence: ++readerNavigationSequence.current,
+    origin: navigationToken(),
+    href: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+  }), [])
+  const requestIsCurrent = useCallback((request: ReturnType<typeof beginReaderRequest>) =>
+    request.sequence === readerNavigationSequence.current && request.origin === navigationToken(), [])
+
+  const finishOpenReader = useCallback(async (
+    request: ReturnType<typeof beginReaderRequest>, sourceId: string, initialPage?: number,
+    initialHighlight: SearchHit | null = null, targetId?: string,
   ) => {
     let source = sources.find((candidate) => candidate.id === sourceId)
     if (!source) {
-      const refreshed = await refreshSources()
+      const refreshed = await refreshSources().catch(cause => {
+        if (requestIsCurrent(request)) throw cause
+        return []
+      })
       source = refreshed.find((candidate) => candidate.id === sourceId)
     }
+    if (!requestIsCurrent(request)) return
     if (!source) throw new Error('This source is no longer in the workspace.')
+    const previous = readPrismNavigationState()?.reader
+    const returnHref = route.kind === 'lesson' || route.kind === 'source' ? request.href
+      : previous?.sourceId === sourceId ? previous.returnHref : sourcePath(sourceId)
+    const returnTarget = targetId ?? (route.kind === 'reader' && previous?.sourceId === sourceId ? previous.targetId : null)
+    if (route.kind !== 'reader') rememberReturnTarget(targetId)
+    navigatePrism(readerPath(sourceId, initialPage), { state: { reader: {
+      sourceId, requestKey: crypto.randomUUID(), returnHref, targetId: returnTarget,
+      highlight: initialHighlight?.bbox_normalized ? {
+        bounds: initialHighlight.bbox_normalized as [number, number, number, number], elementId: initialHighlight.element_id,
+        page: initialHighlight.page_number,
+      } : null,
+    } } })
+  }, [refreshSources, requestIsCurrent, route, sources])
 
-    if (route.kind === 'source' && route.view === 'lessons') setReaderReturnPlanId(route.planId)
-    if (route.kind === 'lesson') setReaderReturnLessonId(route.lessonId)
-
-    setReaderInitialHighlight(initialHighlight)
-    readerNavigationSequence.current += 1
-    setReaderNavigationRequestId(readerNavigationSequence.current)
-    navigatePrism(readerPath(sourceId, initialPage))
-  }, [refreshSources, route, sources])
+  const openReader = useCallback(async (sourceId: string, initialPage?: number, initialHighlight: SearchHit | null = null) => {
+    await finishOpenReader(beginReaderRequest(), sourceId, initialPage, initialHighlight)
+  }, [beginReaderRequest, finishOpenReader])
 
   const prepareSourceImport = useCallback((rightsStatus: RightsStatus) => {
     navigatePrism(libraryPath())
@@ -168,14 +203,18 @@ function ReadingWorkspace() {
     elementId: string,
     returnTargetId?: string,
   ) => {
-    const bundle = await readBrowserSourceBundle(sourceId, [elementId], 0)
+    const request = beginReaderRequest()
+    const bundle = await readBrowserSourceBundle(sourceId, [elementId], 0).catch(cause => {
+      if (requestIsCurrent(request)) throw cause
+      return null
+    })
+    if (!bundle || !requestIsCurrent(request)) return
     const evidence = bundle.elements.find(
       (candidate) => candidate.anchor.element_id === elementId,
     )
     if (!evidence) throw new Error('This lesson citation no longer matches the local evidence map.')
-    setReaderReturnTargetId(returnTargetId ?? null)
     const bounds = evidence.anchor.bbox_normalized
-    await openReader(sourceId, evidence.anchor.pdf_page_index, bounds ? {
+    await finishOpenReader(request, sourceId, evidence.anchor.pdf_page_index, bounds ? {
       bbox_normalized: bounds,
       document_region: 'body',
       element_id: elementId,
@@ -183,8 +222,8 @@ function ReadingWorkspace() {
       page_number: evidence.anchor.pdf_page_index,
       snippet: evidence.text.slice(0, 240),
       status: evidence.status,
-    } : null)
-  }, [openReader])
+    } : null, returnTargetId)
+  }, [beginReaderRequest, finishOpenReader, requestIsCurrent])
 
   usePrismLibraryTools({ activeRoute: route, openReader, prepareSourceImport, importSource: handleUpload })
 
@@ -236,13 +275,11 @@ function ReadingWorkspace() {
         key={readerSource.id}
         initialHighlight={readerInitialHighlight}
         initialPage={route.page ?? undefined}
-        navigationRequestId={readerNavigationRequestId}
+        navigationRequestId={readerContext?.requestKey}
         onExit={() => {
-          const returnView = readerInitialHighlight ? 'lessons' : 'overview'
-          setReaderInitialHighlight(null)
-          navigatePrism(readerReturnLessonId ? lessonPath(readerReturnLessonId) : sourcePath(readerSource.id, returnView, readerReturnPlanId))
-          setReaderReturnPlanId(null)
-          setReaderReturnLessonId(null)
+          navigatePrism(readerContext?.returnHref ?? sourcePath(readerSource.id), {
+            replace: true, state: { returnTargetId: readerContext?.targetId ?? undefined },
+          })
         }}
         onNavigatePage={(page, replace) => {
           navigatePrism(readerPath(readerSource.id, page), { replace })
@@ -256,20 +293,20 @@ function ReadingWorkspace() {
     return <LoadingState title="Opening your library" detail="Finding this source and checking your saved library connection." error={error} onRetry={() => window.location.reload()} onBack={() => navigatePrism(libraryPath())} />
   }
 
-  if (route.kind === 'lesson') return <><LessonReaderPage key={route.lessonId} lessonId={route.lessonId} onError={setError} onOpenEvidence={openSourceEvidence} returnTargetId={readerReturnTargetId} onReturnComplete={() => setReaderReturnTargetId(null)} />{error ? <p className="workspace-error" role="alert">{error}</p> : null}</>
+  if (route.kind === 'lesson') return <><LessonReaderPage key={route.lessonId} lessonId={route.lessonId} onError={setError} onOpenEvidence={openSourceEvidence} returnTargetId={returnTargetId} onReturnComplete={completeReturn} />{error ? <p className="workspace-error" role="alert">{error}</p> : null}</>
 
   return (
     <SourceWorkspace
       key={`workspace-${sourceImportRequest?.requestId ?? 0}`}
       activeIndexIds={activeIndexIds}
       busy={busy}
-      evidenceReturnTargetId={readerReturnTargetId}
+      evidenceReturnTargetId={returnTargetId}
       error={error}
       importRequest={sourceImportRequest}
       onAgentAccessChange={(source, granted) => void handleAgentAccessChange(source, granted)}
       onDelete={handleDelete}
       onError={setError}
-      onEvidenceReturnComplete={() => setReaderReturnTargetId(null)}
+      onEvidenceReturnComplete={completeReturn}
       onIndex={(sourceId) => void startLocalIndex(sourceId)}
       onOpenEvidence={openSourceEvidence}
       onUpload={handleUpload}

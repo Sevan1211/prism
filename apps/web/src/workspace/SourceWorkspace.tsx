@@ -88,17 +88,28 @@ export function SourceWorkspace({
     let frame = 0
     let settleTimer = 0
     let observer: MutationObserver | null = null
-    const scheduleFocus = () => {
+    const deadline = window.setTimeout(() => {
+      observer?.disconnect()
+      window.clearTimeout(settleTimer)
+      window.cancelAnimationFrame(frame)
+      onEvidenceReturnComplete()
+    }, 3000)
+    const findTarget = () => {
       const target = document.getElementById(evidenceReturnTargetId)
+      return document.getElementById('workspace-main')?.contains(target) ? target : null
+    }
+    const scheduleFocus = () => {
+      const target = findTarget()
       if (!(target instanceof HTMLElement)) return false
       window.clearTimeout(settleTimer)
       settleTimer = window.setTimeout(() => {
         frame = window.requestAnimationFrame(() => {
-          const settledTarget = document.getElementById(evidenceReturnTargetId)
+          const settledTarget = findTarget()
           if (!(settledTarget instanceof HTMLElement)) return
           settledTarget.scrollIntoView({ block: 'center' })
           settledTarget.focus({ preventScroll: true })
           observer?.disconnect()
+          window.clearTimeout(deadline)
           onEvidenceReturnComplete()
         })
       }, 150)
@@ -110,6 +121,7 @@ export function SourceWorkspace({
     scheduleFocus()
     return () => {
       observer?.disconnect()
+      window.clearTimeout(deadline)
       window.clearTimeout(settleTimer)
       window.cancelAnimationFrame(frame)
     }

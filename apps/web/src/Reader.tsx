@@ -50,7 +50,7 @@ export interface ReaderProps {
   access: ReaderAccess
   initialHighlight?: SearchHit | null
   initialPage?: number
-  navigationRequestId?: number
+  navigationRequestId?: number | string
   onExit: () => void
   onReload?: () => void
   onNavigatePage?: (page: number, replace: boolean) => void
@@ -111,7 +111,7 @@ export function Reader({
   const scrollRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const restoredRef = useRef(false)
-  const navigationRequestRef = useRef<number | undefined>(undefined)
+  const navigationRequestRef = useRef<number | string | undefined>(undefined)
   const saveTimer = useRef<number | null>(null)
   const scrollFrame = useRef<number | null>(null)
   const currentPageRef = useRef(1)
@@ -284,7 +284,11 @@ export function Reader({
     const paddingTop = Number.parseFloat(getComputedStyle(container).paddingTop) || 0
     const readingLine = container.scrollTop + paddingTop + 1
     const bounds = container.getBoundingClientRect()
-    const selected = typeof document.elementsFromPoint === 'function'
+    // A short final page cannot reach the top reading line on a tall viewport.
+    // At the document's bottom it is nevertheless the current page.
+    const atEnd = container.scrollTop > 0 && container.scrollTop + container.clientHeight >= container.scrollHeight - 1
+    const selected = atEnd ? container.querySelector<HTMLElement>(`[data-page="${pageCount}"]`)
+      : typeof document.elementsFromPoint === 'function'
       ? document.elementsFromPoint(bounds.left + bounds.width / 2, bounds.top + paddingTop + 1)
         .map((element) => element.closest<HTMLElement>('.reader-page'))
         .find((element): element is HTMLElement => element !== null)

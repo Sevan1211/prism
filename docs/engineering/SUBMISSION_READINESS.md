@@ -784,3 +784,25 @@ must be checked before claiming publication. The owner identified Astra low. The
 and browser controls: 39 outer tool calls total 264.687 seconds of its 1,779.974
 second composition turn. The remaining 1,515.287 seconds is outside recorded
 tool execution; the trace does not separate generation, reasoning and host delay.
+
+
+### Navigation continuity — September 14
+
+Citation return routes, control IDs and highlight geometry now survive Reader page
+changes, Back/Forward and refresh in validated browser history. Late citation lookups
+cannot navigate after another request or route change. Lesson scroll position uses the
+actual reading panel and guarded numeric session storage; leaving a removed panel no
+longer overwrites its last position with zero. Restoration is bounded, scoped to the
+current lesson and does not repeat when a return target is consumed. At the bottom of
+a PDF, short final pages remain selected even when they cannot reach the top reading
+line on a phone viewport.
+
+Local Chrome acceptance used an isolated browser context, a synthetic three-page PDF
+and an eight-section lesson at 1280×850 and 390×850. Both widths passed lesson refresh,
+leave/reopen, section deep links, citation highlight, Back/Forward, page navigation,
+Reader refresh and return-to-citation focus/visibility. Screenshots were inspected.
+These fixtures and screenshots are excluded from the release. This verifies the local
+navigation journey, not cross-device reading progress, broad PDF parsing coverage,
+Safari/Firefox behavior, or the remaining mobile workflow redesign. The focused
+navigation/App/Reader/lesson tests, web lint, TypeScript/build and documentation/release
+checks accompany the change; publication remains subject to the sevan-dev PR and CI.
