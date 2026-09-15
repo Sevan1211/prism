@@ -387,4 +387,26 @@ describe('Reader', () => {
     await user.click(screen.getByRole('button', { name: 'Hide contents' }))
     expect(screen.queryByRole('navigation', { name: 'Document structure' })).not.toBeInTheDocument()
   })
+  it('keeps the final PDF page selected when it cannot align with the top reading line', async () => {
+    const onNavigatePage = vi.fn()
+    render(<Reader access={access} source={source} structure={structure} initialPage={39} onExit={() => undefined} onNavigatePage={onNavigatePage} />)
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'PDF page' })).toHaveValue('39'))
+    const pages = screen.getByLabelText('Document pages')
+    Object.defineProperties(pages, {
+      clientHeight: { configurable: true, value: 800 },
+      scrollHeight: { configurable: true, value: 1600 },
+      scrollTop: { configurable: true, value: 800, writable: true },
+    })
+    // Hit testing at the top still sees the previous page, while the final page
+    // is fully visible lower in the viewport.
+    const original = document.elementsFromPoint
+    document.elementsFromPoint = () => [pages.querySelector('[data-page="39"]')!]
+    try {
+      fireEvent.scroll(pages)
+      fireEvent.scroll(pages)
+      await waitFor(() => expect(screen.getByRole('textbox', { name: 'PDF page' })).toHaveValue('40'))
+      expect(onNavigatePage).toHaveBeenCalledWith(40, true)
+    } finally { document.elementsFromPoint = original }
+  })
+
 })

@@ -33,6 +33,19 @@ Library
 
 The rails collapse through explicit controls. At phone widths the contents rail becomes a temporary overlay without replacing the document route. The Reader keeps one canonical route, `/sources/:sourceId/reader?page=:pdfPage`; lesson source inspection opens this exact surface rather than a second embedded-PDF implementation. Reader scrolling replaces the current page query, while explicit page, outline, search, and agent navigation creates a history entry.
 
+Citation navigation keeps a versioned, validated `history.state.prism` entry containing
+source identity, the lesson return route, the return control ID, and optional highlight
+geometry. It stores no passage text. Reader page pushes and replacements retain this
+context so Back/Forward and tab refresh preserve the lesson return path. Direct Reader
+links without this context return to the source overview. Late citation lookups cannot
+navigate after a newer request or a route change.
+
+Lesson reading position is remembered per lesson in session storage for the current
+tab. Return-to-citation focus takes priority over a URL section anchor, followed by the
+remembered position. Restoration waits for the lesson content, stops after a bounded
+wait, and respects interaction while loading. This is navigation continuity, not a
+cross-device reading-progress or learning-outcome claim.
+
 ## Rendering
 
 PDF.js is the canonical browser renderer:
