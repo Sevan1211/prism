@@ -1,5 +1,30 @@
 # Cloudflare hosting and cloud accounts
 
+## Responsive local operations during sync - 2026-09-14
+
+Background commit discovery, object transfer and acknowledgement use a separate
+per-library transport queue. They no longer hold the local-operation lock.
+Local records and their outbox entries still commit in the same IndexedDB
+transaction. Remote replay reacquires the local lock, checks the applied head,
+and rereads pending changes before applying each revision, preserving edits made
+while a download or upload was in flight.
+
+Web Locks serialize transport across tabs; an in-memory per-library queue also
+serializes work within a tab when Web Locks are unavailable. The fallback is not
+a cross-tab leader or an alternative cross-tab locking implementation. Conflict
+resolution and cloud deletion share the transport queue. Transfers retain their
+selected library throughout async work; stale account results cannot publish
+status or apply records to a newly selected library.
+
+This change addresses background sync blocking available local content. Opening
+an uncached original PDF still reconstructs that file before the Reader can use
+it, and its current vault callback can hold the local-operation lock during that
+download. That separate first-open path, history compaction, polling leadership,
+and faster cold-device content availability remain follow-up work.
+
+See [acceptance evidence](../engineering/SUBMISSION_READINESS.md#responsive-local-operations-during-sync---2026-09-14)
+for the synthetic two-tab browser check and its limits.
+
 ## Automatic account-library recovery - 2026-09-08
 
 Signed-in browsers automatically reopen an existing account library, including a

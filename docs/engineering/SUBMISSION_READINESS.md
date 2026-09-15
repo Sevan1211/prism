@@ -1,5 +1,36 @@
 # Submission readiness
 
+## Responsive local operations during sync - 2026-09-14
+
+Background sync now uses a transport queue separate from local library operations.
+Incoming revisions reread pending local edits under the local lock before apply;
+acknowledging an earlier uploaded version preserves a later local edit. Request,
+cache and status paths retain the selected connection across account changes.
+Conflict decisions and deletion serialize with transport, with an in-tab fallback
+queue when Web Locks are unavailable. The wire protocol and stored schema are
+unchanged.
+
+Regression cases cover stalled commit reads, object uploads and commit responses;
+same-record edits during a remote download; lost acknowledgements; account
+switches; browser-library selection; same-library rebinding without Web Locks;
+and deletion queued behind an upload. The existing retry, fresh-cache restore,
+reading-progress merge and durable-outbox cases remain in the targeted suite.
+
+Rendered acceptance used two isolated Chromium tabs on localhost, real IndexedDB,
+OPFS and Web Locks, and intercepted synthetic cloud responses. While the first
+tab's commit request was deliberately stalled, the second tab saved a folder
+through the actual library UI in 152 ms, with one durable outbox entry and zero
+remote commits. Releasing the gate produced one remote commit; the folder
+survived reload and storage returned to Synced. No page errors were observed.
+This is a local workload observation, not a latency promise, production-account
+test or complete mobile/lesson acceptance. No learner library or source was used.
+
+The uncached-PDF first-open path can still hold its vault-operation lock while
+reconstructing the file. Cold-device history/media loading, navigation, mobile
+reading and end-to-end agent authoring remain separate slices. Production
+publishing must be identified by the associated PR and successful main workflow;
+these checks alone do not establish deployment or live-device performance.
+
 ## Adaptive favicon - 2026-09-09
 
 The favicon now uses a transparent SVG traced from the owner's serif-p and
