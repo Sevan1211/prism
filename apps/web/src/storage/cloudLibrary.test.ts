@@ -30,6 +30,246 @@ async function browser(fetcher: typeof fetch) {
   vi.stubGlobal('fetch', fetcher)
   return import('./syncedLibrary')
 }
+
+function deferred() {
+  let resolve!: () => void
+  const promise = new Promise<void>(done => { resolve = done })
+  return { promise, resolve }
+}
+
+function cloudServer() {
+  const id = '7'.repeat(64)
+  const objects = new Map<string, Blob>()
+  const commits: Array<{ revision: number; mutation: string; objects: string[] }> = []
+  const gates: { before?: (path: string, init?: RequestInit) => Promise<void>; loseAcknowledgement?: boolean } = {}
+  const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+    const path = String(input)
+    await gates.before?.(path, init)
+    if (path === '/api/cloud/library') return Response.json({ library: { id, head: commits.length, deleted: 0 } })
+    if (init?.method === 'DELETE') return Response.json({ deleted: true })
+    if (path.includes('/objects/')) {
+      const key = path.split('/').at(-1)!
+      if (init?.method === 'PUT') { objects.set(key, init.body as Blob); return Response.json({ stored: true }) }
+      return new Response(objects.get(key))
+    }
+    if (init?.method === 'POST') {
+      const body = JSON.parse(init.body as string)
+      const existing = commits.find(commit => commit.mutation === body.mutation)
+      if (existing) return Response.json({ revision: existing.revision })
+      if (body.base !== commits.length) return Response.json({ error: 'Head changed' }, { status: 409 })
+      commits.push({ revision: commits.length + 1, mutation: body.mutation, objects: body.objects })
+      if (gates.loseAcknowledgement) { gates.loseAcknowledgement = false; throw new TypeError('Acknowledgement lost') }
+      return Response.json({ revision: commits.length })
+    }
+    const after = Number(new URL(path, 'http://test').searchParams.get('after'))
+    return Response.json({ head: commits.length, commits: commits.filter(commit => commit.revision > after) })
+  })
+  return { id, objects, commits, gates, fetcher }
+}
+
+async function saveFolder(client: typeof import('./syncedLibrary'), name: string) {
+  const { transactionDone } = await import('./syncDatabase')
+  await client.withSyncedLibrary(async db => {
+    const tx = db.transaction('library_folders', 'readwrite')
+    tx.objectStore('library_folders').put({ id: 'folder', name })
+    await transactionDone(tx)
+  })
+}
+
+it.each(['pull', 'upload', 'commit'] as const)('keeps local reads and durable saves usable during a stalled %s', async phase => {
+  const server = cloudServer(), entered = deferred(), resume = deferred()
+  const client = await browser(server.fetcher as typeof fetch)
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  await client.connectCloudLibrary(false, false)
+  await saveFolder(client, 'Before transfer')
+  let gated = false
+  server.gates.before = async (path, init) => {
+    const matches = phase === 'pull' ? path.includes('/commits?') : init?.method === (phase === 'upload' ? 'PUT' : 'POST')
+    if (matches && !gated) { gated = true; entered.resolve(); await resume.promise }
+  }
+  const syncing = client.syncNow()
+  try {
+    await entered.promise
+    let saved = false
+    const saving = saveFolder(client, 'Edited while transferring').then(() => { saved = true })
+    await vi.waitFor(() => expect(saved).toBe(true), { timeout: 1000 })
+    await saving
+    const { allRecords } = await import('./syncDatabase')
+    await client.withSyncedLibrary(async db => {
+      expect(await allRecords(db, 'library_folders')).toEqual([{ id: 'folder', name: 'Edited while transferring' }])
+      expect(await allRecords(db, 'sync_outbox')).toHaveLength(2)
+    })
+  } finally { resume.resolve(); await syncing }
+  expect(client.syncStatus().state).toBe('synced')
+  // Reopen a separate cache to prove both the acknowledged snapshot and the later
+  // edit survived, rather than merely observing optimistic local state.
+  release(); release = undefined
+  const fresh = await browser(server.fetcher as typeof fetch)
+  release = fresh.bindCloudIdentity('user_alpha', async () => 'fresh-token')
+  await fresh.connectCloudLibrary(false, false)
+  const { allRecords } = await import('./syncDatabase')
+  await fresh.withSyncedLibrary(async db => {
+    expect(await allRecords(db, 'library_folders')).toEqual([{ id: 'folder', name: 'Edited while transferring' }])
+    expect(await allRecords(db, 'sync_outbox')).toEqual([])
+  })
+})
+
+it('protects a local edit made during remote download and retains both sides of the conflict', async () => {
+  const server = cloudServer(), entered = deferred(), resume = deferred()
+  const client = await browser(server.fetcher as typeof fetch)
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  await client.connectCloudLibrary(false, false)
+  const { packObject } = await import('./cloudObjects')
+  const packed = await packObject(new TextEncoder().encode(JSON.stringify({ format: 1, parent: 0, files: {}, entries: [{ id: 'remote-edit', created: 1, changes: [{ store: 'library_folders', key: 'folder', base: null, value: { id: 'folder', name: 'Remote edit' } }] }] })))
+  server.objects.set(packed.id, new Blob([packed.bytes as Uint8Array<ArrayBuffer>]))
+  server.commits.push({ revision: 1, mutation: 'remote-edit', objects: [packed.id] })
+  server.gates.before = async path => { if (path.endsWith(packed.id)) { entered.resolve(); await resume.promise } }
+  const syncing = client.syncNow()
+  try {
+    await entered.promise
+    let saved = false
+    const saving = saveFolder(client, 'Local edit').then(() => { saved = true })
+    await vi.waitFor(() => expect(saved).toBe(true), { timeout: 1000 })
+    await saving
+  } finally { resume.resolve(); await syncing }
+  expect(client.syncStatus().state).toBe('conflict')
+  const { allRecords, getRecord, recordKey } = await import('./syncDatabase')
+  await client.withSyncedLibrary(async db => {
+    expect(await allRecords(db, 'library_folders')).toEqual([{ id: 'folder', name: 'Local edit' }])
+    expect(await allRecords(db, 'sync_outbox')).toHaveLength(1)
+    expect(await getRecord(db, 'sync_committed', recordKey('library_folders', 'folder'))).toMatchObject({ change: { value: { name: 'Remote edit' } } })
+  })
+  await client.resolveSyncConflict('local')
+  expect(client.syncStatus().state).toBe('synced')
+  expect(server.commits).toHaveLength(2)
+})
+
+it('recovers a lost commit acknowledgement without duplicating or dropping later local edits', async () => {
+  const server = cloudServer()
+  const client = await browser(server.fetcher as typeof fetch)
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  await client.connectCloudLibrary(false, false)
+  await saveFolder(client, 'First edit')
+  server.gates.loseAcknowledgement = true
+  await client.syncNow()
+  expect(client.syncStatus().state).toBe('offline')
+  expect(server.commits).toHaveLength(1)
+  await saveFolder(client, 'Later edit')
+  await client.syncNow()
+  expect(client.syncStatus().state).toBe('synced')
+  expect(server.commits).toHaveLength(2)
+  const { allRecords } = await import('./syncDatabase')
+  await client.withSyncedLibrary(async db => {
+    expect(await allRecords(db, 'sync_outbox')).toEqual([])
+    expect(await allRecords(db, 'library_folders')).toEqual([{ id: 'folder', name: 'Later edit' }])
+  })
+})
+
+it('lets a different account sync before an old stalled transfer settles', async () => {
+  const entered = deferred(), resume = deferred()
+  const first = '5'.repeat(64), second = '6'.repeat(64)
+  let owner = first, stall = false
+  const fetcher = vi.fn(async (input: string | URL | Request) => {
+    const path = String(input)
+    if (path === '/api/cloud/library') return Response.json({ library: { id: owner, head: 0 } })
+    if (path.includes(first) && stall) { entered.resolve(); await resume.promise }
+    return Response.json({ head: 0, commits: [] })
+  })
+  const client = await browser(fetcher as typeof fetch)
+  release = client.bindCloudIdentity('user_alpha', async () => 'alpha-token')
+  await client.connectCloudLibrary(false, false)
+  stall = true
+  const oldSync = client.syncNow()
+  try {
+    await entered.promise
+    release()
+    owner = second
+    release = client.bindCloudIdentity('user_beta', async () => 'beta-token')
+    await client.connectCloudLibrary(false, false)
+    expect(client.syncStatus()).toMatchObject({ connected: true, state: 'synced', restoring: false })
+    expect(await client.withSyncedLibrary(async db => db.name)).toEqual({ value: `prism-cloud-${second}` })
+  } finally { resume.resolve(); await oldSync }
+  expect(client.syncStatus()).toMatchObject({ connected: true, state: 'synced', restoring: false })
+  expect(fetcher.mock.calls.filter(([path]) => String(path).includes(second))).toHaveLength(1)
+})
+
+it('switches to the browser library without waiting for a stalled cloud transfer', async () => {
+  const server = cloudServer(), entered = deferred(), resume = deferred()
+  const client = await browser(server.fetcher as typeof fetch)
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  await client.connectCloudLibrary(false, false)
+  server.gates.before = async path => { if (path.includes('/commits?')) { entered.resolve(); await resume.promise } }
+  const syncing = client.syncNow()
+  try {
+    await entered.promise
+    let disconnected = false
+    const disconnecting = client.disconnectSyncedLibrary().then(() => { disconnected = true })
+    await vi.waitFor(() => expect(disconnected).toBe(true), { timeout: 1000 })
+    await disconnecting
+    expect(await client.withSyncedLibrary(async db => db.name)).toBeNull()
+  } finally { resume.resolve(); await syncing }
+  expect(client.syncStatus()).toMatchObject({ connected: false, state: 'local', restoring: false })
+})
+
+it('serializes a same-library rebind without Web Locks until the previous transfer unwinds', async () => {
+  const server = cloudServer(), entered = deferred(), resume = deferred()
+  const client = await browser(server.fetcher as typeof fetch)
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  await client.connectCloudLibrary(false, false)
+  let requests = 0
+  server.gates.before = async path => {
+    if (path.includes('/commits?')) { requests++; if (requests === 1) { entered.resolve(); await resume.promise } }
+  }
+  const oldSync = client.syncNow()
+  let newSync: Promise<void> | undefined
+  try {
+    await entered.promise
+    release()
+    release = client.bindCloudIdentity('user_alpha', async () => 'refreshed-token')
+    newSync = client.syncNow()
+    await new Promise(resolve => setImmediate(resolve))
+    expect(requests).toBe(1)
+    expect(await client.withSyncedLibrary(async db => db.name)).toEqual({ value: `prism-cloud-${server.id}` })
+  } finally { resume.resolve(); await oldSync; await newSync }
+  expect(requests).toBe(2)
+  expect(client.syncStatus()).toMatchObject({ state: 'synced', restoring: false })
+})
+
+it('invalidates cloud selection immediately when disconnect queues behind a local operation', async () => {
+  const server = cloudServer(), entered = deferred(), resume = deferred()
+  const client = await browser(server.fetcher as typeof fetch)
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  await client.connectCloudLibrary(false, false)
+  const reading = client.withSyncedLibrary(async () => { entered.resolve(); await resume.promise })
+  await entered.promise
+  const disconnecting = client.disconnectSyncedLibrary()
+  try {
+    let result: { value: string } | null | undefined
+    const selection = client.withSyncedLibrary(async db => db.name).then(value => { result = value })
+    await vi.waitFor(() => expect(result).toBeNull(), { timeout: 1000 })
+    await selection
+  } finally { resume.resolve(); await reading; await disconnecting }
+  expect(client.syncStatus()).toMatchObject({ connected: false, state: 'local' })
+})
+
+it('serializes cloud deletion after an in-flight upload while keeping local writes available', async () => {
+  const server = cloudServer(), entered = deferred(), resume = deferred()
+  const client = await browser(server.fetcher as typeof fetch)
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  await client.connectCloudLibrary(false, false)
+  await saveFolder(client, 'Pending')
+  server.gates.before = async (_path, init) => { if (init?.method === 'PUT') { entered.resolve(); await resume.promise } }
+  const syncing = client.syncNow()
+  let deleting: Promise<void> | undefined
+  try {
+    await entered.promise
+    deleting = client.deleteSyncedLibrary()
+    await saveFolder(client, 'Retained locally')
+    expect(server.fetcher.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+  } finally { resume.resolve(); await syncing; await deleting }
+  expect(server.fetcher.mock.calls.at(-1)?.[1]?.method).toBe('DELETE')
+  expect(client.syncStatus()).toMatchObject({ connected: false, state: 'local' })
+})
 it('transfers saved records and lazy file bytes into a fresh device, without transferring agent grants', async () => {
   const id = 'a'.repeat(64), objects = new Map<string, Uint8Array>(), commits: Array<{ revision: number; mutation: string; objects: string[] }> = []
   const transport = vi.fn(async (path: string | URL | Request, init?: RequestInit) => {
