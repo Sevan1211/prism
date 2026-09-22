@@ -357,3 +357,13 @@ relevant figures and connections. The [reading-quality contract](../engineering/
 defines the additive coverage review map and revision invalidation rules. The reading
 surface discloses compression/exclusions and links reviewed concepts to their teaching
 passages. Agent review and structural checks never stand in for learner acceptance.
+
+## Topic lessons and shared visual authoring
+
+The [topic lesson contract](TOPIC_LESSONS.md) adds a second grounding model: explicit
+learning objectives plus inspected references or labelled agent knowledge. No PDF
+is required. Plans, documents, section patches, saved content reviews, learner-approved
+revisions and version history share the existing lesson system. Topic finalization
+requires every block and objective to be accounted for; it does not claim source
+fidelity where no source exists. Compact process diagrams, cumulative scene state
+and optional practice are available to both topic and source lessons.

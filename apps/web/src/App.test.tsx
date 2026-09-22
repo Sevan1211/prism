@@ -182,6 +182,7 @@ describe('PRISM source workspace', () => {
       expect([...fake.tools.keys()].sort()).toEqual([
         'apply_lesson_patch',
         'create_lesson_brief',
+        'create_topic_request',
         'finalize_lesson',
         'get_active_lesson_context',
         'get_authoring_guide',
@@ -191,6 +192,7 @@ describe('PRISM source workspace', () => {
         'get_scope_manifest',
         'get_source_map',
         'get_source_visual_catalog',
+        'get_topic_workspace',
         'import_generated_illustration',
         'import_public_pdf',
         'inspect_source_visual',
@@ -201,6 +203,7 @@ describe('PRISM source workspace', () => {
         'propose_lesson_outcome',
         'propose_lesson_plan',
         'propose_lesson_revision',
+        'propose_topic_series',
         'read_source_bundle',
         'read_source_packet',
         'record_answer_analysis',

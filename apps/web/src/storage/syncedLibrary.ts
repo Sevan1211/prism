@@ -361,7 +361,7 @@ async function flush(db: IDBDatabase, selected: Connection) {
           if (await mergeReadingProgress(db, pending, identity, committed)) { assertConnection(selected); changed(); return undefined }
           assertConnection(selected)
           const item = change.store === 'reading_state' ? 'reading history' : change.store.replaceAll('_', ' ')
-          announce({ state: 'conflict', conflict: identity, detail: `Both browsers changed ${item}. Your version and the synced version are preserved. Choose which to continue with.` })
+          announce({ state: 'conflict', conflict: identity, detail: `Both browsers changed ${item}. Your version and the synced version are preserved. ${topicConflictKeys(pending, identity).size > 1 ? 'This choice includes the related topic plans and pending lesson changes. ' : ''}Choose which to continue with.` })
           return null
         }
         revisions.set(identity, entry.id)
@@ -469,23 +469,32 @@ export async function resolveSyncConflict(choice: 'local' | 'remote') {
     if (!identity) return
     const db = await cache()
     try {
-      const committed = await getRecord<{ revision: string; change: SyncChange }>(db, 'sync_committed', identity)
       const pending = ordered(await allRecords<PendingCommit>(db, 'sync_outbox'))
-      const affected = pending.filter(entry => entry.changes.some(change => recordKey(change.store, change.key) === identity))
+      const keys = topicConflictKeys(pending, identity)
+      const affected = pending.filter(entry => entry.changes.some(change => keys.has(recordKey(change.store, change.key))))
+      const committedByKey = new Map(await Promise.all([...keys].map(async key => [key, await getRecord<{ revision: string; change: SyncChange }>(db, 'sync_committed', key)] as const)))
       const tx = db.transaction(Array.from(db.objectStoreNames), 'readwrite')
-      tx.objectStore('sync_conflicts').put({ identity, choice, committed, pending: affected, saved: Date.now() }, crypto.randomUUID())
+      tx.objectStore('sync_conflicts').put({ identity, choice, committed: committedByKey.get(identity), related: [...committedByKey], pending: affected, saved: Date.now() }, crypto.randomUUID())
       if (choice === 'local') {
-        const first = affected[0]
-        first.changes.find(change => recordKey(change.store, change.key) === identity)!.base = committed?.revision ?? null
-        tx.objectStore('sync_outbox').put(first, first.id)
+        const rebased = new Set<string>()
+        for (const entry of affected) {
+          for (const change of entry.changes) {
+            const key = recordKey(change.store, change.key)
+            if (keys.has(key) && !rebased.has(key)) { change.base = committedByKey.get(key)?.revision ?? null; rebased.add(key) }
+          }
+          tx.objectStore('sync_outbox').put(entry, entry.id)
+        }
       } else {
         for (const entry of affected) {
-          entry.changes = entry.changes.filter(change => recordKey(change.store, change.key) !== identity)
+          entry.changes = entry.changes.filter(change => !keys.has(recordKey(change.store, change.key)))
           if (entry.changes.length) tx.objectStore('sync_outbox').put(entry, entry.id); else tx.objectStore('sync_outbox').delete(entry.id)
         }
-        const [store, key] = JSON.parse(identity) as [string, IDBValidKey]
-        if (committed?.change.value !== undefined) tx.objectStore(store).put(committed.change.value); else tx.objectStore(store).delete(key)
-        if (committed) tx.objectStore('sync_versions').put(committed.revision, identity); else tx.objectStore('sync_versions').delete(identity)
+        for (const key of keys) {
+          const committed = committedByKey.get(key)
+          const [store, recordId] = JSON.parse(key) as [string, IDBValidKey]
+          if (committed?.change.value !== undefined) tx.objectStore(store).put(committed.change.value); else tx.objectStore(store).delete(recordId)
+          if (committed) tx.objectStore('sync_versions').put(committed.revision, key); else tx.objectStore('sync_versions').delete(key)
+        }
       }
       // No conflicting pending commit has been accepted remotely. Re-encrypt the
       // corrected proposal with fresh object keys and rebuild its pending batch.
@@ -508,4 +517,29 @@ export async function deleteSyncedLibrary() {
     assertConnection(selected)
     await disconnectSyncedLibrary()
   })
+}
+
+
+/** A topic proposal/approval and its dependent draft writes are one conflict choice. */
+function topicConflictKeys(pending: PendingCommit[], identity: string): Set<string> {
+  const keys = new Set([identity])
+  const scopeChanges = pending.filter(entry => entry.changes.some(change => recordKey(change.store, change.key) === identity))
+  if (!scopeChanges.some(entry => entry.changes.some(change => change.store === 'topic_series') && entry.changes.some(change => change.store === 'lesson_plans'))) return keys
+  const plans = new Set<string>()
+  let expanded = true
+  while (expanded) {
+    expanded = false
+    for (const entry of pending) {
+      const linked = entry.changes.some(change => keys.has(recordKey(change.store, change.key)) || (
+        change.value && typeof change.value === 'object' && 'plan_id' in change.value && plans.has(String(change.value.plan_id))
+      ))
+      if (!linked) continue
+      for (const change of entry.changes) {
+        const key = recordKey(change.store, change.key)
+        if (!keys.has(key)) { keys.add(key); expanded = true }
+        if (change.store === 'lesson_plans') plans.add(String(change.key))
+      }
+    }
+  }
+  return keys
 }

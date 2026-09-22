@@ -1,3 +1,4 @@
+import type { TopicLessonScope } from './topicTypes'
 export type LessonDepth = 'overview' | 'standard' | 'deep'
 export type LessonPlanStatus = 'proposed' | 'approved'
 export type LessonBriefKind = 'assignment' | 'repair'
@@ -115,6 +116,7 @@ export interface LessonAnswerCriterion {
 }
 
 export interface LessonPlan {
+  topic?: TopicLessonScope
   coverage_ranges?: LessonCoverageRange[]
   target_words?: number | null
   output_kind?: LessonOutputKind

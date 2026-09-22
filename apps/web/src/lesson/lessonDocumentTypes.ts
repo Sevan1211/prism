@@ -10,6 +10,7 @@ export type LessonBlockContent =
   | VisualScene
   | DataPlot
   | { kind: 'illustration'; asset_id: string; alt: string; caption: string }
+  | { kind: 'practice'; prompt: string; hints: string[]; solution: string; reflection: string }
   | { kind: 'prose'; text: string }
   | { kind: 'rich_text'; markdown: string }
   | { kind: 'source_figure'; page_number: number; bbox: [number, number, number, number]; alt: string; caption: string }
@@ -35,6 +36,8 @@ export type LessonBlockContent =
   | { kind: 'summary'; points: string[] }
 
 export interface LessonContentBlock {
+  reference_ids?: string[]
+  objective_ids?: string[]
   block_id: string
   content: LessonBlockContent
   provenance: LessonBlockProvenance

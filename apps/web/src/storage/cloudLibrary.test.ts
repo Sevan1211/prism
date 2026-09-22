@@ -114,13 +114,13 @@ it.each(['pull', 'upload', 'commit'] as const)('keeps local reads and durable sa
   })
 })
 
-it('protects a local edit made during remote download and retains both sides of the conflict', async () => {
+it.each(['library_folders', 'topic_series'])('protects concurrent edits to %s and retains both sides of the conflict', async store => {
   const server = cloudServer(), entered = deferred(), resume = deferred()
   const client = await browser(server.fetcher as typeof fetch)
   release = client.bindCloudIdentity('user_alpha', async () => 'token')
   await client.connectCloudLibrary(false, false)
   const { packObject } = await import('./cloudObjects')
-  const packed = await packObject(new TextEncoder().encode(JSON.stringify({ format: 1, parent: 0, files: {}, entries: [{ id: 'remote-edit', created: 1, changes: [{ store: 'library_folders', key: 'folder', base: null, value: { id: 'folder', name: 'Remote edit' } }] }] })))
+  const packed = await packObject(new TextEncoder().encode(JSON.stringify({ format: 1, parent: 0, files: {}, entries: [{ id: 'remote-edit', created: 1, changes: [{ store, key: 'folder', base: null, value: { id: 'folder', name: 'Remote edit' } }] }] })))
   server.objects.set(packed.id, new Blob([packed.bytes as Uint8Array<ArrayBuffer>]))
   server.commits.push({ revision: 1, mutation: 'remote-edit', objects: [packed.id] })
   server.gates.before = async path => { if (path.endsWith(packed.id)) { entered.resolve(); await resume.promise } }
@@ -128,16 +128,16 @@ it('protects a local edit made during remote download and retains both sides of 
   try {
     await entered.promise
     let saved = false
-    const saving = saveFolder(client, 'Local edit').then(() => { saved = true })
+    const saving = client.withSyncedLibrary(async db => { const { transactionDone } = await import('./syncDatabase'); const tx = db.transaction(store, 'readwrite'); tx.objectStore(store).put({ id: 'folder', name: 'Local edit' }); await transactionDone(tx) }).then(() => { saved = true })
     await vi.waitFor(() => expect(saved).toBe(true), { timeout: 1000 })
     await saving
   } finally { resume.resolve(); await syncing }
   expect(client.syncStatus().state).toBe('conflict')
   const { allRecords, getRecord, recordKey } = await import('./syncDatabase')
   await client.withSyncedLibrary(async db => {
-    expect(await allRecords(db, 'library_folders')).toEqual([{ id: 'folder', name: 'Local edit' }])
+    expect(await allRecords(db, store)).toEqual([{ id: 'folder', name: 'Local edit' }])
     expect(await allRecords(db, 'sync_outbox')).toHaveLength(1)
-    expect(await getRecord(db, 'sync_committed', recordKey('library_folders', 'folder'))).toMatchObject({ change: { value: { name: 'Remote edit' } } })
+    expect(await getRecord(db, 'sync_committed', recordKey(store, 'folder'))).toMatchObject({ change: { value: { name: 'Remote edit' } } })
   })
   await client.resolveSyncConflict('local')
   expect(client.syncStatus().state).toBe('synced')
@@ -582,4 +582,110 @@ it('retrieves remote changes on tab visibility and polls only visible tabs, with
     await client.syncNow()
     expect(transport).toHaveBeenCalledTimes(2)
   } finally { stop() }
+})
+
+
+it('restores a complete approved topic series and ready lesson into a fresh cache after an acknowledgement is lost', async () => {
+  const server = cloudServer()
+  const client = await browser(server.fetcher as typeof fetch)
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  await client.connectCloudLibrary(false, false)
+  const topics = await import('../lesson/topicSeries')
+  const documents = await import('../lesson/lessonDocuments')
+  const request = await topics.createTopicSeries({ title: 'QA: Comparing explanations', request: 'Isolated sync acceptance fixture.', folder_id: null, research_mode: 'knowledge_only', source_role: 'support', source_ids: [] })
+  const lesson = { title: 'Evidence and interpretation', prerequisites: [], exclusions: ['Full historical survey'], objectives: [{ objective_id: 'reason', description: 'Compare explanations with evidence.', importance: 'essential' as const }], sections: [{ section_id: 'reason', title: 'Reasoning from evidence', objective_ids: ['reason'], source_element_ids: [], representation_intents: [], estimated_minutes: 12 }], references: [], end_questions: [] }
+  const proposal = await topics.proposeTopicSeries({ series_id: request.id, expected_version: 1, clarifications: [{ question: 'What is being tested?', answer: 'Synthetic transport test, not learner authorization.' }], assumptions: [], exclusions: [], lessons: [lesson, { ...lesson, title: 'Qualifying a conclusion' }] })
+  await topics.approveTopicSeries(request.id, proposal.version)
+  const draft = await documents.applyLessonPatch({ plan_id: proposal.plan_ids[0], expected_version: null, request_id: 'sync-section', operations: [{ operation: 'insert_block', section_id: 'reason', after_block_id: null, block: { block_id: 'reason', objective_ids: ['reason'], source_element_ids: [], provenance: 'added_explanation', content: { kind: 'prose', text: 'An observation records evidence. An interpretation explains it. Compare plausible alternatives and identify evidence that distinguishes them; do not confuse plausibility with proof.' } } }], coverage_review: [{ concept: 'Reasoning', source_element_ids: [], block_ids: ['reason'], retained_details: 'Keeps the distinction, alternatives and qualification.' }] })
+  const ready = await documents.finalizeLesson(draft.lesson_id, 1, { reviewer: 'QA', summary: 'Synthetic persistence test; not semantic acceptance.' })
+  server.gates.loseAcknowledgement = true
+  await client.syncNow()
+  expect(client.syncStatus().state).toBe('offline')
+  await client.syncNow()
+  expect(client.syncStatus().state).toBe('synced')
+  const count = server.commits.length
+  await client.syncNow()
+  expect(server.commits).toHaveLength(count)
+  release(); release = undefined
+  const fresh = await browser(server.fetcher as typeof fetch)
+  release = fresh.bindCloudIdentity('user_alpha', async () => 'fresh-token')
+  await fresh.connectCloudLibrary(false, false)
+  const restoredTopics = await import('../lesson/topicSeries')
+  const restoredPlans = await import('../lesson/lessonPlans')
+  const restoredDocuments = await import('../lesson/lessonDocuments')
+  expect(await restoredTopics.getTopicSeries(request.id)).toMatchObject({ status: 'approved', plan_ids: proposal.plan_ids })
+  for (const id of proposal.plan_ids) expect(await restoredPlans.getLessonPlan(id)).toMatchObject({ status: 'approved', topic: { series_id: request.id } })
+  expect(await restoredDocuments.getLessonDocument(ready.lesson_id)).toEqual(ready)
+  expect(await restoredDocuments.getLessonDocumentRevision(ready.lesson_id, draft.document_version)).toEqual(draft)
+})
+
+
+it.each(['local', 'remote'] as const)('resolves a topic scope conflict using the entire %s side', async choice => {
+  const server = cloudServer()
+  const client = await browser(server.fetcher as typeof fetch)
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  await client.connectCloudLibrary(false, false)
+  const { transactionDone, allRecords } = await import('./syncDatabase')
+  await client.withSyncedLibrary(async db => {
+    const tx = db.transaction(['topic_series', 'lesson_plans'], 'readwrite')
+    tx.objectStore('topic_series').put({ id: 'series', status: 'approved', plan_ids: ['local-plan'] })
+    tx.objectStore('lesson_plans').put({ plan_id: 'local-plan', status: 'approved', topic: { series_id: 'series' } })
+    await transactionDone(tx)
+  })
+  await client.withSyncedLibrary(async db => {
+    const tx = db.transaction('lesson_documents', 'readwrite')
+    tx.objectStore('lesson_documents').put({ lesson_id: 'local-draft', plan_id: 'local-plan', document_version: 1, status: 'draft' })
+    await transactionDone(tx)
+  })
+  const { packObject } = await import('./cloudObjects')
+  const packed = await packObject(new TextEncoder().encode(JSON.stringify({ format: 1, parent: 0, files: {}, entries: [{ id: 'remote-scope', created: 1, changes: [
+    { store: 'topic_series', key: 'series', base: null, value: { id: 'series', status: 'proposed', plan_ids: ['remote-plan'] } },
+    { store: 'lesson_plans', key: 'local-plan', base: null },
+    { store: 'lesson_plans', key: 'remote-plan', base: null, value: { plan_id: 'remote-plan', status: 'proposed', topic: { series_id: 'series' } } },
+  ] }] })))
+  server.objects.set(packed.id, new Blob([packed.bytes as Uint8Array<ArrayBuffer>]))
+  server.commits.push({ revision: 1, mutation: 'remote-scope', objects: [packed.id] })
+  await client.syncNow()
+  expect(client.syncStatus().state).toBe('conflict')
+  await client.resolveSyncConflict(choice)
+  expect(client.syncStatus().state).toBe('synced')
+  await client.withSyncedLibrary(async db => {
+    const series = await allRecords<{ plan_ids: string[] }>(db, 'topic_series')
+    const plans = await allRecords<{ plan_id: string }>(db, 'lesson_plans')
+    expect(series[0].plan_ids).toEqual([choice === 'local' ? 'local-plan' : 'remote-plan'])
+    expect(series[0].plan_ids.every(id => plans.some(plan => plan.plan_id === id))).toBe(true)
+    expect(await allRecords(db, 'lesson_documents')).toHaveLength(choice === 'local' ? 1 : 0)
+    const preserved = await allRecords<{ pending: Array<{ changes: Array<{ store: string }> }> }>(db, 'sync_conflicts')
+    expect(preserved[0].pending.some(entry => entry.changes.some(change => change.store === 'lesson_documents'))).toBe(true)
+    expect(await allRecords(db, 'sync_outbox')).toEqual([])
+    expect(await allRecords(db, 'sync_conflicts')).toHaveLength(1)
+  })
+})
+
+
+it('restores source metadata without transferring browser-specific agent grants', async () => {
+  const server = cloudServer()
+  const client = await browser(server.fetcher as typeof fetch)
+  release = client.bindCloudIdentity('user_alpha', async () => 'token')
+  await client.connectCloudLibrary(false, false)
+  const { transactionDone } = await import('./syncDatabase')
+  await client.withSyncedLibrary(async db => {
+    const tx = db.transaction(['sources', 'source_agent_grants'], 'readwrite')
+    tx.objectStore('sources').put({ id: 'private-test', content_hash: 'fixed-hash', rights_status: 'private_authorized', storage_location: 'browser_vault', original_name: 'Private test fixture.pdf', created_at: '2026-09-20T00:00:00.000Z' })
+    tx.objectStore('source_agent_grants').put({ source_id: 'private-test', source_hash: 'fixed-hash', payload_classes: ['text', 'page_images'] })
+    await transactionDone(tx)
+  })
+  const original = await import('./browserSources')
+  expect((await original.listBrowserSources())[0].agent_content_granted).toBe(true)
+  await client.syncNow()
+  release(); release = undefined
+  const fresh = await browser(server.fetcher as typeof fetch)
+  release = fresh.bindCloudIdentity('user_alpha', async () => 'fresh-token')
+  await fresh.connectCloudLibrary(false, false)
+  const restored = await import('./browserSources')
+  expect((await restored.listBrowserSources())[0]).toMatchObject({ id: 'private-test', agent_content_granted: false, agent_visual_granted: false })
+  await restored.setBrowserAgentContentAccess('private-test', true)
+  expect((await restored.listBrowserSources())[0].agent_content_granted).toBe(true)
+  await restored.setBrowserAgentContentAccess('private-test', false)
+  expect((await restored.listBrowserSources())[0].agent_content_granted).toBe(false)
 })

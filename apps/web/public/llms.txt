@@ -1,6 +1,6 @@
 # PRISM
 
-> A source-grounded reading workspace. Work with the user's PDFs through this page's WebMCP tools.
+> A reading workspace for agent-authored topic lessons, lesson series and source-grounded reading. Uploaded PDFs are optional for topic lessons.
 
 ## Agent documentation
 

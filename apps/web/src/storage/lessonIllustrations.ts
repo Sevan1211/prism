@@ -1,6 +1,7 @@
-import { accessBrowserVault, PRISM_VAULT_AGENT_GRANT_STORE, PRISM_VAULT_CHANGED_EVENT, PRISM_VAULT_ILLUSTRATION_STORE, PRISM_VAULT_SOURCE_STORE, type BrowserVaultEnvironment } from './browserVault'
+import { accessBrowserVault, PRISM_VAULT_LESSON_PLAN_STORE, PRISM_VAULT_AGENT_GRANT_STORE, PRISM_VAULT_CHANGED_EVENT, PRISM_VAULT_ILLUSTRATION_STORE, PRISM_VAULT_SOURCE_STORE, type BrowserVaultEnvironment } from './browserVault'
 
 export interface LessonIllustration {
+  plan_id?: string
   asset_id: string; source_id: string; origin: 'ai_generated'; blob: Blob
   width: number; height: number; attribution: string; purpose: string
 }
@@ -30,22 +31,23 @@ export function decodeIllustrationData(data: string) {
   return { blob: new Blob([bytes], { type: match[1] }), width, height }
 }
 
-export async function importGeneratedIllustration(input: { source_id: string; data_url: string; attribution: string; purpose: string }) {
+export async function importGeneratedIllustration(input: { source_id?: string; plan_id?: string; data_url: string; attribution: string; purpose: string }) {
+  if (Boolean(input.source_id) === Boolean(input.plan_id)) throw new Error('Choose exactly one source_id or topic plan_id.')
   if (!input.attribution.trim() || input.attribution.length > 600 || !input.purpose.trim() || input.purpose.length > 1200) throw new Error('Include concise attribution and a concrete explanatory purpose.')
   const decoded = decodeIllustrationData(input.data_url)
   const bitmap = await createImageBitmap(decoded.blob)
   try { if (bitmap.width * bitmap.height > 12_000_000) throw new Error('Decoded image is too large.') } finally { bitmap.close() }
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', await decoded.blob.arrayBuffer()))
   const hash = Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('')
-  const image: LessonIllustration = { ...decoded, asset_id: `image_${input.source_id}_${hash}`, source_id: input.source_id, origin: 'ai_generated', attribution: input.attribution.trim(), purpose: input.purpose.trim() }
+  const image: LessonIllustration = { ...decoded, asset_id: `image_${input.source_id ?? input.plan_id}_${hash}`, source_id: input.source_id ?? '', ...(input.plan_id ? { plan_id: input.plan_id } : {}), origin: 'ai_generated', attribution: input.attribution.trim(), purpose: input.purpose.trim() }
   await accessBrowserVault(database => new Promise<void>((resolve, reject) => {
-    const tx = database.transaction([PRISM_VAULT_SOURCE_STORE, PRISM_VAULT_AGENT_GRANT_STORE, PRISM_VAULT_ILLUSTRATION_STORE], 'readwrite')
-    const source = tx.objectStore(PRISM_VAULT_SOURCE_STORE).get(input.source_id)
-    const grant = tx.objectStore(PRISM_VAULT_AGENT_GRANT_STORE).get(input.source_id)
+    const tx = database.transaction([PRISM_VAULT_SOURCE_STORE, PRISM_VAULT_LESSON_PLAN_STORE, PRISM_VAULT_AGENT_GRANT_STORE, PRISM_VAULT_ILLUSTRATION_STORE], 'readwrite')
+    const source = tx.objectStore(input.plan_id ? PRISM_VAULT_LESSON_PLAN_STORE : PRISM_VAULT_SOURCE_STORE).get(input.plan_id ?? input.source_id!)
+    const grant = tx.objectStore(PRISM_VAULT_AGENT_GRANT_STORE).get(input.source_id ?? '')
     let failure: Error | undefined
     grant.onsuccess = () => {
       const record = source.result
-      if (!record || (!['open_license', 'public_domain'].includes(record.rights_status) && grant.result?.source_hash !== record.content_hash)) {
+      if (!record || (input.plan_id ? !record.topic || record.status !== 'approved' : !['open_license', 'public_domain'].includes(record.rights_status) && grant.result?.source_hash !== record.content_hash)) {
         failure = new Error('This source is missing or agent access was revoked.'); tx.abort(); return
       }
       const store = tx.objectStore(PRISM_VAULT_ILLUSTRATION_STORE)
@@ -62,7 +64,7 @@ export async function importGeneratedIllustration(input: { source_id: string; da
 export function getLessonIllustration(assetId: string, sourceId: string, environment?: BrowserVaultEnvironment): Promise<LessonIllustration | undefined> {
   return accessBrowserVault(database => new Promise((resolve, reject) => {
     const request = database.transaction(PRISM_VAULT_ILLUSTRATION_STORE, 'readonly').objectStore(PRISM_VAULT_ILLUSTRATION_STORE).get(assetId)
-    request.onsuccess = () => resolve(request.result?.source_id === sourceId ? request.result : undefined)
+    request.onsuccess = () => resolve((request.result?.plan_id ?? request.result?.source_id) === sourceId ? request.result : undefined)
     request.onerror = () => reject(request.error)
   }), environment)
 }

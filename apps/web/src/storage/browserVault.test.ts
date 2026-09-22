@@ -2,6 +2,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import { describe, expect, it, vi } from 'vitest'
 import {
   inspectBrowserVault,
+  PRISM_VAULT_TOPIC_SERIES_STORE,
   PRISM_VAULT_AGENT_ACTIVITY_STORE,
   PRISM_VAULT_AGENT_GRANT_STORE,
   PRISM_VAULT_DATABASE,
@@ -142,6 +143,29 @@ describe('browser vault', () => {
       schemaVersion: null,
       state: 'unavailable',
     })
+  })
+
+  it('upgrades a populated version-13 library without altering existing source or lesson records', async () => {
+    const { env } = environment()
+    const factory = env.indexedDB as IDBFactory
+    const original = { lesson_id: 'existing', plan_id: 'existing-plan', source_id: 'existing-source', document_version: 7, status: 'ready', title: 'Existing lesson', sections: [{ section_id: 'kept', blocks: [{ block_id: 'proof', content: { kind: 'prose', text: 'Preserve this exact saved text.' } }] }] }
+    await new Promise<void>((resolve, reject) => {
+      const request = factory.open(PRISM_VAULT_DATABASE, 13)
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore('vault_meta', { keyPath: 'key' }).add({ key: 'schema', schema_version: 13, initialized_at: '2026-09-01T00:00:00.000Z' })
+        request.result.createObjectStore(PRISM_VAULT_LESSON_DOCUMENT_STORE, { keyPath: 'lesson_id' }).add(original)
+        request.result.createObjectStore(PRISM_VAULT_SOURCE_STORE, { keyPath: 'id' }).add({ id: 'existing-source', content_hash: 'unchanged', original_name: 'Existing.pdf' })
+      }
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => { request.result.close(); resolve() }
+    })
+    expect(await inspectBrowserVault(env)).toMatchObject({ schemaVersion: 14, initializedAt: '2026-09-01T00:00:00.000Z' })
+    const database = await openDatabase(factory)
+    const { requestValue } = await import('./syncDatabase')
+    expect(await requestValue(database.transaction(PRISM_VAULT_LESSON_DOCUMENT_STORE).objectStore(PRISM_VAULT_LESSON_DOCUMENT_STORE).get('existing'))).toEqual(original)
+    expect(await requestValue(database.transaction(PRISM_VAULT_SOURCE_STORE).objectStore(PRISM_VAULT_SOURCE_STORE).get('existing-source'))).toMatchObject({ content_hash: 'unchanged' })
+    expect(await requestValue(database.transaction(PRISM_VAULT_TOPIC_SERIES_STORE).objectStore(PRISM_VAULT_TOPIC_SERIES_STORE).getAll())).toEqual([])
+    database.close()
   })
 
   it('surfaces OPFS initialization failures without claiming the vault is ready', async () => {

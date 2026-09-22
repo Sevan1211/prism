@@ -1,4 +1,5 @@
-import { accessBrowserVault, PRISM_VAULT_FOLDER_STORE as FOLDERS, PRISM_VAULT_SOURCE_FOLDER_STORE as MEMBERSHIPS, type BrowserVaultEnvironment } from './browserVault'
+import type { TopicSeries } from '../lesson/topicTypes'
+import { accessBrowserVault, PRISM_VAULT_TOPIC_SERIES_STORE as TOPICS, PRISM_VAULT_FOLDER_STORE as FOLDERS, PRISM_VAULT_SOURCE_FOLDER_STORE as MEMBERSHIPS, type BrowserVaultEnvironment } from './browserVault'
 import { requestValue, transactionDone } from './syncDatabase'
 import { notifySourcesChanged } from './sourceLibraryEvents'
 
@@ -58,11 +59,13 @@ export async function moveSourceToFolder(sourceId: string, folderId: string | nu
 /** Removing a folder never deletes its PDFs, lessons, or reading history. */
 export async function deleteSourceFolder(id: string, environment?: BrowserVaultEnvironment): Promise<void> {
   await accessBrowserVault(async database => {
-    const tx = database.transaction([FOLDERS, MEMBERSHIPS], 'readwrite')
+    const tx = database.transaction([FOLDERS, MEMBERSHIPS, TOPICS], 'readwrite')
     const done = transactionDone(tx)
     const store = tx.objectStore(MEMBERSHIPS)
     const memberships = await requestValue<SourceFolderMembership[]>(store.index('folder_id').getAll(id))
     memberships.forEach(membership => store.delete(membership.source_id))
+    const topics = await requestValue<TopicSeries[]>(tx.objectStore(TOPICS).getAll())
+    topics.filter(series => series.folder_id === id).forEach(series => tx.objectStore(TOPICS).put({ ...series, folder_id: null, version: series.version + 1, updated_at: new Date().toISOString() }))
     tx.objectStore(FOLDERS).delete(id)
     await done
   }, environment)

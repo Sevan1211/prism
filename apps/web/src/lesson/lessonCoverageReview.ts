@@ -7,7 +7,7 @@ export const coverageReviewSchema = {
     type: 'object', additionalProperties: false,
     properties: {
       concept: { type: 'string', minLength: 1, maxLength: 240 },
-      source_element_ids: { type: 'array', minItems: 1, maxItems: 128, uniqueItems: true, items: { type: 'string' } },
+      source_element_ids: { type: 'array', minItems: 0, maxItems: 128, uniqueItems: true, items: { type: 'string' } },
       block_ids: { type: 'array', minItems: 1, maxItems: 64, uniqueItems: true, items: { type: 'string' } },
       retained_details: { type: 'string', minLength: 20, maxLength: 2000 },
     },
@@ -31,11 +31,11 @@ export function validateCoverageReview(value: unknown, document: LessonDocument,
   }
   const review = value.map((entry: Partial<LessonCoverageReview> | null) => {
     if (!entry || typeof entry !== 'object') throw new Error('Invalid coverage review entry.')
-    const sourceIds = ids(entry.source_element_ids, 128)
+    const sourceIds = plan.topic && Array.isArray(entry.source_element_ids) && !entry.source_element_ids.length ? [] : ids(entry.source_element_ids, 128)
     const blockIds = ids(entry.block_ids, 64)
     for (const id of blockIds) {
       const block = blocks.get(id)
-      if (!block || !sourceIds.some(sourceId => block.source_element_ids.includes(sourceId))) throw new Error(`Coverage review block ${id} must exist and cite its mapped evidence.`)
+      if (!block || (!plan.topic && !sourceIds.some(sourceId => block.source_element_ids.includes(sourceId)))) throw new Error(`Coverage review block ${id} must exist and cite its mapped evidence.`)
       reviewedBlocks.add(id)
     }
     for (const id of sourceIds) {

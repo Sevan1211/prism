@@ -1,3 +1,4 @@
+import { TopicSeriesPage } from './lesson/TopicWorkspace'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { loadLibrarySources } from './library/sourceLibrary'
 import { LoadingState } from './LoadingState'
@@ -293,6 +294,7 @@ function ReadingWorkspace() {
     return <LoadingState title="Opening your library" detail="Finding this source and checking your saved library connection." error={error} onRetry={() => window.location.reload()} onBack={() => navigatePrism(libraryPath())} />
   }
 
+  if (route.kind === 'series') return <TopicSeriesPage key={route.seriesId} seriesId={route.seriesId} />
   if (route.kind === 'lesson') return <><LessonReaderPage key={route.lessonId} lessonId={route.lessonId} onError={setError} onOpenEvidence={openSourceEvidence} returnTargetId={returnTargetId} onReturnComplete={completeReturn} />{error ? <p className="workspace-error" role="alert">{error}</p> : null}</>
 
   return (

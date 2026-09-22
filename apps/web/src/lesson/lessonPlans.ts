@@ -172,6 +172,7 @@ export async function approveLessonPlan(
 ): Promise<LessonPlan> {
   const plan = await getLessonPlan(planId, dependencies.environment)
   if (!plan) throw new Error('This lesson plan no longer exists.')
+  if (plan.topic) throw new Error('Approve the complete lesson series from its visible plan.')
   if (plan.status === 'approved') return plan
   if (plan.updated_at !== expectedUpdatedAt) {
     throw new Error('This plan changed before approval. Review the current proposal first.')

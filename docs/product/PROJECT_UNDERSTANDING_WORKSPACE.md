@@ -104,3 +104,11 @@ The post-challenge product may expand to project bundles, typed multi-source evi
 3. Define visible proposal-and-accept handling for material revisions to an existing lesson draft.
 4. Specify lifecycle behavior when a source is removed from a project: block deletion, detach dependent route steps, or require a replacement source.
 
+
+## Topic-first extension, 2026-09-20
+
+[Topic lessons and series](TOPIC_LESSONS.md) implement folders with optional sources
+and agent-authored lessons. The learner explicitly chooses knowledge plus research,
+knowledge only, or selected sources only. This mode choice governs external research;
+folder membership never grants source access. This local extension does not claim to
+implement every project-map or adaptive-route capability described above.

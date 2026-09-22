@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import { ArrowCounterClockwise, CaretLeft, CaretRight, Pause, Play } from '@phosphor-icons/react'
+import { resolveSceneNodes } from './lessonVisuals'
 import type { DataPlot, SceneNode, VisualScene } from './lessonVisuals'
 import './lessonVisual.css'
 
@@ -9,11 +10,24 @@ export function LessonVisual({ content }: { content: VisualScene | DataPlot }) {
 
 function Scene({ content }: { content: VisualScene }) {
   const marker = useId().replace(/:/g, '')
+  const allStates = [content.nodes, ...content.steps.map((_, index) => resolveSceneNodes(content, index))].flat()
+  const top = Math.max(0, Math.min(...allStates.map(node => node.y)) - 80)
+  const bottom = Math.min(600, Math.max(...allStates.map(node => node.y + node.height)) + 80)
+  const canvasHeight = Math.max(220, bottom - top)
   const [stepIndex, setStepIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
+  const [speed, setSpeed] = useState(1)
+  const [reduced, setReduced] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  useEffect(() => {
+    const media = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+    if (!media) return
+    const update = () => { setReduced(media.matches); if (media.matches) setPlaying(false) }
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
   const [selected, setSelected] = useState<string | null>(null)
   const step = content.steps[stepIndex]
-  const nodes = content.nodes.map((node) => ({ ...node, ...step?.positions.find((position) => position.id === node.id) }))
+  const nodes = resolveSceneNodes(content, stepIndex)
   const byId = new Map(nodes.map((node) => [node.id, node]))
   const chosen = selected ? byId.get(selected) : null
   useEffect(() => {
@@ -21,21 +35,26 @@ function Scene({ content }: { content: VisualScene }) {
     const timer = window.setTimeout(() => {
       if (stepIndex < content.steps.length - 1) setStepIndex(stepIndex + 1)
       if (stepIndex >= content.steps.length - 2) setPlaying(false)
-    }, 3500)
+    }, 3500 / speed)
     return () => window.clearTimeout(timer)
-  }, [content.steps.length, playing, stepIndex])
+  }, [content.steps.length, playing, stepIndex, speed])
+  useEffect(() => {
+    const pause = () => { if (document.hidden) setPlaying(false) }
+    document.addEventListener('visibilitychange', pause)
+    return () => document.removeEventListener('visibilitychange', pause)
+  }, [])
   const go = (index: number) => { setPlaying(false); setStepIndex(index); setSelected(null) }
-  return <figure className="lesson-visual">
+  return <figure className="lesson-visual" data-reduced-motion={reduced}>
     <figcaption>{content.caption}</figcaption>
     <div className="visual-scene-scroll" tabIndex={0} aria-label="Diagram. Scroll horizontally on small screens.">
-      <svg viewBox="0 0 1000 600" className="visual-scene" role="img" aria-label={`${content.description}${step ? ` Current step: ${step.label}. ${step.description}` : ''}`}>
+      <svg viewBox={`0 ${top} 1000 ${canvasHeight}`} className="visual-scene" role="img" aria-label={`${content.description}${step ? ` Current step: ${step.label}. ${step.description}` : ''}`}>
         <defs><marker id={marker} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" /></marker></defs>
         {content.edges.map((edge, i) => {
           const from = byId.get(edge.from)!
           const to = byId.get(edge.to)!
           const [x1, y1] = connection(from, to)
           const [x2, y2] = connection(to, from)
-          return <g key={`${edge.from}-${edge.to}-${i}`} className="scene-edge"><line x1={x1} y1={y1} x2={x2} y2={y2} markerEnd={`url(#${marker})`} /><text x={(x1 + x2) / 2} y={(y1 + y2) / 2 - 12} textAnchor="middle">{edge.label}</text></g>
+          return <g key={`${edge.from}-${edge.to}-${i}`} className="scene-edge"><path d={`M ${x1} ${y1} L ${x2} ${y2}`} style={{ d: `path("M ${x1} ${y1} L ${x2} ${y2}")` }} markerEnd={`url(#${marker})`} /><text style={{ transform: `translate(${(x1 + x2) / 2}px, ${(y1 + y2) / 2 - 12}px)` }} textAnchor="middle">{edge.label}</text></g>
         })}
         {nodes.map((node) => <g key={node.id} className="scene-node" data-tone={node.tone} data-emphasized={step?.focus.includes(node.id) || selected === node.id} style={{ transform: `translate(${node.x}px, ${node.y}px)` }}>
           {node.shape === 'ellipse' ? <ellipse cx={node.width / 2} cy={node.height / 2} rx={node.width / 2 - 2} ry={node.height / 2 - 2} /> : <rect x={2} y={2} width={node.width - 4} height={node.height - 4} rx={12} />}
@@ -44,17 +63,19 @@ function Scene({ content }: { content: VisualScene }) {
       </svg>
     </div>
     {content.steps.length > 1 ? <div className="visual-player">
-      <button type="button" className="icon-button" aria-label={playing ? 'Pause explanation' : 'Play explanation'} onClick={() => { if (stepIndex === content.steps.length - 1) setStepIndex(0); setPlaying(!playing) }}>{playing ? <Pause weight="fill" /> : <Play weight="fill" />}</button>
+      <button type="button" className="icon-button" aria-label={playing ? 'Pause explanation' : 'Play explanation'} onClick={() => { if (stepIndex === content.steps.length - 1) setStepIndex(0); setPlaying(!playing) }}>{playing ? <Pause aria-hidden="true" weight="fill" /> : <Play aria-hidden="true" weight="fill" />}</button>
       <input type="range" min={0} max={content.steps.length - 1} value={stepIndex} aria-label="Explanation step" aria-valuetext={`${stepIndex + 1}: ${step.label}`} onChange={(event) => go(Number(event.target.value))} />
       <span>{stepIndex + 1} / {content.steps.length}</span>
-      <button type="button" className="icon-button" aria-label="Previous step" disabled={stepIndex === 0} onClick={() => go(stepIndex - 1)}><CaretLeft /></button>
-      <button type="button" className="icon-button" aria-label="Next step" disabled={stepIndex === content.steps.length - 1} onClick={() => go(stepIndex + 1)}><CaretRight /></button>
-      <button type="button" className="icon-button" aria-label="Reset explanation" onClick={() => go(0)}><ArrowCounterClockwise /></button>
+      <label className="visual-speed"><span className="sr-only">Playback speed</span><select aria-label="Playback speed" value={speed} onChange={event => setSpeed(Number(event.target.value))}><option value={0.5}>0.5×</option><option value={1}>1×</option><option value={1.5}>1.5×</option><option value={2}>2×</option></select></label>
+      <button type="button" className="icon-button" aria-label="Previous step" disabled={stepIndex === 0} onClick={() => go(stepIndex - 1)}><CaretLeft aria-hidden="true" /></button>
+      <button type="button" className="icon-button" aria-label="Next step" disabled={stepIndex === content.steps.length - 1} onClick={() => go(stepIndex + 1)}><CaretRight aria-hidden="true" /></button>
+      <button type="button" className="icon-button" aria-label="Reset explanation" onClick={() => go(0)}><ArrowCounterClockwise aria-hidden="true" /></button>
     </div> : null}
+    {content.steps.length > 1 ? <nav className="visual-step-tabs" aria-label="Explanation stages">{content.steps.map((item, index) => <button type="button" key={index} aria-current={index === stepIndex ? 'step' : undefined} onClick={() => go(index)}><span>{index + 1}</span>{item.label}</button>)}</nav> : null}
     <div className="visual-explanation" aria-live={playing ? 'off' : 'polite'}><strong>{step?.label ?? 'How to read this visual'}</strong><p>{step?.description ?? content.description}</p></div>
     <div className="visual-node-controls" aria-label="Explore the concepts">{nodes.map((node) => <button type="button" key={node.id} aria-pressed={selected === node.id} onClick={() => { setPlaying(false); setSelected(selected === node.id ? null : node.id) }}>{node.label}</button>)}</div>
     {chosen ? <div className="visual-node-detail" role="status"><strong>{chosen.label}</strong><p>{chosen.detail}</p></div> : null}
-    <details className="visual-transcript"><summary>Read the full visual explanation</summary><p>{content.description}</p><dl>{content.nodes.map((node) => <div key={node.id}><dt>{node.label}</dt><dd>{node.detail}</dd></div>)}</dl><ul>{content.edges.map((edge, i) => <li key={i}>{byId.get(edge.from)?.label} — {edge.label || 'connects to'} → {byId.get(edge.to)?.label}</li>)}</ul>{content.steps.length ? <ol>{content.steps.map((item, i) => <li key={i}><strong>{item.label}.</strong> {item.description}</li>)}</ol> : null}</details>
+    <details className="visual-transcript"><summary>Read the full visual explanation</summary><p>{content.description}</p><dl>{content.nodes.map((node) => <div key={node.id}><dt>{node.label}</dt><dd>{node.detail}</dd></div>)}</dl><ul>{content.edges.map((edge, i) => <li key={i}>{byId.get(edge.from)?.label} — {edge.label || 'connects to'} → {byId.get(edge.to)?.label}</li>)}</ul>{content.steps.length ? <ol>{content.steps.map((item, i) => <li key={i}><strong>{item.label}.</strong> {item.description}{item.changes?.length ? <ul>{item.changes.map(change => <li key={change.id}>{content.nodes.find(node => node.id === change.id)?.label}: {change.label ?? ''} {change.detail ?? ''} {change.tone ? `(${change.tone})` : ''}</li>)}</ul> : null}</li>)}</ol> : null}</details>
   </figure>
 }
 
