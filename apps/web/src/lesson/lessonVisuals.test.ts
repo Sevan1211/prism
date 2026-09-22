@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeVisual, visualSceneWarnings, type VisualScene } from './lessonVisuals'
+import { normalizeVisual, normalizeProcessDiagram, resolveSceneNodes, visualSceneWarnings, type VisualScene } from './lessonVisuals'
 
 const scene: VisualScene = { kind: 'visual_scene', caption: 'Two connected ideas', description: 'An editable spatial explanation.', nodes: [{ id: 'a', x: 100, y: 100, width: 200, height: 100, label: 'Cause', detail: 'The initial condition.', shape: 'box', tone: 'neutral' }, { id: 'b', x: 650, y: 100, width: 200, height: 100, label: 'Effect', detail: 'The resulting change.', shape: 'ellipse', tone: 'accent' }], edges: [{ from: 'a', to: 'b', label: 'influences' }], steps: [{ label: 'Inspect the cause', description: 'Start with the initial condition.', focus: ['a'], positions: [] }] }
 
@@ -32,4 +32,15 @@ describe('declarative visual contract', () => {
     expect(normalizeVisual({ ...plot, style: 'area' })).toMatchObject({ style: 'area' })
     expect(() => normalizeVisual({ ...plot, series: [plot.series[0], plot.series[0]] })).toThrow('labels must be unique')
   })
+})
+
+it('builds compact multi-discipline diagrams and resolves cumulative state deterministically', () => {
+  const recipe = { kind: 'process_diagram', caption: 'A sequence of interpretations', description: 'A synthetic humanities visual.', layout: 'row', nodes: [{ id: 'a', label: 'Observation', detail: 'What was seen.' }, { id: 'b', label: 'Interpretation', detail: 'An explanation.' }], edges: [{ from: 'a', to: 'b', label: 'informs' }], steps: [{ label: 'Observe', description: 'Record the observation.', focus: ['a'], changes: [] }, { label: 'Interpret', description: 'Consider a hypothesis.', focus: ['b'], changes: [{ id: 'b', label: 'Hypothesis', detail: 'A tentative interpretation.', tone: 'accent' }] }, { label: 'Reconsider', description: 'Retain the hypothesis while seeking more evidence.', focus: ['a'], changes: [] }] }
+  const diagram = normalizeProcessDiagram(recipe)
+  expect(resolveSceneNodes(diagram, 2)[1].label).toBe('Hypothesis')
+  expect(resolveSceneNodes(diagram, 0)[1].label).toBe('Interpretation')
+  expect(visualSceneWarnings(diagram)).toEqual([])
+  expect(() => normalizeProcessDiagram({ ...recipe, steps: [{ ...recipe.steps[1], changes: [{ id: 'missing', label: 'X' }] }] })).toThrow('unknown node')
+  expect(() => normalizeProcessDiagram({ ...recipe, script: 'alert(1)' })).toThrow('unknown properties')
+  expect(recipe.nodes[1].label).toBe('Interpretation')
 })

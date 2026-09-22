@@ -276,3 +276,16 @@ first rendered section early, batches later visual inspection, and finishes with
 a cross-section consistency/omission check. Reading all reviewed prose back through
 tools and regenerating an unchanged map are unnecessary. Every authored visual
 still needs actual inspection; checkpoints do not certify pixels or truth.
+
+## Topic authoring extension (local, 2026-09-20)
+
+The local tool surface now contains **30 tools**, including `get_topic_workspace`,
+`create_topic_request`, and `propose_topic_series`. The existing 27 tools remain
+available. Read the [topic contract](../product/TOPIC_LESSONS.md) and generated
+`get_authoring_guide` topic `topics` for the workflow. No approval tool was added.
+Topic plan details are paginated by sections, objectives, questions and references.
+Shared draft, read, finalization, revision, illustration and active-selection tools
+accept topic plans and enforce current access to any referenced private source.
+For new work, agents must ask clarifying questions and receive real answers before
+planning; saved answers and approved work can be resumed. The record is an agent
+attestation, not a transcript verification service.

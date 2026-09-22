@@ -1,3 +1,4 @@
+import { TopicReferences } from './TopicReferences'
 import { Fragment, lazy, Suspense, useEffect, useState } from 'react'
 import { AgentRequestCard } from '../workspace/AgentRequestCard'
 import { lessonPassageRequest } from './lessonPassageRequest'
@@ -33,13 +34,14 @@ interface LessonDraftPreviewProps {
   onError: (message: string) => void
   onOpenEvidence: (elementId: string, returnTargetId?: string) => Promise<void>
   plan: LessonPlan
+  onOpenTopicEvidence?: (sourceId: string, elementId: string, returnTargetId?: string) => Promise<void>
 }
 
 export function LessonDraftPreview(props: LessonDraftPreviewProps) {
   return <LessonDraftSession key={props.plan.plan_id} {...props} />
 }
 
-function LessonDraftSession({ onError, onOpenEvidence, plan }: LessonDraftPreviewProps) {
+function LessonDraftSession({ onError, onOpenEvidence, onOpenTopicEvidence, plan }: LessonDraftPreviewProps) {
   const [document, setDocument] = useState<LessonDocument | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -48,7 +50,7 @@ function LessonDraftSession({ onError, onOpenEvidence, plan }: LessonDraftPrevie
   const [outcome, setOutcome] = useState<LessonOutcomeProposal | null>(null)
   const [decisionPending, setDecisionPending] = useState(false)
   const [focus, setFocus] = useState<{ blockId: string; text: string; version: number } | null>(null)
-  const [question, setQuestion] = useState('Explain this more deeply, preserving the source’s qualifications. Add a worked example if it helps.')
+  const [question, setQuestion] = useState('Explain this more deeply, preserving the qualifications and limitations. Add a worked example if it helps.')
   const [evidencePreview, setEvidencePreview] = useState<{ elementId: string; referenceIds: string[]; returnTargetId: string } | null>(null)
 
   useEffect(() => {
@@ -146,18 +148,18 @@ function LessonDraftSession({ onError, onOpenEvidence, plan }: LessonDraftPrevie
   }
   const passageHelp = activeFocus ? <aside className="lesson-agent-request" aria-label="Selected passage for your agent">
     <div className="lesson-agent-request-header"><strong>Understand this passage</strong><button type="button" onClick={() => { setFocus(null) }} aria-label="Clear selected passage">×</button></div>
-    {activeFocus.text ? <blockquote data-selected-excerpt>{activeFocus.text}</blockquote> : <p>Your agent will read this block and its source references.</p>}
+    {activeFocus.text ? <blockquote data-selected-excerpt>{activeFocus.text}</blockquote> : <p>Your agent will read this block and its supporting context.</p>}
     <label htmlFor="lesson-agent-question">What would help you understand it?</label>
     <textarea id="lesson-agent-question" data-learner-request value={question} maxLength={800} onChange={(event) => { setQuestion(event.target.value) }} />
     <div className="passage-help-options">{['Explain why this follows.', 'Walk through a worked example.', 'Explain the missing prerequisite.', 'Clarify the limitations.'].map(prompt => <button className="quiet-button" type="button" key={prompt} onClick={() => { setQuestion(prompt) }}>{prompt}</button>)}</div>
-    <AgentRequestCard title="Ask about this passage" description="Review any proposed lesson changes here before accepting them." prompt={lessonPassageRequest(document.lesson_id, document.document_version, activeFocus.blockId, activeFocus.text, question)} />
+    <AgentRequestCard title="Ask about this passage" description="Review any proposed lesson changes here before accepting them." prompt={lessonPassageRequest(document.lesson_id, document.document_version, activeFocus.blockId, activeFocus.text, question, Boolean(plan.topic))} />
   </aside> : null
 
   return (
     <article className="lesson-draft" aria-labelledby={`lesson-draft-${document.lesson_id}`} data-lesson-id={document.lesson_id} data-document-version={document.document_version} data-focus-block-id={activeFocus?.blockId} onPointerUp={captureSelection} onKeyUp={captureSelection}>
       <header className="lesson-draft-header">
         <div>
-          <span>Read & understand · pages {plan.page_start}–{plan.page_end}</span>
+          <span>Read & understand · {plan.topic ? 'Topic lesson' : `pages ${plan.page_start}–${plan.page_end}`}</span>
           <h2 id={`lesson-draft-${document.lesson_id}`}>{document.title}</h2>
           <p className="lesson-deck">{plan.objectives?.[0]?.description}</p>
         </div>
@@ -166,7 +168,7 @@ function LessonDraftSession({ onError, onOpenEvidence, plan }: LessonDraftPrevie
         </strong>
       </header>
       <LessonRevisionHistory key={`${document.lesson_id}-${document.document_version}`} document={document} onError={onError} />
-      <LessonRevisionProposal document={document} onError={onError} onOpenEvidence={onOpenEvidence} />
+      <LessonRevisionProposal topic={plan.topic} onOpenTopicEvidence={onOpenTopicEvidence} document={document} onError={onError} onOpenEvidence={onOpenEvidence} />
       <LessonCoveragePanel document={document} plan={plan} />
       {document.status === 'draft' ? <p className="lesson-progress" role="status">Work in progress · {document.sections.filter(section => section.blocks.length > 0).length} of {document.sections.length} sections have saved content. You can read them now; content review is still pending.</p> : null}
 
@@ -203,10 +205,10 @@ function LessonDraftSession({ onError, onOpenEvidence, plan }: LessonDraftPrevie
               section.blocks.map((block) => (
                 <Fragment key={block.block_id}><LessonBlock
                   block={block}
-                  sourceId={plan.source_id}
+                  sourceId={plan.topic ? plan.plan_id : plan.source_id}
                   onAsk={() => { setFocus((current) => ({ blockId: block.block_id, text: current?.blockId === block.block_id ? current.text : '', version: document.document_version })) }}
                   onOpenEvidence={(elementId, returnTargetId) => setEvidencePreview({ elementId, referenceIds: block.source_element_ids, returnTargetId })}
-                />{activeFocus?.blockId === block.block_id ? passageHelp : null}</Fragment>
+                />{plan.topic ? <TopicReferences references={plan.topic.references} ids={block.reference_ids ?? []} onOpenEvidence={onOpenTopicEvidence} onError={onError} /> : null}{activeFocus?.blockId === block.block_id ? passageHelp : null}</Fragment>
               ))
             )}
           </section>
@@ -220,7 +222,7 @@ function LessonDraftSession({ onError, onOpenEvidence, plan }: LessonDraftPrevie
         <span>Pause and explain</span>
         <h3 id={`questions-${document.lesson_id}`}>Questions to answer with your agent</h3>
         <p className="lesson-end-guidance">
-          Answer in your agent conversation. PRISM saves the agent's source-linked analysis here,
+          Answer in your agent conversation. PRISM saves the agent's analysis and uncertainty here,
           without turning the lesson into a score or claiming mastery.
         </p>
         <ol>
@@ -256,7 +258,7 @@ function LessonDraftSession({ onError, onOpenEvidence, plan }: LessonDraftPrevie
           <strong>Next action stays open</strong>
           <p>
             After reviewing a response, your agent can propose closing, continuing the
-            discussion, or creating a focused repair lesson. You make the final decision here.
+            discussion, or proposing an improvement. You make the final decision here.
           </p>
         </section>
       )}
@@ -392,7 +394,7 @@ function LessonBlock({
               </button>
             ))}
           </div>
-        ) : <small>Agent-added explanation</small>}
+        ) : null}
         <button type="button" className="lesson-ask" onClick={onAsk}>Ask about this</button>
       </div>
     </section>
@@ -412,6 +414,7 @@ function LessonBlockBody({ block, sourceId }: { block: LessonContentBlock; sourc
   if (content.kind === 'network_delay') return <NetworkDelayModel content={content} />
   if (content.kind === 'source_figure') return <SourceFigure content={content} sourceId={sourceId} />
   if (content.kind === 'illustration') return <GeneratedIllustration key={content.asset_id} sourceId={sourceId} assetId={content.asset_id} alt={content.alt} caption={content.caption} />
+  if (content.kind === 'practice') return <aside className="lesson-practice"><span className="page-kicker">OPTIONAL PRACTICE</span><h4>{content.prompt}</h4><p>Take a moment to think, write, explain, or try it. Continue whenever you are ready.</p>{content.hints.map((hint, index) => <details key={index}><summary>Hint {index + 1}</summary><p>{hint}</p></details>)}<details><summary>Explore a worked response</summary><p className="practice-solution">{content.solution}</p><p><strong>Reflect:</strong> {content.reflection}</p></details></aside>
   if (content.kind === 'prose') return <p>{content.text}</p>
   if (content.kind === 'definition') {
     return <dl><dt>{content.term}</dt><dd>{content.definition}</dd></dl>

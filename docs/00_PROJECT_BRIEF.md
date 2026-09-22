@@ -185,3 +185,12 @@ When two designs produce meaningfully different durable-learning outcomes, prefe
 - **Established for learning:** retrieval and spacing improve durable retention more reliably than passive re-exposure.
 - **Experimental:** the complete Traceable Semantic Relay interaction, persistent source anchor, and transparent behavior-informed adaptation.
 - **Speculative:** seamless one-screen multimodal streaming that consistently outperforms careful textbook study across domains.
+
+## Topic-first learning (local, 2026-09-20)
+
+The owner expanded authoring to discipline-neutral topic lessons and series without
+a required upload. Folders may mix sources and lessons. Agents clarify first, propose
+a bounded series, and wait for one learner approval before composition. Research
+choices, evidence labels, and optional practice are specified in
+[Topic lessons and series](product/TOPIC_LESSONS.md). Existing source-grounded
+reading and its fidelity requirements remain supported.

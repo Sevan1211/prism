@@ -93,12 +93,14 @@ export async function recordLessonAnswerAnalysis(
   }
 
   const status = requiredEnum(input.status, ANSWER_STATUSES, 'answer status')
-  const criterionAnalyses = normalizeCriterionAnalyses(input.criterion_analyses, question.criteria)
+  const plan = await getLessonPlan(document.plan_id, dependencies.environment)
+  const criterionAnalyses = normalizeCriterionAnalyses(input.criterion_analyses, question.criteria, Boolean(plan?.topic))
   const learnerAnswer = nullableText(input.learner_answer, 'learner_answer', 8_000)
   assertAnalysisCoherence(status, criterionAnalyses, learnerAnswer)
   const strengths = uniqueText(input.strengths, 'strengths', 12, 500)
   const gaps = uniqueText(input.gaps, 'gaps', 12, 500)
   const uncertainty = nullableText(input.uncertainty, 'uncertainty', 800)
+  if (plan?.topic && !uncertainty) throw new Error('Topic answer analysis requires an explicit uncertainty statement; this is agent judgment against objectives, not verified source evidence.')
   if (status === 'demonstrated' && strengths.length === 0) {
     throw new Error('A demonstrated analysis must name at least one observed strength.')
   }
@@ -331,6 +333,7 @@ export async function dismissLessonOutcomeProposal(
 function normalizeCriterionAnalyses(
   input: LessonCriterionAnalysis[],
   criteria: LessonAnswerCriterion[],
+  topic = false,
 ): LessonCriterionAnalysis[] {
   if (!Array.isArray(input) || input.length !== criteria.length) {
     throw new Error('The answer analysis must classify every question criterion exactly once.')
@@ -350,7 +353,7 @@ function normalizeCriterionAnalyses(
     if (evidence.some((elementId) => !allowedEvidence.has(elementId))) {
       throw new Error(`${criterionId} cites evidence outside its approved answer criterion.`)
     }
-    if (['met', 'partially_met', 'not_met'].includes(status) && evidence.length === 0) {
+    if (!topic && ['met', 'partially_met', 'not_met'].includes(status) && evidence.length === 0) {
       throw new Error(`${criterionId} requires source evidence for this judgment.`)
     }
     return {
@@ -408,6 +411,7 @@ function normalizeRepairDraft(
   unresolved: string[],
 ): LessonRepairDraft | null {
   if (recommendation !== 'repair') return input === null ? null : input
+  if (plan.topic) throw new Error('Topic lessons use proposed lesson revisions for improvements or a newly clarified topic request for additional scope.')
   if (!input || unresolved.length === 0) {
     throw new Error('A repair recommendation requires unresolved criteria and a named repair draft.')
   }

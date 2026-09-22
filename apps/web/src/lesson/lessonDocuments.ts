@@ -20,7 +20,7 @@ import type {
   LessonEditProposal,
 } from './lessonDocumentTypes'
 import type { LessonPlan } from './lessonPlanTypes'
-import { normalizeVisual, visualSceneWarnings } from './lessonVisuals'
+import { normalizeVisual, normalizeProcessDiagram, visualSceneWarnings } from './lessonVisuals'
 import { getLessonIllustration } from '../storage/lessonIllustrations'
 import { mergeCoverageReview, validateCoverageReview } from './lessonCoverageReview'
 
@@ -339,13 +339,17 @@ function normalizeBlock(input: unknown): LessonContentBlock {
     content: normalizeContent(block.content),
     provenance: provenance as LessonContentBlock['provenance'],
     source_element_ids: sourceElementIds,
+    ...(block.reference_ids === undefined ? {} : { reference_ids: uniqueIdentifiers(block.reference_ids, 'reference_ids', 40) }),
+    ...(block.objective_ids === undefined ? {} : { objective_ids: uniqueIdentifiers(block.objective_ids, 'objective_ids', 24) }),
   }
 }
 
 function normalizeContent(input: unknown): LessonBlockContent {
   const content = objectValue(input, 'block content')
   const kind = requiredText(content.kind, 'content kind', 40)
+  if (kind === 'process_diagram') return normalizeProcessDiagram(content)
   if (kind === 'visual_scene' || kind === 'data_plot') return normalizeVisual(content)
+  if (kind === 'practice') return { kind, prompt: requiredText(content.prompt, 'Practice prompt', 2000), hints: textArray(content.hints, 'Hints', 6, 1200, 0), solution: requiredText(content.solution, 'Worked solution', 6000), reflection: requiredText(content.reflection, 'Reflection', 2000) }
   if (kind === 'prose') {
     return { kind, text: requiredText(content.text, 'prose text', 6_000) }
   }
@@ -530,6 +534,9 @@ async function validateDocument(
         ))
       }
     }
+    if (plan.topic) for (const id of section.objective_ids) {
+      if (!draftSection.blocks.some(block => block.objective_ids?.includes(id))) errors.push(issue('objective_not_taught', `Section ${section.section_id} has not addressed objective ${id}.`, section.section_id))
+    }
     const representedKinds = new Set(draftSection.blocks.map((block) => block.content.kind))
     if (representedKinds.has('rich_text')) representedKinds.add('prose')
     if (representedKinds.has('network_delay')) representedKinds.add('animation')
@@ -572,7 +579,7 @@ async function validateDocument(
   const images = document.sections.flatMap(section => section.blocks.filter(block => block.content.kind === 'illustration').map(block => ({ section, block })))
   await Promise.all(images.map(async ({ section, block }) => {
     if (block.content.kind !== 'illustration') return
-    const image = await getLessonIllustration(block.content.asset_id, document.source_id, environment)
+    const image = await getLessonIllustration(block.content.asset_id, plan.topic ? plan.plan_id : document.source_id, environment)
     if (!image) errors.push(issue('illustration_missing', 'Import this illustration into the same source before using it.', section.section_id, block.block_id))
   }))
   const blockCount = document.sections.reduce((sum, section) => sum + section.blocks.length, 0)
@@ -614,7 +621,7 @@ function validateBlockProvenance(
     errors.push(issue('model_provenance_invalid', 'Interactive models are added teaching explanations, not source-authored experiments.', section.section_id, block.block_id))
   }
   if (block.content.kind === 'illustration' && block.provenance !== 'added_explanation') errors.push(issue('illustration_provenance_invalid', 'AI-generated illustrations must be labeled added_explanation. They are never source evidence.', section.section_id, block.block_id))
-  if (block.provenance !== 'added_explanation' && block.source_element_ids.length === 0) {
+  if (block.provenance !== 'added_explanation' && block.source_element_ids.length === 0 && !block.reference_ids?.length) {
     errors.push(issue(
       'grounding_required',
       'Source-authored and source-grounded blocks require source element ids.',
@@ -666,6 +673,13 @@ function assertPlanGrounding(document: LessonDocument, plan: LessonPlan): void {
     if (!approved) throw new Error(`Section ${section.section_id} is outside the approved plan.`)
     const allowed = new Set(approved.source_element_ids)
     for (const block of section.blocks) {
+      if (plan.topic) {
+        if (!block.objective_ids?.length || block.objective_ids.some(id => !approved.objective_ids.includes(id))) throw new Error('Topic blocks must identify objectives from their approved section.')
+        if (block.reference_ids?.some(id => !plan.topic!.references.some(reference => reference.id === id))) throw new Error('A block cites an unknown topic reference.')
+        if (block.source_element_ids.length || ['source_excerpt', 'source_figure'].includes(block.content.kind)) throw new Error('Topic lessons attach PDF anchors through references, not single-source blocks.')
+        if (block.provenance === 'source_authored') throw new Error('Topic synthesis is not original source content.')
+        if (plan.topic.research_mode === 'selected_sources' && !block.reference_ids?.length) throw new Error('Selected-source lessons require reference support on every block.')
+      } else if (block.reference_ids?.length || block.objective_ids?.length) throw new Error('Topic reference/objective fields require a topic plan.')
       if (block.content.kind === 'source_figure') {
         const page = block.content.page_number
         if (page < plan.page_start || page > plan.page_end

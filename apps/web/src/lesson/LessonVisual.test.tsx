@@ -1,9 +1,9 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LessonVisual } from './LessonVisual'
 import type { DataPlot, VisualScene } from './lessonVisuals'
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('accessible visual reading controls', () => {
   it('starts paused, supports stepping and reset, and retains the full explanation', () => {
@@ -19,6 +19,30 @@ describe('accessible visual reading controls', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reset explanation' }))
     expect(screen.getByRole('slider')).toHaveValue('0')
     expect(screen.getByText('Read the full visual explanation')).toBeVisible()
+  })
+  it('pauses on visibility and reduced-motion changes and keeps rewind deterministic', () => {
+    vi.useFakeTimers()
+    const listeners: Array<() => void> = []
+    const media = { matches: false, addEventListener: (_: string, callback: () => void) => listeners.push(callback), removeEventListener: vi.fn() }
+    vi.stubGlobal('matchMedia', () => media)
+    const content: VisualScene = { kind: 'visual_scene', caption: 'Changing state', description: 'Synthetic player test.', state_mode: 'cumulative', nodes: [{ id: 'a', label: 'Before', detail: 'Initial state.', x: 20, y: 20, width: 200, height: 80, tone: 'neutral', shape: 'box' }], edges: [], steps: [{ label: 'Begin', description: 'Initial.', focus: ['a'], positions: [] }, { label: 'Change', description: 'Changed.', focus: ['a'], positions: [], changes: [{ id: 'a', label: 'After' }] }, { label: 'Retain', description: 'Still changed.', focus: ['a'], positions: [] }] }
+    const { container } = render(<LessonVisual content={content} />)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Play explanation' }))
+    act(() => vi.advanceTimersByTime(1750))
+    expect(screen.getByRole('slider')).toHaveValue('1')
+    expect(screen.getByRole('button', { name: 'After' })).toBeVisible()
+    vi.spyOn(document, 'hidden', 'get').mockReturnValue(true)
+    fireEvent(document, new Event('visibilitychange'))
+    expect(screen.getByRole('button', { name: 'Play explanation' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: /Retain$/ }))
+    expect(screen.getByRole('button', { name: 'After' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Play explanation' }))
+    act(() => { media.matches = true; listeners.forEach(listener => listener()) })
+    expect(container.querySelector('figure')).toHaveAttribute('data-reduced-motion', 'true')
+    expect(screen.getByRole('button', { name: 'Play explanation' })).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Reset explanation' }))
+    expect(screen.getByRole('button', { name: 'Before' })).toBeVisible()
   })
   it('keeps exact underlying values available when filtering a chart and does not give zero a positive bar', () => {
     const content: DataPlot = { kind: 'data_plot', caption: 'Measured quantities', description: 'A synthetic test comparison, not research data.', x_label: 'Trial', y_label: 'Quantity', style: 'bar', series: [{ label: 'A', points: [{ x: 0, y: 0, label: 'First' }, { x: 1, y: 8, label: 'Second' }] }, { label: 'B', points: [{ x: 0, y: 4, label: 'First' }, { x: 1, y: 2, label: 'Second' }] }] }

@@ -212,3 +212,10 @@ html:has(.lesson-reading-page) { overflow: hidden; }
   .passage-help-options { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 600px) { .lesson-coverage-panel summary > span { display: block; margin: 4px 0; } }
+
+.lesson-practice { border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); padding: 24px; }
+.lesson-practice h4 { font-size: 1.1rem; margin: 12px 0; line-height: 1.6; }
+.lesson-practice>p { font-size: .85rem; color: var(--ink-soft); }
+.lesson-practice details { border-top: 1px solid var(--line); padding: 12px 0; font-size: .9rem; }
+.lesson-practice summary { cursor: pointer; color: var(--ink); }
+.practice-solution { white-space: pre-wrap; }

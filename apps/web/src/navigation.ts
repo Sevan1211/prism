@@ -22,6 +22,7 @@ export type SourceView = 'overview' | 'lessons'
 export type PrismRoute =
   | { kind: 'landing' }
   | { kind: 'library' }
+  | { kind: 'series'; seriesId: string }
   | { kind: 'lesson'; lessonId: string }
   | { kind: 'reader'; page: number | null; sourceId: string }
   | { kind: 'source'; sourceId: string; view: 'overview' }
@@ -40,6 +41,10 @@ export function parsePrismRoute(href: string): PrismRoute {
   if (segments.length === 0) return { kind: 'landing' }
   if (segments.length === 1 && segments[0] === 'sources') {
     return { kind: 'library' }
+  }
+  if (segments.length === 2 && segments[0] === 'series') {
+    const seriesId = safeDecode(segments[1])
+    return seriesId ? { kind: 'series', seriesId } : { kind: 'not_found' }
   }
   if (segments.length === 2 && segments[0] === 'lessons') {
     const lessonId = safeDecode(segments[1])
