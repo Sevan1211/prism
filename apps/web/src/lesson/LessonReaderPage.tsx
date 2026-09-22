@@ -5,6 +5,7 @@ import { getLessonPlan } from './lessonPlans'
 import type { LessonDocument } from './lessonDocumentTypes'
 import type { LessonPlan } from './lessonPlanTypes'
 import { LessonDraftPreview } from './LessonDraftPreview'
+import { LessonNarration } from './LessonNarration'
 import { PRISM_VAULT_CHANGED_EVENT } from '../storage/browserVault'
 import { libraryPath, sourcePath } from '../navigation'
 import { PrismLink } from '../PrismLink'
@@ -191,7 +192,7 @@ function LessonReaderSession({ lessonId, onError, onOpenEvidence, returnTargetId
     {!loaded || loadError || (!record && sync.restoring) ? <main id="workspace-main" tabIndex={-1}><LoadingState title="Opening your lesson" detail={sync.restoring ? 'Opening your account library and checking for saved lessons…' : 'Loading the saved explanation, citations and visuals.'} error={loadError} onRetry={() => setRetry(value => value + 1)} /></main> : !record ? <main id="workspace-main" tabIndex={-1} className="not-found-view"><h1>This lesson is not in your current library.</h1><p>It may have been removed or saved in another library. If you created it elsewhere, open the browser or library where you saved it.</p><PrismLink href={libraryPath()} className="button-primary">Open your library</PrismLink></main> : <>
       <div className="reading-toolbar">
         <nav aria-label="Breadcrumb"><PrismLink href={libraryPath()}>Library</PrismLink><span>/</span><PrismLink href={record.plan.topic ? `/series/${record.plan.topic.series_id}` : sourcePath(record.plan.source_id, 'lessons')}>{record.plan.topic ? 'Lesson series' : 'Source lessons'}</PrismLink><span>/</span><span aria-current="page">Reading</span></nav>
-        <div><button type="button" aria-pressed={contents} onClick={() => setContents(value => !value)}><List /> Contents</button></div>
+        <div><LessonNarration key={`${record.document.lesson_id}:${record.document.document_version}`} lesson={record.document} /><button type="button" aria-pressed={contents} onClick={() => setContents(value => !value)}><List /> Contents</button></div>
       </div>
       <div className="reading-layout" data-contents={contents}>
         {contents ? <aside className="reading-contents"><span>IN THIS LESSON</span><nav aria-label="Lesson sections"><ol>{record.document.sections.map((section, index) => <li key={section.section_id}><a href={`#section-${section.section_id.replace(/[^a-zA-Z0-9_-]/g, '-')}`}><span>{String(index + 1).padStart(2, '0')}</span>{section.title}</a></li>)}</ol></nav><small>{record.plan.topic ? 'Topic lesson' : `Pages ${record.plan.page_start}–${record.plan.page_end}`} · {record.document.sections.filter(section => section.blocks.length).length}/{record.document.sections.length} sections saved</small></aside> : null}

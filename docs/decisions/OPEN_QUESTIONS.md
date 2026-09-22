@@ -1,6 +1,15 @@
 # Open technical questions
 
-**Last updated:** 2026-09-07
+**Last updated:** 2026-09-22
+
+## 2026-09-22: local voices for the first TTS release
+
+The owner selected browser-local voices for the first saved-lesson narration release.
+Only voices whose browser `localService` flag is true are offered; no cloud speech
+provider is part of this slice. Device testing still needs to establish voice
+availability, intelligibility of math and code explanations, pause/resume behavior,
+and whether later PDF narration or finer text synchronization is useful. The older
+first-pilot deferral below is historical and does not block this owner-requested work.
 
 ## Resolved: account provider and 1 GB beta; open: production setup and measured cost
 
