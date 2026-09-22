@@ -593,7 +593,7 @@ svg { display: block; flex: 0 0 auto; }
 
 /* Reader */
 
-.reader-shell { display: flex; height: 100vh; min-height: 480px; flex-direction: column; overflow: hidden; background: var(--reader-ground); }
+.reader-shell { position: relative; display: flex; height: 100vh; height: 100dvh; min-height: 0; flex-direction: column; overflow: hidden; background: var(--reader-ground); }
 .reader-header { position: relative; z-index: 30; display: grid; min-height: 54px; flex: 0 0 auto; grid-template-columns: minmax(180px, 1fr) auto minmax(150px, 1fr); gap: 12px; align-items: center; padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--line); }
 .reader-title-group { display: flex; min-width: 0; align-items: center; gap: 9px; }
 .reader-identity { min-width: 0; }
@@ -655,7 +655,7 @@ svg { display: block; flex: 0 0 auto; }
 .contents-fallback button { width: 100%; }
 .contents-fallback .contents-fallback-note { margin: 16px 0 0; color: var(--muted); font-size: 12px; }
 
-.reader-pages { position: relative; min-width: 0; min-height: 0; overflow: auto; padding: 28px 0 80px; background: var(--reader-ground); scrollbar-gutter: stable; }
+.reader-pages { position: relative; min-width: 0; min-height: 0; overflow: auto; padding: 28px 0 max(80px, calc(env(safe-area-inset-bottom) + 24px)); background: var(--reader-ground); scrollbar-gutter: stable; }
 .reader-page { position: relative; contain: layout paint style; content-visibility: auto; contain-intrinsic-size: auto 1056px; margin: 0 auto 22px; overflow: hidden; background: var(--page-ground); box-shadow: var(--shadow-page); }
 .reader-page canvas { display: block; width: 100%; height: 100%; }
 .page-render-error { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; padding: 24px; color: #333; background: #fff; text-align: center; }
@@ -735,13 +735,10 @@ svg { display: block; flex: 0 0 auto; }
   .reader-header { display: flex; overflow-x: auto; }
   .reader-toolbar { min-width: max-content; }
   .reader-header-actions { margin-left: auto; }
-  .fit-select,
-  .zoom-value { display: none; }
   .reader-grid[data-contents="true"][data-details="true"],
   .reader-grid[data-contents="true"][data-details="false"],
   .reader-grid[data-contents="false"][data-details="true"],
   .reader-grid[data-contents="false"][data-details="false"] { grid-template-columns: minmax(0, 1fr); }
-  .reader-rail { position: absolute; inset: 54px auto 0 0; z-index: 25; width: min(300px, 88vw); box-shadow: var(--shadow); }
   .reader-page { margin-bottom: 14px; }
 }
 
@@ -858,12 +855,47 @@ svg { display: block; flex: 0 0 auto; }
 @media (max-width: 700px) {
   .agent-tools-button > span, .help-button > span, .storage-header-button > span { display: none; }
   .storage-header-button { min-width: 36px; min-height: 36px; justify-content: center; padding: 8px; }
-  .reader-header { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; padding: 7px 10px; overflow: visible; }
+  .reader-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; padding: max(7px, env(safe-area-inset-top)) 10px 7px; overflow: visible; }
   .reader-title-group { grid-column: 1; grid-row: 1; }
+  .reader-identity { display: block; }
+  .reader-identity span { display: none; }
   .reader-header-actions { grid-column: 2; grid-row: 1; margin: 0; gap: 4px; }
-  .reader-toolbar { grid-column: 1 / -1; grid-row: 2; min-width: 0; width: 100%; justify-content: center; padding-top: 6px; border-top: 1px solid var(--line); }
-  .reader-toolbar > button, .reader-header-actions > button, .reader-back { width: 36px; height: 36px; flex: 0 0 36px; }
-  .reader-rail { inset-block-start: 0; }
+  .reader-toolbar { grid-column: 1 / -1; grid-row: 2; min-width: 0; width: 100%; justify-content: space-between; gap: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
+  .reader-toolbar > button, .reader-header-actions > button, .reader-more > button, .reader-back { min-width: 44px; height: 44px; flex: 0 0 44px; }
+  .reader-toolbar > button:first-child { display: flex; width: auto; min-width: 44px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; font-size: .75rem; font-weight: 650; }
+  .reader-toolbar .toolbar-separator { display: none; }
+  .reader-toolbar .page-jump { height: 44px; margin: 0; }
+  .reader-toolbar .page-jump input { width: 44px; height: 44px; font-size: 16px; }
+  .reader-more { position: relative; }
+  .reader-more > button { display: grid; place-items: center; background: transparent; color: var(--ink-soft); }
+  .reader-more-panel { position: absolute; top: calc(100% + 7px); right: 0; z-index: 50; display: grid; width: min(290px, calc(100vw - 20px)); max-height: calc(100dvh - 76px); gap: 8px; padding: 16px; overflow-y: auto; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; box-shadow: var(--shadow); }
+  .reader-more-panel > strong { margin-bottom: 2px; font-size: .75rem; }
+  .reader-more-panel :is(button, select) { min-height: 44px; }
+  .reader-more-panel > button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; color: var(--ink-soft); background: var(--surface-2); text-align: left; }
+  .reader-more-panel > button svg { width: 18px; height: 18px; }
+  .reader-more-zoom { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 4px; }
+  .reader-more-zoom button { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 4px; color: var(--ink-soft); background: var(--surface-2); font-size: .75rem; }
+  .reader-more-zoom span { min-width: 40px; color: var(--muted); font-size: .75rem; text-align: center; }
+  .reader-more-fit { display: grid; gap: 4px; color: var(--muted); font-size: .75rem; }
+  .reader-more-fit select { width: 100%; }
+  .reader-more-panel .theme-toggle { width: 100%; justify-content: flex-start; padding: 8px 10px; }
+  .reader-more-panel .theme-toggle span, .reader-more-panel .help-button > span, .reader-more-panel .storage-header-button > span { display: inline; }
+  .reader-more-panel .storage-header-button { max-width: none; justify-content: flex-start; white-space: normal; }
+  .reader-search-panel { position: relative; top: auto; right: auto; width: 100%; border-inline: 0; border-radius: 0; box-shadow: none; }
+  .reader-search-panel > form { grid-template-columns: 18px minmax(0, 1fr) auto 44px; }
+  .reader-search-panel .icon-button { min-width: 44px; min-height: 44px; }
+  .reader-contents-dialog { position: fixed; inset: 0 auto 0 0; width: min(340px, calc(100vw - 44px)); max-width: none; height: 100dvh; max-height: 100dvh; margin: 0; padding: 0; overflow: hidden; color: var(--ink); background: var(--surface); border: 0; box-shadow: var(--shadow); }
+  .reader-contents-dialog::backdrop { background: rgb(7 10 10 / 58%); }
+  .reader-contents-dialog .reader-rail { width: 100%; height: 100%; border: 0; }
+  .reader-panel-heading { justify-content: space-between; }
+  .reader-panel-close { display: grid; flex: 0 0 44px; width: 44px; height: 44px; place-items: center; background: transparent; color: var(--ink-soft); }
+  .reader-panel-close svg { width: 19px; height: 19px; }
+  .reader-context { width: min(320px, 88vw); }
+  .reader-rail .contents-toggle, .reader-rail .contents-leaf { flex-basis: 44px; width: 44px; height: 44px; }
+  .reader-rail .contents-destination { min-height: 44px; align-items: center; }
+  .reader-rail .contents-actions button { min-height: 44px; }
+  .reader-rail .contents-filter { height: 44px; }
+  .reader-rail .contents-filter input { min-height: 44px; font-size: 16px; }
   .reader-grid { position: relative; }
   .storage-dialog { width: calc(100vw - 24px); max-height: calc(100dvh - 24px); }
   .storage-dialog > header { padding: 20px; }
@@ -878,10 +910,6 @@ svg { display: block; flex: 0 0 auto; }
   .lesson-scope-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .lesson-scope-fields button { grid-column: 1 / -1; justify-self: start; }
   .loading-state { padding: 24px; }
-}
-@media (max-width: 380px) {
-  .reader-toolbar > button { width: 32px; flex-basis: 32px; }
-  .reader-toolbar .toolbar-separator { margin-inline: 3px; }
 }
 .sync-intro { display: flex; align-items: flex-start; gap: .9rem; }
 .sync-intro > svg { flex: 0 0 auto; width: 1.7rem; height: 1.7rem; margin-top: .2rem; }

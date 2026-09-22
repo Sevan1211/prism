@@ -387,6 +387,34 @@ describe('Reader', () => {
     await user.click(screen.getByRole('button', { name: 'Hide contents' }))
     expect(screen.queryByRole('navigation', { name: 'Document structure' })).not.toBeInTheDocument()
   })
+  it('keeps mobile navigation in the Reader and returns focus after a contents choice', async () => {
+    const previousWidth = window.innerWidth
+    const previousMatchMedia = window.matchMedia
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }) })
+    const onExit = vi.fn()
+    try {
+      const user = userEvent.setup()
+      render(<Reader access={access} source={source} structure={structure} onExit={onExit} />)
+
+      await user.click(screen.getByRole('button', { name: 'Show contents' }))
+      expect(screen.getByRole('dialog', { name: 'Document contents' })).toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: /chapter 2 backtracking/i }))
+      expect(screen.queryByRole('navigation', { name: 'Document structure' })).not.toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: 'PDF page' })).toHaveValue('21')
+      await waitFor(() => expect(screen.getByLabelText('Document pages')).toHaveFocus())
+
+      await user.click(screen.getByRole('button', { name: 'More reader controls' }))
+      await user.click(screen.getByRole('button', { name: 'Zoom in' }))
+      expect(screen.getByText('110%')).toBeInTheDocument()
+      await user.keyboard('{Escape}')
+      expect(screen.queryByRole('button', { name: 'Zoom in' })).not.toBeInTheDocument()
+      expect(onExit).not.toHaveBeenCalled()
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: previousWidth })
+      Object.defineProperty(window, 'matchMedia', { configurable: true, value: previousMatchMedia })
+    }
+  })
   it('keeps the final PDF page selected when it cannot align with the top reading line', async () => {
     const onNavigatePage = vi.fn()
     render(<Reader access={access} source={source} structure={structure} initialPage={39} onExit={() => undefined} onNavigatePage={onNavigatePage} />)
