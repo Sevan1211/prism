@@ -20,6 +20,28 @@ html:has(.lesson-reading-page) { overflow: hidden; }
 .reading-toolbar button:hover, .figure-toolbar button:hover:not(:disabled) { background: var(--surface-2); border-color: var(--line-strong); }
 .reading-toolbar button[aria-pressed=true], .figure-toolbar button[aria-pressed=true] { color: var(--accent-strong); border-color: var(--accent); }
 .reading-toolbar svg, .figure-toolbar svg { width: 16px; height: 16px; }
+.lesson-narration-panel { position: fixed; z-index: 80; right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); box-sizing: border-box; width: min(480px, calc(100vw - 36px)); max-height: calc(100dvh - 36px); overflow: auto; padding: 20px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 18px 50px rgb(0 0 0 / .28); font: .82rem/1.5 var(--font-ui); }
+.lesson-narration-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.lesson-narration-heading > div { display: grid; gap: 3px; }
+.lesson-narration-heading span { color: var(--accent-strong); font: 700 .65rem/1.4 var(--font-ui); letter-spacing: .12em; }
+.lesson-narration-heading strong { font: 600 1.2rem/1.3 var(--font-reading); }
+.reading-toolbar .lesson-narration-heading button { min-width: 36px; padding: 0; font-size: 1.35rem; }
+.lesson-narration-note { margin: 12px 0; color: var(--ink-soft); }
+.lesson-narration-playing { margin: 10px 0 0; color: var(--ink-soft); }
+.lesson-narration-section, .lesson-narration-settings label { display: grid; gap: 5px; color: var(--ink-soft); font-weight: 600; }
+.lesson-narration-panel select { min-width: 0; width: 100%; min-height: 40px; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 5px; color: var(--ink); background: var(--ground); font: .82rem var(--font-ui); }
+.lesson-narration-settings { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.lesson-narration-settings summary { cursor: pointer; color: var(--ink); font-weight: 600; }
+.lesson-narration-settings > div { display: grid; grid-template-columns: minmax(0, 2fr) minmax(90px, 1fr); gap: 10px; margin-top: 12px; }
+.lesson-narration-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.reading-toolbar .lesson-narration-actions button { min-height: 44px; padding-inline: 14px; }
+.reading-toolbar .lesson-narration-actions button:first-child { color: var(--ground); background: var(--ink); border-color: var(--ink); }
+.reading-toolbar .lesson-narration-actions button:disabled { opacity: .5; cursor: not-allowed; }
+.lesson-narration-status { margin: 12px 0 0; color: var(--ink-soft); }
+.lesson-narration-progress { margin: 4px 0 0; color: var(--ink); font-variant-numeric: tabular-nums; }
+.lesson-narration-progress span { color: var(--ink-soft); }
+.reading-toolbar .lesson-narration-refresh { margin-top: 8px; }
+.lesson-reading-page:has(.lesson-narration-panel) .reading-layout { padding-bottom: 360px; }
 .reading-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: clamp(28px, 4vw, 72px); max-width: 1500px; margin: auto; padding: 44px 32px 100px; }
 .reading-layout[data-contents=false] { grid-template-columns: minmax(0, 1fr); max-width: 1220px; }
 .reading-layout > main { min-width: 0; }
@@ -183,6 +205,8 @@ html:has(.lesson-reading-page) { overflow: hidden; }
 .source-figure figcaption span { display: block; margin-top: 4px; font-size: 0.75rem; }
 .source-figure > p { padding: 32px; border: 1px dashed var(--line-strong); font-size: .8rem; color: var(--ink-soft); }
 @media (max-width: 600px) {
+  .lesson-narration-panel { right: 0; bottom: 0; width: 100%; max-height: calc(100dvh - 16px); padding: 18px 18px max(18px, env(safe-area-inset-bottom)); border-radius: 12px 12px 0 0; }
+  .lesson-narration-settings > div { grid-template-columns: minmax(0, 1fr) 110px; }
   .revision-comparison { grid-template-columns: minmax(0, 1fr); }
   .lesson-agent-request { right: 16px; bottom: 16px; }
   .lesson-block-proof { flex-wrap: wrap; }

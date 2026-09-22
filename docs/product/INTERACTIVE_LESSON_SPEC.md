@@ -367,3 +367,19 @@ revisions and version history share the existing lesson system. Topic finalizati
 requires every block and objective to be accounted for; it does not claim source
 fidelity where no source exists. Compact process diagrams, cumulative scene state
 and optional practice are available to both topic and source lessons.
+
+## Optional browser-local narration — 2026-09-22
+
+The saved lesson Reader offers learner-started, section-at-a-time speech using only
+voices the browser reports as local. It never selects a voice with an absent or
+false `localService` flag. Learners can choose a section, local voice and speed;
+pause, resume and stop remain available during playback. Leaving or replacing the
+lesson cancels its utterances. The compact transport stays reachable on phones.
+
+Narration is derived from typed lesson blocks, not arbitrary page text. It reads
+prose, worked steps, table rows, visual descriptions and the practice prompt.
+Unrevealed hints and worked practice responses are excluded. Equation explanations
+are spoken; exact notation, code and visual states remain available in the Reader.
+When the browser reports no local voice, playback stays disabled with an explanation.
+Speech quality, pronunciation and availability depend on the browser and device;
+software tests cannot establish audio quality or cross-device behavior.
