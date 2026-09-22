@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   CaretLeft,
   CaretRight,
+  DotsThree,
   Info,
   List,
   MagnifyingGlass,
@@ -104,11 +105,19 @@ export function Reader({
   const [highlight, setHighlight] = useState<SearchHit | null>(initialHighlight ?? null)
   const [contentsOpen, setContentsOpen] = useState(() => window.innerWidth > 700)
   const [detailsOpen, setDetailsOpen] = useState(() => window.innerWidth > 1180)
+  const [compact, setCompact] = useState(() => window.matchMedia?.('(max-width: 700px)').matches ?? window.innerWidth <= 700)
+  const [moreOpen, setMoreOpen] = useState(false)
   const [contentsFilter, setContentsFilter] = useState('')
   const [fitMode, setFitMode] = useState<FitMode>('width')
   const [zoom, setZoom] = useState(1)
   const [pageInput, setPageInput] = useState('1')
   const scrollRef = useRef<HTMLDivElement>(null)
+  const contentsDialogRef = useRef<HTMLDialogElement>(null)
+  const contentsButtonRef = useRef<HTMLButtonElement>(null)
+  const contentsCloseRef = useRef<HTMLButtonElement>(null)
+  const contentsFocusTarget = useRef<'toggle' | 'pages'>('toggle')
+  const moreRef = useRef<HTMLDivElement>(null)
+  const moreButtonRef = useRef<HTMLButtonElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const restoredRef = useRef(false)
   const navigationRequestRef = useRef<number | string | undefined>(undefined)
@@ -140,6 +149,52 @@ export function Reader({
       return true
     })
   }, [hits])
+
+  useEffect(() => {
+    const media = window.matchMedia?.('(max-width: 700px)')
+    const update = (narrow: boolean) => {
+      setCompact(narrow)
+      if (narrow) {
+        setContentsOpen(false)
+        setDetailsOpen(false)
+        setMoreOpen(false)
+      }
+    }
+    if (!media) {
+      const onResize = () => update(window.innerWidth <= 700)
+      window.addEventListener('resize', onResize)
+      return () => window.removeEventListener('resize', onResize)
+    }
+    const onChange = () => update(media.matches)
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [])
+
+  useEffect(() => {
+    const dialog = contentsDialogRef.current
+    if (!dialog) return
+    if (compact && contentsOpen && !dialog.open) {
+      if (typeof dialog.showModal === 'function') dialog.showModal()
+      else dialog.setAttribute('open', '')
+      contentsCloseRef.current?.focus()
+    } else if (dialog.open && (!compact || !contentsOpen)) {
+      if (typeof dialog.close === 'function') dialog.close()
+      else dialog.removeAttribute('open')
+      if (compact) {
+        const target = contentsFocusTarget.current === 'pages' ? scrollRef.current : contentsButtonRef.current
+        window.requestAnimationFrame(() => target?.focus({ preventScroll: true }))
+      }
+    }
+  }, [compact, contentsOpen])
+
+  useEffect(() => {
+    if (!moreOpen) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !moreRef.current?.contains(event.target)) setMoreOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [moreOpen])
 
   useEffect(() => {
     let cancelled = false
@@ -333,9 +388,15 @@ export function Reader({
         return
       }
       if (event.key === 'Escape') {
-        if (searchOpen || hits !== null) {
+        if (moreOpen) {
+          setMoreOpen(false)
+          moreButtonRef.current?.focus()
+        } else if (searchOpen || hits !== null) {
           setSearchOpen(false)
           setHits(null)
+        } else if (contentsOpen && compact) {
+          contentsFocusTarget.current = 'toggle'
+          setContentsOpen(false)
         } else {
           onExit()
         }
@@ -353,7 +414,7 @@ export function Reader({
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [hits, onExit, searchOpen])
+  }, [compact, contentsOpen, hits, moreOpen, onExit, searchOpen])
 
   async function runSearch(query: string) {
     const request = ++searchRequest.current
@@ -390,6 +451,57 @@ export function Reader({
     '--page-ratio': geometry ? geometry.width / geometry.height : 0.77,
   } as CSSProperties
 
+  const closeContents = (focus: 'toggle' | 'pages') => {
+    contentsFocusTarget.current = focus
+    setContentsOpen(false)
+  }
+  const contentsPanel = contentsOpen ? (
+    <nav className="reader-rail" id="reader-contents-rail" aria-label="Document structure">
+      <header className="reader-panel-heading">
+        <div>
+          <strong>{railOrigin === 'computed' ? 'Suggested contents' : 'Contents'}</strong>
+          <span>
+            {railOrigin === 'outline'
+              ? `${railSections.length} document ${railSections.some(section => section.origin === 'computed') ? 'headings & bookmarks' : 'bookmarks'}`
+              : railOrigin === 'computed'
+                ? `${railSections.length} detected headings`
+                : 'No reliable outline found'}
+          </span>
+        </div>
+        {compact ? <button ref={contentsCloseRef} className="reader-panel-close" type="button" aria-label="Close contents" onClick={() => closeContents('toggle')}><X aria-hidden="true" /></button> : null}
+      </header>
+      {structure === null && !authoredSections.length ? <p className="contents-note" role="status">Checking document contents…</p> : null}
+      {structure?.navigation_warnings?.length ? <details className="contents-note">
+        <summary>About these contents</summary>
+        {structure.navigation_warnings.map(warning => <p key={warning}>{warning}</p>)}
+      </details> : null}
+      {railSections.length > 14 ? (
+        <label className="contents-filter">
+          <MagnifyingGlass aria-hidden="true" />
+          <span className="sr-only">Filter document contents</span>
+          <input type="search" placeholder="Filter contents" value={contentsFilter} onChange={(event) => setContentsFilter(event.currentTarget.value)} />
+        </label>
+      ) : null}
+      {!railSections.length && structure !== null ? <div className="contents-fallback">
+        <p>This PDF has no reliable outline. Search its text or browse with the page controls.</p>
+        <button className="button-secondary" type="button" onClick={() => { closeContents('toggle'); setSearchOpen(true); window.setTimeout(() => searchInputRef.current?.focus(), 0) }}><MagnifyingGlass aria-hidden="true" />Search document</button>
+        <p className="contents-fallback-note">Image-only PDFs need OCR for text navigation.</p>
+      </div> : null}
+      <ReaderContents sections={railSections} query={contentsFilter} activeId={activeSection?.id}
+        onNavigate={(section) => {
+          const request = ++contentsRequest.current
+          jumpToPage(section.page_start, section.page_y ?? 0)
+          if (compact) closeContents('pages')
+          if (doc && section.pdf_top !== undefined) void doc.getPage(section.page_start).then(page => {
+            if (request !== contentsRequest.current || currentPageRef.current !== section.page_start) return
+            const viewport = page.getViewport({ scale: 1 })
+            const [, y] = viewport.convertToViewportPoint(0, section.pdf_top!)
+            jumpToPage(section.page_start, Math.max(0, Math.min(1, y / viewport.height - .035)), 'silent')
+          }).catch(() => undefined)
+        }} />
+    </nav>
+  ) : null
+
   return (
     <div className="reader-shell" style={pageStyle}>
       <a className="skip-link" href="#reader-pages">Skip to document</a>
@@ -422,14 +534,21 @@ export function Reader({
 
         <div className="reader-toolbar" aria-label="Reader controls">
           <button
+            ref={contentsButtonRef}
             className={contentsOpen ? 'is-active' : ''}
             type="button"
             aria-label={contentsOpen ? 'Hide contents' : 'Show contents'}
             aria-pressed={contentsOpen}
+            aria-controls={compact ? 'reader-contents-dialog' : 'reader-contents-rail'}
             title="Contents ["
-            onClick={() => setContentsOpen((current) => !current)}
+            onClick={() => {
+              contentsFocusTarget.current = 'toggle'
+              setContentsOpen((current) => !current)
+              setMoreOpen(false)
+            }}
           >
             <List aria-hidden="true" />
+            {compact ? <span>Contents</span> : null}
           </button>
           <span className="toolbar-separator" />
           <button
@@ -466,35 +585,37 @@ export function Reader({
           >
             <CaretRight aria-hidden="true" weight="bold" />
           </button>
-          <span className="toolbar-separator" />
-          <button
-            type="button"
-            aria-label="Zoom out"
-            title="Zoom out"
-            disabled={zoom <= 0.6}
-            onClick={() => setZoom((current) => Math.max(0.6, current - 0.1))}
-          >
-            <Minus aria-hidden="true" weight="bold" />
-          </button>
-          <span className="zoom-value" aria-live="polite">{Math.round(zoom * 100)}%</span>
-          <button
-            type="button"
-            aria-label="Zoom in"
-            title="Zoom in"
-            disabled={zoom >= 2}
-            onClick={() => setZoom((current) => Math.min(2, current + 0.1))}
-          >
-            <Plus aria-hidden="true" weight="bold" />
-          </button>
-          <select
-            className="fit-select"
-            aria-label="Page fit"
-            value={fitMode}
-            onChange={(event) => setFitMode(event.currentTarget.value as FitMode)}
-          >
-            <option value="width">Fit width</option>
-            <option value="page">Fit page</option>
-          </select>
+          {!compact ? <>
+            <span className="toolbar-separator" />
+            <button
+              type="button"
+              aria-label="Zoom out"
+              title="Zoom out"
+              disabled={zoom <= 0.6}
+              onClick={() => setZoom((current) => Math.max(0.6, current - 0.1))}
+            >
+              <Minus aria-hidden="true" weight="bold" />
+            </button>
+            <span className="zoom-value" aria-live="polite">{Math.round(zoom * 100)}%</span>
+            <button
+              type="button"
+              aria-label="Zoom in"
+              title="Zoom in"
+              disabled={zoom >= 2}
+              onClick={() => setZoom((current) => Math.min(2, current + 0.1))}
+            >
+              <Plus aria-hidden="true" weight="bold" />
+            </button>
+            <select
+              className="fit-select"
+              aria-label="Page fit"
+              value={fitMode}
+              onChange={(event) => setFitMode(event.currentTarget.value as FitMode)}
+            >
+              <option value="width">Fit width</option>
+              <option value="page">Fit page</option>
+            </select>
+          </> : null}
         </div>
 
         <div className="reader-header-actions">
@@ -506,24 +627,56 @@ export function Reader({
             title="Search this source (Ctrl+F)"
             onClick={() => {
               setSearchOpen((current) => !current)
+              setMoreOpen(false)
               window.setTimeout(() => searchInputRef.current?.focus(), 0)
             }}
           >
             <MagnifyingGlass aria-hidden="true" />
           </button>
-          <button
-            className={detailsOpen ? 'is-active' : ''}
-            type="button"
-            aria-label={detailsOpen ? 'Hide document details' : 'Show document details'}
-            aria-pressed={detailsOpen}
-            title="Document details ]"
-            onClick={() => setDetailsOpen((current) => !current)}
-          >
-            <Info aria-hidden="true" />
-          </button>
-          <PrismHelp compact />
-          <LibraryStorage compact />
-          <ThemeToggle />
+          {compact ? <div className="reader-more" ref={moreRef}>
+            <button
+              ref={moreButtonRef}
+              type="button"
+              aria-label="More reader controls"
+              aria-expanded={moreOpen}
+              aria-controls="reader-more-panel"
+              onClick={() => setMoreOpen((current) => !current)}
+            >
+              <DotsThree aria-hidden="true" weight="bold" />
+            </button>
+            {moreOpen ? <div className="reader-more-panel" id="reader-more-panel">
+              <strong>Reading view</strong>
+              <div className="reader-more-zoom">
+                <button type="button" aria-label="Zoom out" disabled={zoom <= 0.6} onClick={() => setZoom((current) => Math.max(0.6, current - 0.1))}><Minus aria-hidden="true" /> Zoom out</button>
+                <span aria-live="polite">{Math.round(zoom * 100)}%</span>
+                <button type="button" aria-label="Zoom in" disabled={zoom >= 2} onClick={() => setZoom((current) => Math.min(2, current + 0.1))}><Plus aria-hidden="true" /> Zoom in</button>
+              </div>
+              <label className="reader-more-fit">Page fit
+                <select aria-label="Page fit" value={fitMode} onChange={(event) => setFitMode(event.currentTarget.value as FitMode)}>
+                  <option value="width">Fit width</option>
+                  <option value="page">Fit page</option>
+                </select>
+              </label>
+              <button type="button" aria-label={detailsOpen ? 'Hide document details' : 'Show document details'} aria-pressed={detailsOpen} onClick={() => { setDetailsOpen((current) => !current); setMoreOpen(false) }}><Info aria-hidden="true" /> Document details</button>
+              <PrismHelp />
+              <LibraryStorage />
+              <ThemeToggle />
+            </div> : null}
+          </div> : <>
+            <button
+              className={detailsOpen ? 'is-active' : ''}
+              type="button"
+              aria-label={detailsOpen ? 'Hide document details' : 'Show document details'}
+              aria-pressed={detailsOpen}
+              title="Document details ]"
+              onClick={() => setDetailsOpen((current) => !current)}
+            >
+              <Info aria-hidden="true" />
+            </button>
+            <PrismHelp compact />
+            <LibraryStorage compact />
+            <ThemeToggle />
+          </>}
         </div>
       </header>
 
@@ -588,55 +741,7 @@ export function Reader({
       ) : null}
 
       <div className="reader-grid" data-contents={contentsOpen} data-details={detailsOpen}>
-        {contentsOpen ? (
-          <nav className="reader-rail" aria-label="Document structure">
-            <header className="reader-panel-heading">
-              <div>
-                <strong>{railOrigin === 'computed' ? 'Suggested contents' : 'Contents'}</strong>
-                <span>
-                  {railOrigin === 'outline'
-                    ? `${railSections.length} document ${railSections.some(section => section.origin === 'computed') ? 'headings & bookmarks' : 'bookmarks'}`
-                    : railOrigin === 'computed'
-                      ? `${railSections.length} detected headings`
-                      : 'No reliable outline found'}
-                </span>
-              </div>
-            </header>
-            {structure === null && !authoredSections.length ? <p className="contents-note" role="status">Checking document contents…</p> : null}
-            {structure?.navigation_warnings?.length ? <details className="contents-note">
-              <summary>About these contents</summary>
-              {structure.navigation_warnings.map(warning => <p key={warning}>{warning}</p>)}
-            </details> : null}
-            {railSections.length > 14 ? (
-              <label className="contents-filter">
-                <MagnifyingGlass aria-hidden="true" />
-                <span className="sr-only">Filter document contents</span>
-                <input
-                  type="search"
-                  placeholder="Filter contents"
-                  value={contentsFilter}
-                  onChange={(event) => setContentsFilter(event.currentTarget.value)}
-                />
-              </label>
-            ) : null}
-            {!railSections.length && structure !== null ? <div className="contents-fallback">
-              <p>This PDF has no reliable outline. Search its text or browse with the page controls.</p>
-              <button className="button-secondary" type="button" onClick={() => setSearchOpen(true)}><MagnifyingGlass aria-hidden="true" />Search document</button>
-              <p className="contents-fallback-note">Image-only PDFs need OCR for text navigation.</p>
-            </div> : null}
-            <ReaderContents sections={railSections} query={contentsFilter} activeId={activeSection?.id}
-              onNavigate={(section) => {
-                const request = ++contentsRequest.current
-                jumpToPage(section.page_start, section.page_y ?? 0)
-                if (doc && section.pdf_top !== undefined) void doc.getPage(section.page_start).then(page => {
-                  if (request !== contentsRequest.current || currentPageRef.current !== section.page_start) return
-                  const viewport = page.getViewport({ scale: 1 })
-                  const [, y] = viewport.convertToViewportPoint(0, section.pdf_top!)
-                  jumpToPage(section.page_start, Math.max(0, Math.min(1, y / viewport.height - .035)), 'silent')
-                }).catch(() => undefined)
-              }} />
-          </nav>
-        ) : null}
+        {!compact ? contentsPanel : null}
 
         <div
           className="reader-pages"
@@ -672,6 +777,7 @@ export function Reader({
                 <strong>Document</strong>
                 <span>Original source details</span>
               </div>
+              {compact ? <button className="reader-panel-close" type="button" aria-label="Close document details" onClick={() => setDetailsOpen(false)}><X aria-hidden="true" /></button> : null}
             </header>
             <div className="context-block">
               <p className="page-kicker">Current section</p>
@@ -688,6 +794,16 @@ export function Reader({
           </aside>
         ) : null}
       </div>
+      <dialog
+        ref={contentsDialogRef}
+        className="reader-contents-dialog"
+        id="reader-contents-dialog"
+        aria-label="Document contents"
+        onCancel={(event) => { event.preventDefault(); closeContents('toggle') }}
+        onClick={(event) => { if (event.target === event.currentTarget) closeContents('toggle') }}
+      >
+        {compact ? contentsPanel : null}
+      </dialog>
     </div>
   )
 }
